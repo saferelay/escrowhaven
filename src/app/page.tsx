@@ -16,14 +16,14 @@ export default function Page() {
   const [hasPartnerAccess, setHasPartnerAccess] = useState(false);
   const supabase = createClientComponentClient();
   
-  // Check for partner access on mount
+  // Check for partner access FIRST
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
     const access = params.get('access');
+    const preview = params.get('preview');
     
-    // Grant access for: ?ref=transak, ?access=partner, or ?preview=true
-    if (ref === 'transak' || access === 'partner' || params.get('preview') === 'true') {
+    if (ref === 'transak' || access === 'partner' || preview === 'true') {
       setHasPartnerAccess(true);
       sessionStorage.setItem('partner_access', 'true');
     } else if (sessionStorage.getItem('partner_access') === 'true') {
@@ -31,10 +31,28 @@ export default function Page() {
     }
   }, []);
   
-  // Rest of your existing auth logic here...
-  
-  // Show coming soon for non-partners
-  if (!hasPartnerAccess && !user && currentView === 'marketing') {
+  // Set view to marketing immediately if not loading
+  useEffect(() => {
+    if (!loading) {
+      setCurrentView('marketing');
+      setIsInitialized(true);
+    }
+  }, [loading]);
+
+  // Show loading state
+  if (!isInitialized || currentView === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-[#E0E2E7] border-t-[#2962FF] mx-auto"></div>
+          <p className="mt-4 text-[#787B86]">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // COMING SOON PAGE - Show this for regular visitors
+  if (!hasPartnerAccess && !user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center px-6">
         <div className="text-center max-w-2xl">
@@ -64,6 +82,21 @@ export default function Page() {
               No chargebacks. No delays. Just trust.
             </p>
             
+            <div className="grid grid-cols-3 gap-4 mb-6 pt-6 border-t border-gray-100">
+              <div>
+                <div className="text-3xl font-bold text-blue-600">1.99%</div>
+                <div className="text-sm text-gray-500">Flat fee</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-blue-600">150+</div>
+                <div className="text-sm text-gray-500">Countries</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-blue-600">Instant</div>
+                <div className="text-sm text-gray-500">Payouts</div>
+              </div>
+            </div>
+            
             <div className="space-y-3">
               <a 
                 href="mailto:hello@escrowhaven.io" 
@@ -71,13 +104,20 @@ export default function Page() {
               >
                 Get Early Access
               </a>
+              <p className="text-xs text-gray-400">
+                Join the waitlist for exclusive early access
+              </p>
             </div>
+          </div>
+          
+          <div className="text-sm text-gray-500">
+            Powered by smart contracts on Polygon blockchain
           </div>
         </div>
       </div>
     );
   }
-  
-  // Default: show marketing page
+
+  // Show marketing page for partners/logged in users
   return <MarketingPage />;
 }
