@@ -1,0 +1,280 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { sendEmail, emailTemplates } from '@/lib/email';
+import { ethers } from 'ethers';
+import { getConfig } from '@/lib/config';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// Contract ABIs
+const SAFERELAY_FACTORY_ABI = [
+  "function createEscrow(string memory payerEmail, string memory recipientEmail, address recipientWallet, uint256 amount) returns (address escrow, address splitter)",
+  "event EscrowCreated(address indexed escrow, address indexed splitter, string payerEmail, string recipientEmail, uint256 amount)"
+];
+
+const FACTORY_V2_ABI = [
+  "function createEscrowForUser(address client, address freelancer, uint256 amount, bytes32 salt) returns (address)",
+  "function getEscrowAddress(bytes32 salt) view returns (address)"
+];
+
+// Provider management
+let provider: ethers.providers.JsonRpcProvider | null = null;
+
+function getProvider() {
+  if (!provider) {
+    const config = getConfig();
+    provider = new ethers.providers.JsonRpcProvider(config.rpcUrl);
+  }
+  return provider;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const {
+      // Core fields
+      amountUsd,
+      payerEmail,
+      recipientEmail,
+      initiatorRole,
+      initiatorWallet,
+      description,
+      
+      // Optional fields for different flows
+      recipientWallet,
+      deployContract = false,  // Whether to deploy smart contract immediately
+      contractType = 'saferelay', // 'saferelay' | 'factoryV2' | 'none'
+      testMode = false
+    } = body;
+    
+    // Validation
+    if (!amountUsd || !payerEmail || !recipientEmail || !initiatorRole) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+    
+    if (amountUsd <= 0 || amountUsd > 50000) {
+      return NextResponse.json(
+        { error: 'Amount must be between $0.01 and $50,000' },
+        { status: 400 }
+      );
+    }
+    
+    if (payerEmail === recipientEmail) {
+      return NextResponse.json(
+        { error: 'Payer and recipient cannot be the same' },
+        { status: 400 }
+      );
+    }
+    
+    const config = getConfig();
+    console.log('Creating escrow - Mode:', config.isTestMode ? 'TEST' : 'PRODUCTION');
+    console.log('Deploy contract:', deployContract, 'Type:', contractType);
+    
+    // Create pending escrow record
+    const escrowData: any = {
+      amount_cents: Math.round(amountUsd * 100),
+      client_email: payerEmail,
+      freelancer_email: recipientEmail,
+      initiator_email: initiatorRole === 'payer' ? payerEmail : recipientEmail,
+      initiator_role: initiatorRole,
+      contract_version: 'v2',
+      status: 'INITIATED',
+      description,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      is_test_mode: config.isTestMode || testMode
+      ,
+    };
+    
+    // Set wallet addresses based on what we know
+    if (initiatorWallet) {
+      escrowData.initiator_wallet_address = initiatorWallet;
+      if (initiatorRole === 'payer') {
+        escrowData.payer_wallet_address = initiatorWallet;
+      } else {
+        escrowData.recipient_wallet_address = initiatorWallet;
+      }
+    }
+    
+    if (recipientWallet && initiatorRole === 'payer') {
+      escrowData.recipient_wallet_address = recipientWallet;
+    }
+    
+    // Save to database
+    const { data: escrow, error: dbError } = await supabase
+      .from('escrows')
+      .insert(escrowData)
+      .select()
+      .single();
+    
+    if (dbError) {
+      console.error('Database error:', dbError);
+      return NextResponse.json(
+        { error: 'Failed to create escrow' },
+        { status: 500 }
+      );
+    }
+    
+    // Deploy smart contract if requested and we have recipient wallet
+    let contractData = null;
+    if (deployContract && contractType !== 'none') {
+      // Check if recipient has a wallet in database
+      if (!recipientWallet) {
+        const { data: recipientWalletData } = await supabase
+          .from('user_wallets')
+          .select('wallet_address')
+          .eq('email', recipientEmail.toLowerCase())
+          .single();
+
+        if (recipientWalletData?.wallet_address) {
+          recipientWallet = recipientWalletData.wallet_address;
+          console.log('Found recipient wallet in database:', recipientWallet);
+        } else {
+          console.log('Recipient wallet not found, skipping contract deployment');
+        }
+      }
+      
+      if (recipientWallet) {
+      try {
+        const provider = getProvider();
+        const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
+        
+        if (contractType === 'saferelay') {
+          // SafeRelay Factory deployment
+          const factoryAddress = config.contracts.factory;
+          if (!factoryAddress) {
+            throw new Error('SafeRelay factory not configured');
+          }
+          
+          const factory = new ethers.Contract(factoryAddress, SAFERELAY_FACTORY_ABI, signer);
+          const amountUsdc = ethers.utils.parseUnits(amountUsd.toString(), 6);
+          
+          console.log('Deploying SafeRelay escrow...');
+          const tx = await factory.createEscrow(
+            payerEmail,
+            recipientEmail,
+            recipientWallet,
+            amountUsdc
+          );
+          
+          const receipt = await tx.wait();
+          const event = receipt.events?.find((e: any) => e.event === 'EscrowCreated');
+          
+          if (event) {
+            contractData = {
+              vault_address: event.args.escrow,
+              splitter_address: event.args.splitter,
+              deployment_tx: tx.hash,
+              network: config.network
+            };
+            
+            // Create escrows table entry
+            await supabase
+              .from('escrows')
+              .insert({
+                ...contractData,
+                amount_cents: escrowData.amount_cents,
+                client_email: payerEmail,
+                freelancer_email: recipientEmail,
+                status: 'INITIATED',
+                is_test_mode: config.isTestMode
+              });
+          }
+        } else if (contractType === 'factoryV2') {
+          // Factory V2 deployment for Transak One
+          const factoryAddress = config.contracts.factoryV2;
+          if (!factoryAddress) {
+            throw new Error('Factory V2 not configured');
+          }
+          
+          const factory = new ethers.Contract(factoryAddress, FACTORY_V2_ABI, signer);
+          const amountUsdc = ethers.utils.parseUnits(amountUsd.toString(), 6);
+          
+          // Generate deterministic addresses
+          const clientAddress = ethers.utils.getAddress(
+            '0x' + ethers.utils.keccak256(ethers.utils.toUtf8Bytes(payerEmail)).slice(26)
+          );
+          const freelancerAddress = recipientWallet;
+          
+          // Generate salt
+          const salt = ethers.utils.keccak256(
+            ethers.utils.defaultAbiCoder.encode(
+              ['address', 'address', 'uint256', 'uint256'],
+              [clientAddress, freelancerAddress, amountUsdc, Date.now()]
+            )
+          );
+          
+          console.log('Deploying Factory V2 escrow...');
+          const tx = await factory.createEscrowForUser(
+            clientAddress,
+            freelancerAddress,
+            amountUsdc,
+            salt
+          );
+          
+          const receipt = await tx.wait();
+          const vaultAddress = await factory.getEscrowAddress(salt);
+          
+          contractData = {
+            vault_address: vaultAddress,
+            deployment_tx: tx.hash,
+            network: config.network,
+            contract_type: 'factoryV2'
+          };
+        }
+        
+        // Update pending escrow with contract data
+        if (contractData) {
+          await supabase
+            .from('escrows')
+            .update({ escrow_id: contractData.vault_address })
+            .eq('id', escrow.id);
+        }
+      } catch (contractError) {
+        console.error('Contract deployment error:', contractError);
+        // Don't fail the whole request, just log the error
+      }
+      } // Close the recipientWallet check
+    }
+    
+    // Send invite email to the other party
+    const otherPartyEmail = initiatorRole === 'payer' ? recipientEmail : payerEmail;
+    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/escrow/${escrow.id}`;
+    
+    try {
+      await sendEmail({
+        to: otherPartyEmail,
+        ...emailTemplates.escrowInvite({
+          initiatorEmail: escrowData.initiator_email,
+          initiatorRole,
+          amountUsd,
+          description,
+          inviteUrl
+        })
+      });
+    } catch (emailError) {
+      console.error('Email send error:', emailError);
+      // Don't fail the request if email fails
+    }
+    
+    return NextResponse.json({
+      success: true,
+      escrowId: escrow.id,
+      status: 'INITIATED',
+      contractData,
+      redirectUrl: `/escrow/${escrow.id}`
+    });
+    
+  } catch (error) {
+    console.error('Create escrow error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

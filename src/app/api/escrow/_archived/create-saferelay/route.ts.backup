@@ -1,0 +1,128 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { ethers } from 'ethers';
+
+// Initialize Supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// SafeRelay Factory ABI
+const FACTORY_ABI = [
+  "function createEscrow(string clientEmail, string freelancerEmail, uint256 amount) returns (address escrow, address splitter)",
+  "event EscrowCreated(address indexed escrow, address indexed splitter, address clientId, address freelancerId, uint256 amount)"
+];
+
+export async function POST(request: NextRequest) {
+  try {
+    const { amountUsd, clientEmail, freelancerEmail } = await request.json();
+
+    // Validation
+    if (!amountUsd || !clientEmail || !freelancerEmail) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    if (amountUsd < 1 || amountUsd > 50000) {
+      return NextResponse.json(
+        { error: 'Amount must be between $1 and $50,000' },
+        { status: 400 }
+      );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(clientEmail) || !emailRegex.test(freelancerEmail)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // Setup blockchain connection
+    const provider = new ethers.providers.JsonRpcProvider(
+      `https://polygon-amoy.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
+    );
+    
+    const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
+    
+    // Connect to SafeRelay Factory
+    const factory = new ethers.Contract(
+      process.env.SAFERELAY_FACTORY_ADDRESS!,
+      FACTORY_ABI,
+      signer
+    );
+
+    // Convert USD to USDC (6 decimals)
+    const amountUsdc = ethers.utils.parseUnits(amountUsd.toString(), 6);
+
+    console.log('Creating SafeRelay escrow...');
+    console.log('Client:', clientEmail);
+    console.log('Freelancer:', freelancerEmail);
+    console.log('Amount:', amountUsd, 'USD');
+
+    // Create escrow on blockchain
+    const tx = await factory.createEscrow(
+      clientEmail,
+      freelancerEmail,
+      amountUsdc
+    );
+
+    console.log('Transaction sent:', tx.hash);
+    const receipt = await tx.wait();
+    
+    // Parse the EscrowCreated event
+    const event = receipt.events.find((e: any) => e.event === 'EscrowCreated');
+    const [escrowAddress, splitterAddress] = event.args;
+
+    console.log('Escrow deployed at:', escrowAddress);
+    console.log('Splitter deployed at:', splitterAddress);
+
+    // Save to database
+    const { data, error } = await supabase
+      .from('escrows')
+      .insert({
+        amount_cents: Math.round(amountUsd * 100),
+        vault_address: escrowAddress,
+        splitter_address: splitterAddress,
+        status: 'PENDING',
+        client_email: clientEmail,
+        freelancer_email: freelancerEmail,
+        client_approved: false,
+        freelancer_approved: false,
+        contract_type: 'saferelay', // New architecture!
+        network: 'polygon-amoy',
+        tx_hash: tx.hash
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database error:', error);
+      return NextResponse.json(
+        { error: 'Failed to save escrow' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      escrowId: data.id,
+      escrowAddress: escrowAddress,
+      splitterAddress: splitterAddress,
+      status: 'PENDING',
+      amountUsd: amountUsd,
+      network: 'polygon-amoy',
+      transactionHash: tx.hash,
+      message: '✅ SafeRelay escrow created successfully!'
+    });
+
+  } catch (error: any) {
+    console.error('Error creating escrow:', error);
+    return NextResponse.json(
+      { error: 'Failed to create escrow', details: error.message },
+      { status: 500 }
+    );
+  }
+}
