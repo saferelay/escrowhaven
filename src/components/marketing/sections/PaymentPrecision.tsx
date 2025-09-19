@@ -11,7 +11,7 @@ export function PaymentPrecision() {
             </h2>
             
             <p className="text-[#787B86] mb-8">
-              From milestone projects to single deliverables, EscrowHaven ensures both sides agree before money moves.
+              From milestone projects to single deliverables, escrowhaven ensures both sides agree before money moves.
             </p>
             
             <ul className="space-y-4 text-[#787B86]">

@@ -15,7 +15,7 @@ export function Confidence() {
   const content: Record<string, { title: string; description: string }> = {
     'smart-contract': {
       title: 'Smart Contract Security',
-      description: 'Funds live in code that no one — not even EscrowHaven — can touch without both parties agreeing.'
+      description: 'Funds live in code that no one — not even escrowhaven — can touch without both parties agreeing.'
     },
     'payment-partners': {
       title: 'Reputable Payment Partners',
@@ -74,7 +74,7 @@ export function Confidence() {
           <div className="grid grid-cols-2 gap-8">
             <div className="text-center">
               <div className="text-4xl font-light text-[#26A69A] mb-2">1.99%</div>
-              <div className="text-sm text-[#7877B86]">EscrowHaven</div>
+              <div className="text-sm text-[#7877B86]">escrowhaven</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-light text-[#EF5350] mb-2">20%</div>

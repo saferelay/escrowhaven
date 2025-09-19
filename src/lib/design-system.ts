@@ -1,4 +1,4 @@
-// SafeRelay Design System
+// EscrowHaven Design System
 // Based on trust-first principles and Stripe-inspired aesthetics
 
 export const colors = {

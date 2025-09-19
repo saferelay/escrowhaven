@@ -23,7 +23,7 @@ export default function TermsPage() {
                 We're currently finalizing our terms of service. Here are the key points:
               </p>
               <ul className="list-disc ml-6 mt-2 space-y-2">
-                <li>SafeRelay provides escrow services for freelancers and clients</li>
+                <li>escrowhaven provides escrow services for freelancers and clients</li>
                 <li>We charge a 1.99% platform fee to recipients</li>
                 <li>Funds are held in smart contracts on the blockchain</li>
                 <li>Both parties must approve before funds are released</li>
@@ -34,7 +34,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-2xl font-semibold mb-3">Acceptable Use</h2>
               <p>
-                By using SafeRelay, you agree to:
+                By using escrowhaven, you agree to:
               </p>
               <ul className="list-disc ml-6 mt-2 space-y-2">
                 <li>Use the service only for legitimate business purposes</li>
@@ -49,8 +49,8 @@ export default function TermsPage() {
               <p>
                 For questions about these terms, please contact:
                 <br />
-                <a href="mailto:legal@saferelay.com" className="text-blue-600 hover:underline">
-                  legal@saferelay.com
+                <a href="mailto:support@escrowhaven.io" className="text-blue-600 hover:underline">
+                  support@escrowhaven.io
                 </a>
               </p>
             </section>

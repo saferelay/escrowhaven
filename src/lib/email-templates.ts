@@ -32,7 +32,7 @@ export const emailTemplates = {
                 </p>
                 
                 <p style="font-size: 16px; color: #374151; margin: 0 0 32px; line-height: 1.6;">
-                  Great news! <strong>${payerEmail}</strong> has sent you a payment of <strong style="color: #059669;">$${amount.toFixed(2)}</strong> through SafeRelay.
+                  Great news! <strong>${payerEmail}</strong> has sent you a payment of <strong style="color: #059669;">$${amount.toFixed(2)}</strong> through escrowhaven.
                 </p>
                 
                 <!-- Amount Card -->
@@ -170,7 +170,7 @@ export const emailTemplates = {
                 </p>
                 
                 <p style="font-size: 16px; color: #374151; margin: 0 0 32px; line-height: 1.6;">
-                  <strong>${senderEmail}</strong> wants to send you <strong style="color: #059669;">$${amount.toFixed(2)}</strong> through SafeRelay.
+                  <strong>${senderEmail}</strong> wants to send you <strong style="color: #059669;">$${amount.toFixed(2)}</strong> through escrowhaven.
                 </p>
                 
                 <!-- Amount Card -->

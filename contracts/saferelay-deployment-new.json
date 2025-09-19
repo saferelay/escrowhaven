@@ -1,8 +1,0 @@
-{
-  "network": "polygon-amoy",
-  "factory": "0x803bd024D08B011dDB82Db08Fe2A88579283c157",
-  "deployedAt": "2025-07-22T05:02:45.297Z",
-  "mockUSDC": "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582",
-  "deployer": "0xE99318b378CC5C163223bbfF06D4d5159E4e5f1e",
-  "deploymentTx": "0x98af89c8c4724de1cfbbf6c816c13d76b41447e0172e29c415348bf9c773dd09"
-}

@@ -1,9 +1,0 @@
-{
-  "network": "polygon-amoy",
-  "chainId": 80002,
-  "factory": "0x66807A3fa2C628BD3f52D543F2225bFbf13ea293",
-  "backend": "0xE99318b378CC5C163223bbfF06D4d5159E4e5f1e",
-  "usdcAddress": "0x8B0180f2101c8260d49339abfEe87927412494B4",
-  "platformFeeRecipient": "0xE99318b378CC5C163223bbfF06D4d5159E4e5f1e",
-  "deployedAt": "2024-11-19T00:00:00.000Z"
-}

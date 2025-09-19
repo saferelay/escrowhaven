@@ -9,7 +9,7 @@ export function Features() {
         </h2>
         
         <p className="text-center text-[#787B86] max-w-3xl mx-auto mb-20 text-base leading-relaxed">
-          "EscrowHaven gives me the confidence to start projects without worrying about payment — and my clients feel safe funding them."
+          "escrowhaven gives me the confidence to start projects without worrying about payment — and my clients feel safe funding them."
         </p>
         
         {/* Search command palette placeholder - Create Escrow mockup */}
@@ -81,7 +81,7 @@ export function Features() {
               Approve, refund, or split anytime
             </h3>
             <p className="text-base text-[#787B86] mb-6">
-              Need to release part of the funds? Issue a full refund? EscrowHaven supports partial releases and mutual settlements with one click.
+              Need to release part of the funds? Issue a full refund? escrowhaven supports partial releases and mutual settlements with one click.
             </p>
             
             {/* Release options mockup */}

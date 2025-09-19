@@ -1,122 +1,75 @@
 // src/components/dashboard/Dashboard.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import clsx from 'clsx';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSearchParams } from 'next/navigation';
 import { CreateEscrowWizard } from '@/components/escrow/CreateEscrowWizard';
 import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
-import { useSearchParams } from 'next/navigation';
-import clsx from 'clsx';
+import { OffRampModal } from '@/components/dashboard/OffRampModal';
+
+// Icons
+import {
+  Search as SearchIcon,
+  RefreshCw,
+  Plus,
+  FileText,
+  AlertCircle,
+  Send,
+  Download,
+  DollarSign,
+  CheckCircle,
+  Menu as MenuIcon,
+  X as CloseIcon,
+} from '@/components/icons/UIIcons';
 
 type ViewType = 'marketing' | 'dashboard' | 'transparency' | 'escrow' | 'login' | 'help';
+type SortColumn = 'party' | 'amount' | 'action' | 'updated';
+type SortOrder = 'asc' | 'desc';
+type Folder = 'all' | 'needs' | 'sent' | 'received' | 'active' | 'completed';
 
 interface DashboardProps {
   onNavigate: (view: ViewType) => void;
 }
 
-// TradingView-style wireframe SVG icons - clean, crisp, functional
-const Icons = {
-  plus: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  inbox: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path d="M21 8V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2v-2" strokeLinecap="round"/>
-      <path d="M3 10h5.5a2 2 0 011.5.7l1.5 2.3a2 2 0 001.5.7h8" strokeLinecap="round"/>
-    </svg>
-  ),
-  send: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  dollar: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  clock: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="10" strokeLinecap="round"/>
-      <path d="M12 6v6l4 2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  checkCircle: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="10" strokeLinecap="round"/>
-      <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  refresh: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path d="M1 4v6h6M23 20v-6h-6" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  search: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <circle cx="11" cy="11" r="8" strokeLinecap="round"/>
-      <path d="M21 21l-4.35-4.35" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  barChart: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path d="M18 20V10M12 20V4M6 20v-6" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  helpCircle: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="10" strokeLinecap="round"/>
-      <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M12 17h.01" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  book: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  x: (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  menu: (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path d="M3 12h18M3 6h18M3 18h18" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  logout: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  )
+interface FolderCounts {
+  all: number;
+  needs: number;
+  sent: number;
+  received: number;
+  active: number;
+  completed: number;
+}
+
+const btn = {
+  primary:
+    'inline-flex items-center justify-center rounded-md px-3 py-2 bg-[#2962FF] text-white hover:bg-[#1E53E5] transition shadow-sm',
+  outlineSmall:
+    'inline-flex items-center justify-center rounded-md px-2.5 py-1.5 border border-[#D0D5DD] text-[13px] text-[#0F172A] bg-transparent hover:bg-[#F8F9FD] transition',
+  linkBlue: 'text-[#2962FF] hover:underline inline-flex items-center gap-1',
 };
 
-// WRAPPER COMPONENTS TO ENSURE PANELS STAY CONTAINED
+const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
+const isStaging = process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
+const PAGE_SIZE = 20; // Changed from 25 to 20
+
 function CreateEscrowWizardWrapper({ isOpen, onClose, onEscrowCreated }: any) {
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <CreateEscrowWizard 
-        isOpen={isOpen} 
-        onClose={onClose}
-        onEscrowCreated={onEscrowCreated}
-      />
+    <div className="h-full flex flex-col">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <CreateEscrowWizard isOpen={isOpen} onClose={onClose} onEscrowCreated={onEscrowCreated} />
+      </div>
     </div>
   );
 }
 
 function EscrowDetailPanelWrapper({ escrowId, isOpen, onClose, onUpdate }: any) {
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <EscrowDetailPanel
-        escrowId={escrowId}
-        isOpen={isOpen}
-        onClose={onClose}
-        onUpdate={onUpdate}
-      />
+    <div className="h-full flex flex-col">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <EscrowDetailPanel escrowId={escrowId} isOpen={isOpen} onClose={onClose} onUpdate={onUpdate} />
+      </div>
     </div>
   );
 }
@@ -124,708 +77,1210 @@ function EscrowDetailPanelWrapper({ escrowId, isOpen, onClose, onUpdate }: any) 
 export function Dashboard({ onNavigate }: DashboardProps) {
   const { user, supabase, loading: authLoading, signOut } = useAuth();
   const searchParams = useSearchParams();
+
+  // Data
   const [escrows, setEscrows] = useState<any[]>([]);
-  const [selectedEscrowId, setSelectedEscrowId] = useState<string | null>(null);
+  const [totalEscrowCount, setTotalEscrowCount] = useState(0);
+  const [folderCounts, setFolderCounts] = useState<FolderCounts>({
+    all: 0,
+    needs: 0,
+    sent: 0,
+    received: 0,
+    active: 0,
+    completed: 0,
+  });
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Infinite scroll state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const observerTarget = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef<boolean>(false);
+
+  // Filters
+  const [activeFolder, setActiveFolder] = useState<Folder>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFolder, setActiveFolder] = useState<'all' | 'sent' | 'received' | 'active' | 'completed'>('all');
+
+  // Sort
+  const [sortBy, setSortBy] = useState<SortColumn>('updated');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  // Right panel - with preserved width state
   const [rightPanelView, setRightPanelView] = useState<'detail' | 'create' | null>(null);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
-  const [rightPanelWidth, setRightPanelWidth] = useState(480);
+  const [rightPanelWidth, setRightPanelWidth] = useState<number | null>(null);
+  const [userSetWidth, setUserSetWidth] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedEscrowId, setSelectedEscrowId] = useState<string | null>(null);
+
+  // Layout
+  const gridRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [urlEscrowProcessed, setUrlEscrowProcessed] = useState(false);
-  
-  // Column widths state - DESCRIPTION LARGEST BY DEFAULT
-  const [columnWidths, setColumnWidths] = useState({
-    party: 25,
-    description: 35,
-    status: 10,
-    amount: 10,
-    action: 10,
-    time: 10
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Metrics
+  const [metrics, setMetrics] = useState({
+    protectedInEscrow: 0,
+    totalEarnings: 0,
+    availableToWithdraw: 0,
+    totalWithdrawn: 0,
+    activeEscrows: 0,
+    completedCount: 0,  // NEW
+    refundedCount: 0,   // NEW
   });
-  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
-  const [startX, setStartX] = useState(0);
-  const [startWidth, setStartWidth] = useState(0);
+
+  // Other state
+  const [urlEscrowProcessed, setUrlEscrowProcessed] = useState(false);
+  const [showOffRampModal, setShowOffRampModal] = useState(false);
+  const [currentWithdrawalId, setCurrentWithdrawalId] = useState<string | null>(null);
+
+  // Helper function
+  const needsAction = (escrow: any) => {
+    const isReceiver = user?.email === escrow.freelancer_email;
+    const isPayer = user?.email === escrow.client_email;
+    const isInitiator = escrow.initiator_email === user?.email;
   
-  // Check if mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+    if (escrow.status === 'INITIATED') {
+      if (isInitiator) {
+        return { label: 'Waiting', primary: false };
+      }
+      return { label: 'Accept', primary: true };
+    }
     
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  
-  // Handle URL parameter for escrow selection
-  useEffect(() => {
-    const escrowId = searchParams.get('escrow');
-    console.log('Dashboard: URL escrow param:', escrowId);
-    
-    if (escrowId && !urlEscrowProcessed && escrows.length > 0) {
-      console.log('Dashboard: Looking for escrow in list...');
-      const targetEscrow = escrows.find(e => e.id === escrowId);
-      
-      if (targetEscrow) {
-        console.log('Dashboard: Found escrow, auto-selecting:', targetEscrow.id);
-        setSelectedEscrowId(escrowId);
-        setRightPanelView('detail');
-        setRightPanelOpen(true);
-        setUrlEscrowProcessed(true);
-        
-        // Remove the parameter from URL without reload
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-      } else {
-        console.log('Dashboard: Escrow not found in user\'s list');
+    if (escrow.status === 'ACCEPTED') {
+      if (isPayer) {
+        return { label: 'Fund', primary: true };
+      }
+      if (isReceiver) {
+        return { label: 'Waiting', primary: false };
       }
     }
-  }, [searchParams, escrows, urlEscrowProcessed]);
-  
-  // Reset URL processing flag when user changes
-  useEffect(() => {
-    setUrlEscrowProcessed(false);
-  }, [user?.email]);
-  
-  useEffect(() => {
-    if (!authLoading && !user) {
-      return;
-    } else if (user && supabase) {
-      fetchEscrows();
-      
-      const channel = supabase
-        .channel('dashboard-escrows')
-        .on('postgres_changes', 
-          { event: '*', schema: 'public', table: 'escrows' },
-          () => fetchEscrows()
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+    
+    if (escrow.status === 'FUNDED') {
+      if (escrow.settlement_client_approved !== null || escrow.settlement_freelancer_approved !== null) {
+        if (isPayer && escrow.settlement_client_approved === false) {
+          return { label: 'Approve', primary: true };
+        }
+        if (isReceiver && escrow.settlement_freelancer_approved === false) {
+          return { label: 'Approve', primary: true };
+        }
+        return { label: 'Waiting', primary: false };
+      }
+      return { label: 'Approve', primary: true };
     }
-  }, [user, supabase, authLoading]);
+    
+    // All completed states - no action needed
+    if (['RELEASED', 'SETTLED', 'REFUNDED', 'COMPLETED'].includes(escrow.status)) {
+      return { label: 'Complete', primary: false };
+    }
+    
+    return { label: 'Waiting', primary: false };
+  };
 
-  // Keyboard shortcuts - UPDATED TO CMD+K
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+  // Fetch folder counts
+  const fetchFolderCounts = useCallback(async () => {
+    if (!supabase || !user?.email) return;
+    
+    try {
+      const { data, error } = await supabase
+        .rpc('get_folder_counts_cached', {
+          user_email: user.email,
+          env: isProduction ? 'production' : 'development'
+        });
+      
+      if (error) {
+        console.error('Error fetching folder counts:', error?.message || error?.code || 'Unknown error');
+        setFolderCounts({
+          all: 0,
+          needs: 0,
+          sent: 0,
+          received: 0,
+          active: 0,
+          completed: 0,
+        });
         return;
       }
       
-      if (e.key === 'c' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        handleCreateNew();
+      if (data && data.length > 0) {
+        const counts = data[0];
+        setFolderCounts({
+          all: Number(counts.all_count || 0),
+          needs: Number(counts.needs_count || 0),
+          sent: Number(counts.sent_count || 0),
+          received: Number(counts.received_count || 0),
+          active: Number(counts.active_count || 0),
+          completed: Number(counts.completed_count || 0),
+        });
       }
-      // CMD+K or CTRL+K for search
-      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        document.getElementById('search-input')?.focus();
+    } catch (err: any) {
+      console.error('Error in fetchFolderCounts:', err?.message || 'Failed to fetch folder counts');
+      setFolderCounts({
+        all: 0,
+        needs: 0,
+        sent: 0,
+        received: 0,
+        active: 0,
+        completed: 0,
+      });
+    }
+  }, [supabase, user?.email, isProduction]);
+
+  // Fetch metrics
+  const fetchMetrics = useCallback(async () => {
+    if (!supabase || !user?.email) return;
+    
+    try {
+      const { data: metricsResult, error: metricsError } = await supabase
+      .rpc('get_user_metrics', { 
+        p_user_email: user.email,
+        p_env: isProduction ? 'production' : 'development'
+      });
+      
+      if (metricsError) {
+        console.warn('Metrics fetch failed, using defaults:', metricsError);
+        setMetrics({
+          protectedInEscrow: 0,
+          totalEarnings: 0,
+          availableToWithdraw: 0,
+          totalWithdrawn: 0,
+          activeEscrows: 0,
+          completedCount: 0,  // ADD THIS
+          refundedCount: 0    // ADD THIS
+        });
+        return;
       }
-      if (e.key === 'Escape') {
-        handleCloseRightPanel();
+      
+      if (metricsResult && metricsResult.length > 0) {
+        const m = metricsResult[0];
+        
+        const sentInEscrow = parseFloat(m.sent_in_escrow_cents || '0');
+        const receivingInEscrow = parseFloat(m.receiving_in_escrow_cents || '0');
+        const totalEarnings = parseFloat(m.total_earnings_cents || '0');
+        const availableToWithdraw = parseFloat(m.available_to_withdraw_cents || '0');
+        const activeCount = parseInt(m.active_count || '0', 10);
+        const completedCount = parseInt(m.completed_count || '0', 10);
+        const refundedCount = parseInt(m.refunded_count || '0', 10);
+        
+        setMetrics({
+          protectedInEscrow: (sentInEscrow + receivingInEscrow) / 100,
+          totalEarnings: totalEarnings / 100,
+          availableToWithdraw: availableToWithdraw / 100,
+          totalWithdrawn: 0,
+          activeEscrows: activeCount,
+          completedCount: completedCount,  // Use the variable
+          refundedCount: refundedCount,    // Use the variable
+        });
+      } else {
+        setMetrics({
+          protectedInEscrow: 0,
+          totalEarnings: 0,
+          availableToWithdraw: 0,
+          totalWithdrawn: 0,
+          activeEscrows: 0,
+          completedCount: 0,  // ADD THIS
+          refundedCount: 0    // ADD THIS
+        });
+      }
+    } catch (err) {
+      console.warn('Metrics fetch error:', err);
+      setMetrics({
+        protectedInEscrow: 0,
+        totalEarnings: 0,
+        availableToWithdraw: 0,
+        totalWithdrawn: 0,
+        activeEscrows: 0,
+        completedCount: 0,  // ADD THIS
+        refundedCount: 0    // ADD THIS
+      });
+    }
+  }, [supabase, user?.email, isProduction]);
+
+  // Fetch escrows
+  const fetchEscrows = useCallback(async (reset = false, folder: Folder = activeFolder) => {
+    if (!supabase || !user?.email) return;
+    
+    if (!reset && (loadingRef.current || !hasMore)) return;
+    
+    loadingRef.current = true;
+    setIsLoadingMore(true);
+    
+    try {
+      const pageToLoad = reset ? 0 : currentPage;
+      
+      const { data: escrowsResult, error } = await supabase
+        .rpc('get_folder_items_cached', {
+          p_user_email: user.email,
+          p_folder: folder,
+          p_limit: PAGE_SIZE,
+          p_offset: pageToLoad * PAGE_SIZE,
+          p_env: isProduction ? 'production' : 'development'
+        });
+      
+      if (error) {
+        console.error('Escrows fetch error:', error);
+        return;
+      }
+      
+      if (escrowsResult) {
+        if (reset) {
+          setEscrows(escrowsResult);
+          setCurrentPage(1);
+          setHasMore(escrowsResult.length === PAGE_SIZE);
+        } else {
+          setEscrows(prev => {
+            const existingIds = new Set(prev.map(e => e.id));
+            const newEscrows = escrowsResult.filter(e => !existingIds.has(e.id));
+            return [...prev, ...newEscrows];
+          });
+          setCurrentPage(prev => prev + 1);
+          setHasMore(escrowsResult.length === PAGE_SIZE);
+        }
+      }
+      
+      if (reset || isInitialLoad) {
+        await Promise.all([
+          fetchMetrics(),
+          fetchFolderCounts()
+        ]);
+        setIsInitialLoad(false);
+      }
+    } catch (err: any) {
+      console.error('Dashboard fetch error:', err);
+    } finally {
+      setTimeout(() => {
+        setIsLoadingMore(false);
+        loadingRef.current = false;
+      }, 100);
+    }
+  }, [supabase, user?.email, isProduction, currentPage, hasMore, activeFolder, isInitialLoad, fetchMetrics, fetchFolderCounts]);
+
+  const fetchWithdrawals = useCallback(async () => {
+    if (!user?.email || !supabase) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('withdrawals')
+        .select('*')
+        .eq('user_email', user.email)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      if (error) {
+        console.error('Error fetching withdrawals:', error);
+        return;
+      }
+      
+      if (data) setWithdrawals(data);
+    } catch (err: any) {
+      console.error('Error fetching withdrawals:', err?.message || err);
+    }
+  }, [supabase, user?.email]);
+
+  // Handle folder change
+  const handleFolderChange = useCallback((folder: Folder) => {
+    setActiveFolder(folder);
+    setEscrows([]);
+    setCurrentPage(0);
+    setHasMore(true);
+    loadingRef.current = false;
+    fetchEscrows(true, folder);
+  }, [fetchEscrows]);
+
+  // Handle refresh
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    setCurrentPage(0);
+    setHasMore(true);
+    loadingRef.current = false;
+    
+    try {
+      await Promise.all([
+        fetchEscrows(true, activeFolder),
+        fetchWithdrawals(),
+        fetchMetrics(),
+        fetchFolderCounts()
+      ]);
+    } catch (error) {
+      console.error('Refresh error:', error);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  }, [fetchEscrows, fetchWithdrawals, fetchMetrics, fetchFolderCounts, isRefreshing, activeFolder]);
+
+  // Initial load
+  useEffect(() => {
+    if (!authLoading && user?.email && supabase && isInitialLoad) {
+      fetchEscrows(true, activeFolder);
+      fetchWithdrawals();
+    }
+  }, [authLoading, user?.email, supabase, activeFolder, fetchEscrows, fetchWithdrawals, isInitialLoad]);
+
+  // Reset when user changes
+  useEffect(() => {
+    if (user?.email) {
+      setEscrows([]);
+      setCurrentPage(0);
+      setHasMore(true);
+      setIsInitialLoad(true);
+      loadingRef.current = false;
+    }
+  }, [user?.email]);
+
+  // Intersection Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loadingRef.current && !isLoadingMore) {
+          fetchEscrows(false, activeFolder);
+        }
+      },
+      { 
+        threshold: 0.1,
+        rootMargin: '100px'
+      }
+    );
+    
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+    
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
       }
     };
+  }, [hasMore, isLoadingMore, fetchEscrows, activeFolder]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+  // Real-time subscription
+  useEffect(() => {
+    if (!supabase || !user?.email) return;
+    
+    const channel = supabase
+      .channel(`dashboard-${user.email}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'escrows'
+        },
+        (payload) => {
+          const escrow = payload.new;
+          if (escrow.client_email === user.email || escrow.freelancer_email === user.email) {
+            setEscrows(prev => {
+              const index = prev.findIndex(e => e.id === escrow.id);
+              if (index >= 0) {
+                const updated = [...prev];
+                updated[index] = escrow;
+                return updated;
+              }
+              return prev;
+            });
+            fetchFolderCounts();
+            fetchMetrics();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'escrows'
+        },
+        (payload) => {
+          const escrow = payload.new;
+          if (escrow.client_email === user.email || escrow.freelancer_email === user.email) {
+            if (activeFolder === 'all') {
+              setEscrows(prev => [escrow, ...prev]);
+              setTotalEscrowCount(prev => prev + 1);
+            }
+            fetchFolderCounts();
+            fetchMetrics();
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, user?.email, fetchFolderCounts, fetchMetrics, activeFolder]);
+
+  // Mobile detection
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Resize functionality for right panel
+  // Deep link handling
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-      
-      const newWidth = window.innerWidth - e.clientX;
-      const minWidth = 380;
-      const maxWidth = window.innerWidth * 0.7;
-      
-      setRightPanelWidth(Math.min(Math.max(newWidth, minWidth), maxWidth));
-    };
+    const id = searchParams.get('escrow');
+    if (!id || urlEscrowProcessed || escrows.length === 0) return;
+    const target = escrows.find((e) => e.id === id);
+    if (target) {
+      openDetail(id);
+      setUrlEscrowProcessed(true);
+      const clean = window.location.pathname;
+      window.history.replaceState({}, '', clean);
+    }
+  }, [searchParams, escrows, urlEscrowProcessed]);
 
-    const handleMouseUp = () => {
+  useEffect(() => setUrlEscrowProcessed(false), [user?.email]);
+
+  // Resize handler with user width preservation
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!isResizing || !gridRef.current) return;
+      const rect = gridRef.current.getBoundingClientRect();
+      const newWidth = rect.right - e.clientX;
+      const min = 340;
+      const max = rect.width * 0.75;
+      const finalWidth = Math.min(Math.max(newWidth, min), max);
+      setRightPanelWidth(finalWidth);
+      setUserSetWidth(true);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    };
+    const onUp = () => {
       setIsResizing(false);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-
     if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
     }
-
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
     };
   }, [isResizing]);
 
-  // Column resize functionality
+  // Withdrawal redirect handling
   useEffect(() => {
-    const handleColumnMouseMove = (e: MouseEvent) => {
-      if (!resizingColumn) return;
+    const withdrawalStatus = searchParams.get('withdrawal');
+    const orderId = searchParams.get('orderId');
+    const status = searchParams.get('status');
+    
+    if (withdrawalStatus === 'complete' && orderId && currentWithdrawalId && supabase) {
+      const updateWithdrawal = async () => {
+        try {
+          if (status === 'success') {
+            await supabase
+              .from('withdrawals')
+              .update({ 
+                status: 'COMPLETED',
+                completed_at: new Date().toISOString(),
+                external_order_id: orderId 
+              })
+              .eq('id', currentWithdrawalId);
+              
+            alert('Withdrawal successful! Funds will be sent to your bank account.');
+          } else if (status === 'pending') {
+            await supabase
+              .from('withdrawals')
+              .update({ 
+                status: 'PROCESSING',
+                external_order_id: orderId 
+              })
+              .eq('id', currentWithdrawalId);
+              
+            alert('Withdrawal is being processed. You will receive an update soon.');
+          }
+          
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, '', cleanUrl);
+          
+          await fetchWithdrawals();
+        } catch (error) {
+          console.error('Error updating withdrawal:', error);
+        }
+      };
       
-      const diff = e.clientX - startX;
-      const percentDiff = (diff / window.innerWidth) * 100;
-      const newWidth = Math.max(5, Math.min(50, startWidth + percentDiff));
-      
-      setColumnWidths(prev => ({
-        ...prev,
-        [resizingColumn]: newWidth
-      }));
-    };
-
-    const handleColumnMouseUp = () => {
-      setResizingColumn(null);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-
-    if (resizingColumn) {
-      document.addEventListener('mousemove', handleColumnMouseMove);
-      document.addEventListener('mouseup', handleColumnMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
+      updateWithdrawal();
     }
+  }, [searchParams, currentWithdrawalId, supabase, fetchWithdrawals]);
 
-    return () => {
-      document.removeEventListener('mousemove', handleColumnMouseMove);
-      document.removeEventListener('mouseup', handleColumnMouseUp);
-    };
-  }, [resizingColumn, startX, startWidth]);
-
-  const startColumnResize = (column: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    setResizingColumn(column);
-    setStartX(e.clientX);
-    setStartWidth(columnWidths[column as keyof typeof columnWidths]);
-  };
-
-  const fetchEscrows = async () => {
-    if (!supabase || !user) return;
-    
-    console.log('Dashboard: Fetching escrows for user:', user.email);
-    
-    const { data, error } = await supabase
-      .from('escrows')
-      .select('*')
-      .or(`client_email.eq.${user.email},freelancer_email.eq.${user.email}`)
-      .order('created_at', { ascending: false });
-
-    if (data && !error) {
-      console.log('Dashboard: Fetched escrows:', data.length);
-      setEscrows(data);
-    } else if (error) {
-      console.error('Dashboard: Error fetching escrows:', error);
-    }
-  };
-
-  const getRelativeTime = (date: string) => {
-    const now = new Date();
-    const then = new Date(date);
-    const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
-    
-    if (seconds < 60) return 'now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-    if (seconds < 172800) return '1d';
-    
-    const days = Math.floor(seconds / 86400);
-    if (days < 30) return `${days}d`;
-    return then.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const filteredEscrows = escrows.filter(escrow => {
-    const isReceiver = user?.email === escrow.freelancer_email;
-    
-    if (activeFolder === 'sent' && isReceiver) return false;
-    if (activeFolder === 'received' && !isReceiver) return false;
-    if (activeFolder === 'active' && !['INITIATED', 'ACCEPTED', 'FUNDED'].includes(escrow.status)) return false;
-    if (activeFolder === 'completed' && escrow.status !== 'RELEASED') return false;
-    
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        escrow.client_email?.toLowerCase().includes(query) ||
-        escrow.freelancer_email?.toLowerCase().includes(query) ||
-        escrow.description?.toLowerCase().includes(query) ||
-        escrow.id?.toLowerCase().includes(query)
-      );
-    }
-    
-    return true;
-  });
-
-  const handleCreateNew = () => {
-    setSelectedEscrowId(null);
+  // Actions with 1/3 width default
+  const openCreate = () => {
     setRightPanelView('create');
     setRightPanelOpen(true);
-    if (isMobile) setMobileMenuOpen(false);
+    if (!isMobile && gridRef.current && !userSetWidth) {
+      const w = gridRef.current.getBoundingClientRect().width;
+      setRightPanelWidth(Math.max(420, Math.floor(w * 0.5)));
+    }
   };
 
-  const handleSelectEscrow = (escrowId: string) => {
-    console.log('Dashboard: Selecting escrow:', escrowId);
-    setSelectedEscrowId(escrowId);
+  const openDetail = (id: string) => {
+    setSelectedEscrowId(id);
     setRightPanelView('detail');
     setRightPanelOpen(true);
-    if (isMobile) setMobileMenuOpen(false);
+    if (!isMobile && gridRef.current && !userSetWidth) {
+      const w = gridRef.current.getBoundingClientRect().width;
+      setRightPanelWidth(Math.max(420, Math.floor(w * 0.5)));
+    }
   };
 
-  const handleEscrowCreated = (escrowId: string) => {
-    fetchEscrows();
-    setSelectedEscrowId(escrowId);
-    setRightPanelView('detail');
-    setRightPanelOpen(true);
-  };
-
-  const handleCloseRightPanel = () => {
+  const closePanel = () => {
     setRightPanelOpen(false);
     setTimeout(() => {
       setRightPanelView(null);
       setSelectedEscrowId(null);
-    }, 300);
+    }, 150);
   };
 
-  const getFolderCount = (folder: string) => {
-    switch (folder) {
-      case 'sent':
-        return escrows.filter(e => user?.email === e.client_email).length;
-      case 'received':
-        return escrows.filter(e => user?.email === e.freelancer_email).length;
-      case 'active':
-        return escrows.filter(e => ['INITIATED', 'ACCEPTED', 'FUNDED'].includes(e.status)).length;
-      case 'completed':
-        return escrows.filter(e => e.status === 'RELEASED').length;
-      default:
-        return escrows.length;
-    }
+  const onEscrowCreated = (id: string) => {
+    handleRefresh();
+    openDetail(id);
   };
 
-  const needsAction = (escrow: any) => {
-    const isReceiver = user?.email === escrow.freelancer_email;
-    const isInitiator = escrow.initiator_email === user?.email;
+  const handleWithdraw = async () => {
+    if (metrics.availableToWithdraw === 0 || !supabase || !user?.email) return;
     
-    if (escrow.status === 'INITIATED') {
-      if (isInitiator) {
-        return { action: 'Waiting', isPrimary: false };
+    try {
+      const { data: walletData } = await supabase
+        .from('user_wallets')
+        .select('wallet_address')
+        .eq('email', user.email)
+        .single();
+        
+      if (!walletData?.wallet_address) {
+        alert('Wallet not found. Please connect your wallet first.');
+        return;
+      }
+      
+      const { data: withdrawal, error } = await supabase
+        .from('withdrawals')
+        .insert({
+          user_email: user.email,
+          amount_cents: Math.floor(metrics.availableToWithdraw * 100),
+          wallet_address: walletData.wallet_address,
+          status: 'PENDING',
+          provider: 'onramp',
+        })
+        .select()
+        .single();
+        
+      if (error) {
+        alert('Failed to initiate withdrawal: ' + error.message);
+        return;
+      }
+      
+      if (withdrawal && withdrawal.id) {
+        setCurrentWithdrawalId(String(withdrawal.id));
+        setShowOffRampModal(true);
+      }
+    } catch (e) {
+      console.error('Withdrawal error:', e);
+      alert('Failed to process withdrawal');
+    }
+  };
+
+  // Helper functions
+  const getRelativeTime = (date: string) => {
+    const now = Date.now();
+    const then = new Date(date).getTime();
+    const s = Math.floor((now - then) / 1000);
+    if (s < 60) return 'now';
+    if (s < 3600) return `${Math.floor(s / 60)}m`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h`;
+    if (s < 172800) return '1d';
+    const d = Math.floor(s / 86400);
+    if (d < 30) return `${d}d`;
+    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getFolderCount = (id: Folder) => {
+    return folderCounts[id] || 0;
+  };
+
+  const filteredEscrows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return escrows;
+    
+    return escrows.filter((e) => {
+      return (
+        e.client_email?.toLowerCase().includes(q) ||
+        e.freelancer_email?.toLowerCase().includes(q) ||
+        e.description?.toLowerCase().includes(q) ||
+        e.id?.toLowerCase().includes(q)
+      );
+    });
+  }, [escrows, searchQuery]);
+
+  const sortedEscrows = useMemo(() => {
+    const arr = [...filteredEscrows];
+    arr.sort((a, b) => {
+      let v = 0;
+      if (sortBy === 'party') {
+        const aParty = user?.email === a.client_email ? a.freelancer_email : a.client_email;
+        const bParty = user?.email === b.client_email ? b.freelancer_email : b.client_email;
+        v = String(aParty).localeCompare(String(bParty));
+      } else if (sortBy === 'amount') {
+        v = a.amount_cents - b.amount_cents;
+      } else if (sortBy === 'action') {
+        const aAct = needsAction(a)?.label || 'zzz';
+        const bAct = needsAction(b)?.label || 'zzz';
+        v = aAct.localeCompare(bAct);
       } else {
-        return { action: 'Accept', isPrimary: true };
+        const aDate = new Date(a.updated_at || a.created_at).getTime();
+        const bDate = new Date(b.updated_at || b.created_at).getTime();
+        v = aDate - bDate;
       }
-    }
-    if (escrow.status === 'ACCEPTED' && !isReceiver) {
-      return { action: 'Fund', isPrimary: true };
-    }
-    if (escrow.status === 'FUNDED') {
-      if (isReceiver && !escrow.freelancer_approved) {
-        return { action: 'Approve', isPrimary: true };
-      }
-      if (!isReceiver && !escrow.client_approved) {
-        return { action: 'Approve', isPrimary: true };
-      }
-      if ((isReceiver && escrow.freelancer_approved) || (!isReceiver && escrow.client_approved)) {
-        return { action: 'Waiting', isPrimary: false };
-      }
-    }
-    return null;
+      return sortOrder === 'asc' ? v : -v;
+    });
+    return arr;
+  }, [filteredEscrows, sortBy, sortOrder, user, needsAction]);
+
+  // Improved renderEscrowRow with left alignment
+  const renderEscrowRow = (e: any) => {
+    const isReceiver = user?.email === e.freelancer_email;
+    const otherParty = isReceiver ? e.client_email : e.freelancer_email;
+    const amount = (e.amount_cents / 100).toFixed(2);
+    const time = getRelativeTime(e.updated_at || e.created_at);
+    const action = needsAction(e);
+  
+    const statusText: Record<string, string> = {
+      INITIATED: 'New',
+      ACCEPTED: 'Accepted',
+      FUNDED: 'Funded',
+      RELEASED: 'Complete',
+      SETTLED: 'Settled',
+      COMPLETED: 'Complete',
+      DECLINED: 'Declined',
+      REFUNDED: 'Refunded',
+    };
+  
+    return (
+      <div
+        key={e.id}
+        onClick={() => openDetail(e.id)}
+        className={clsx(
+          'group flex cursor-pointer items-start border-b border-[#E5E7EB] px-4 py-2.5 transition min-h-[52px]',
+          rightPanelView === 'detail' && e.id === selectedEscrowId ? 'bg-[#F7F8FB]' : 'hover:bg-[#F8FAFC]'
+        )}
+      >
+        {/* Party/Description column */}
+        <div className="min-w-0 flex-[3.5]">
+          <div className="flex items-center">
+            <span className="w-10 flex-shrink-0 text-[11px] text-[#64748B]">
+              {isReceiver ? 'From' : 'To'}
+            </span>
+            <span className="truncate text-[13px] font-medium flex-1">{otherParty}</span>
+          </div>
+          {e.description && (
+            <div className="pl-10 text-[11px] text-[#64748B] truncate">
+              {e.description}
+            </div>
+          )}
+        </div>
+  
+        {/* Status column - LEFT ALIGNED */}
+        <div className="hidden lg:block flex-[0.8] flex items-start">
+          <span className="inline-flex items-center h-5 px-1.5 py-0.5 text-[11px] text-[#475569] border border-[#E2E8F0] rounded whitespace-nowrap">
+            {statusText[e.status] ?? e.status}
+          </span>
+        </div>
+  
+        {/* Amount - RIGHT ALIGNED */}
+        <div className="hidden md:block flex-[1.2] text-right font-mono text-[13px]">${amount}</div>
+  
+        {/* Action buttons - CENTERED with larger size */}
+        <div className="hidden xl:flex flex-[2] justify-center">
+          {action?.primary ? (
+            <button
+              onClick={(ev) => {
+                ev.stopPropagation();
+                openDetail(e.id);
+              }}
+              className="inline-flex items-center justify-center rounded-md w-[72px] h-[28px] bg-[#2962FF] text-white hover:bg-[#1E53E5] transition shadow-sm text-[11px] font-medium"
+            >
+              {action.label}
+            </button>
+          ) : action ? (
+            <span className="inline-flex items-center justify-center w-[72px] text-[11px] text-[#94A3B8]">
+              {action.label}
+            </span>
+          ) : (
+            <span className="text-[11px] text-[#94A3B8]">—</span>
+          )}
+        </div>
+  
+        <div className="flex xl:hidden flex-[1] justify-center">
+          {action?.primary && (
+            <div className="w-2 h-2 bg-[#2962FF] rounded-full mt-1" />
+          )}
+        </div>
+  
+        {/* Time - RIGHT ALIGNED */}
+        <div className="hidden sm:block flex-[1.5] text-right text-[11px] text-[#94A3B8]">
+          {time}
+        </div>
+      </div>
+    );
   };
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#E0E2E7] border-t-[#2962FF]"></div>
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#E2E8F0] border-t-[#2962FF]" />
       </div>
     );
   }
 
-  // Mobile view
-  if (isMobile) {
-    return (
-      <div className="flex h-screen bg-white relative">
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="fixed top-4 left-4 z-50 p-2 bg-white rounded-lg border border-[#E0E2E7] md:hidden"
-          style={{ boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)' }}
-        >
-          {mobileMenuOpen ? Icons.x : Icons.menu}
-        </button>
+  const displayCount = getFolderCount(activeFolder);
 
-        {mobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-        )}
-      </div>
-    );
-  }
-
-  // Desktop view - UPDATED WITH YOUR REQUIREMENTS
   return (
-    <div className="h-screen bg-white flex overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, "Segoe UI", Ubuntu, sans-serif' }}>
-      <div className="flex w-full h-full">
-        
-        {/* LEFT SECTION: Sidebar + Content */}
-        <div 
-          className="flex min-w-0"
-          style={{
-            width: rightPanelOpen ? `calc(100% - ${rightPanelWidth}px)` : '100%',
-            transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-          }}
-        >
-          {/* Sidebar */}
-          <aside className="w-72 bg-white border-r border-[#E0E2E7] flex flex-col flex-shrink-0">
-            {/* Logo section */}
-            <div className="h-24 px-6 flex items-center">
-              <button 
-                onClick={() => onNavigate('marketing')}
-                className="flex items-center space-x-3"
-              >
-                <div className="w-11 h-11 bg-[#2962FF] rounded-lg flex items-center justify-center">
-                  <span className="text-white font-medium text-2xl">S</span>
-                </div>
-                <span className="text-xl font-medium text-[#000000]">SafeRelay</span>
-              </button>
-            </div>
-
-            {/* Create escrow button - TRANSPARENT WITH BLACK BORDER */}
-            <div className="px-6 pb-8">
-              <button
-                onClick={handleCreateNew}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-[#000000] border-2 border-[#000000] rounded-lg hover:bg-[#000000] hover:text-white transition-all text-base font-medium"
-              >
-                {Icons.plus}
-                Create escrow
-              </button>
-            </div>
-
-            {/* Folders - WITH VISIBLE CURVED BORDERS */}
-            <nav className="flex-1 px-4 overflow-y-auto">
-              {[
-                { id: 'all', label: 'All escrows', icon: Icons.inbox },
-                { id: 'sent', label: 'Sent', icon: Icons.send },
-                { id: 'received', label: 'Received', icon: Icons.dollar },
-                { id: 'active', label: 'Active', icon: Icons.clock },
-                { id: 'completed', label: 'Completed', icon: Icons.checkCircle },
-              ].map((folder) => (
-                <button
-                  key={folder.id}
-                  onClick={() => setActiveFolder(folder.id as any)}
-                  className={clsx(
-                    'w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium transition-all mb-1',
-                    activeFolder === folder.id 
-                      ? 'bg-white border-2 border-[#000000] text-[#000000]' 
-                      : 'text-[#787B86] hover:text-[#000000] border-2 border-transparent'
-                  )}
-                >
-                  <span className="flex items-center gap-3">
-                    <span className={activeFolder === folder.id ? 'text-[#000000]' : ''}>
-                      {folder.icon}
-                    </span>
-                    {folder.label}
-                  </span>
-                  {getFolderCount(folder.id) > 0 && (
-                    <span className={clsx(
-                      "text-xs",
-                      activeFolder === folder.id ? 'text-[#000000]' : 'text-[#B2B5BE]'
-                    )}>
-                      {getFolderCount(folder.id)}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </nav>
-
-            {/* Resources Section */}
-            <div className="px-6 py-6 border-t border-[#E0E2E7]">
-              <div className="space-y-2">
-                <button 
-                  onClick={() => onNavigate('transparency')}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#787B86] hover:text-[#000000] rounded-lg transition-colors text-left"
-                >
-                  {Icons.barChart}
-                  Transparency
-                </button>
-                <button 
-                  onClick={() => onNavigate('help')}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#787B86] hover:text-[#000000] rounded-lg transition-colors text-left"
-                >
-                  {Icons.helpCircle}
-                  Help center
-                </button>
-              </div>
-            </div>
-
-            {/* User section */}
-            <div className="px-6 py-6 border-t border-[#E0E2E7]">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 bg-[#F8F9FD] rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-[#000000]">{user?.email?.[0]?.toUpperCase()}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#000000] truncate">{user?.email?.split('@')[0]}</p>
-                  <p className="text-xs text-[#B2B5BE]">Free plan</p>
-                </div>
+    <div
+      className="h-screen w-full overflow-hidden bg-white text-[14px] text-[#0F172A]"
+      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Ubuntu, Inter, system-ui, sans-serif' }}
+    >
+      {/* Header */}
+      <header className="h-14 w-full border-b border-[#E5E7EB] bg-white">
+        <div className="hidden md:grid h-full w-full" style={{ gridTemplateColumns: '15rem 1fr' }}>
+          <div className="flex items-center px-6">
+            <button onClick={() => onNavigate('marketing')} className="flex items-center">
+              <span className="text-[18px] font-medium tracking-[-0.01em] text-[#0F172A]">escrowhaven.io</span>
+            </button>
+          </div>
+          <div className="flex items-center justify-between pr-6">
+            <div className="flex items-center gap-2 pl-6">
+              <div className="relative w-[320px]">
+                <input
+                  id="search-input"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search…"
+                  className="w-full rounded-md border border-[#E2E8F0] bg-white pl-9 pr-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-[#DBEAFE]"
+                />
+                <span className="pointer-events-none absolute left-2.5 top-1.5 text-[#94A3B8]">
+                  <SearchIcon size={18} />
+                </span>
               </div>
               <button
-                onClick={signOut}
-                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#787B86] hover:text-[#000000] rounded-lg transition-colors text-left"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className={clsx(btn.outlineSmall, 'gap-1', isRefreshing && 'opacity-50')}
+                title="Refresh"
+                aria-label="Refresh"
               >
-                {Icons.logout}
-                Sign out
+                <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                <span className="hidden sm:inline">Refresh</span>
               </button>
             </div>
-          </aside>
-
-          {/* Main content area */}
-          <div className="flex-1 flex flex-col min-w-0 bg-white">
-            {/* Top toolbar - SEARCH BAR WITH WELCOME BELOW */}
-            <div className="px-8 pt-6 pb-4 border-b border-[#E0E2E7]">
-              <div className="flex items-center gap-6 mb-3">
-                {/* Smaller search bar */}
-                <div className="w-80">
-                  <div className="relative">
-                    <input
-                      id="search-input"
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search... (⌘K)"
-                      className="w-full pl-10 pr-4 py-2 bg-[#F8F9FD] border border-transparent rounded-lg text-sm text-[#000000] placeholder-[#B2B5BE] focus:outline-none focus:bg-white focus:border-[#2962FF] transition-all"
-                      style={{ boxShadow: searchQuery ? '0 0 0 3px rgba(41, 98, 255, 0.1)' : 'none' }}
-                    />
-                    <span className="absolute left-3 top-2.5 text-[#B2B5BE]">
-                      {Icons.search}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Refresh button */}
-                <button 
-                  onClick={() => fetchEscrows()}
-                  className="p-2 hover:bg-[#F0F2F5] rounded-lg transition-colors"
-                  title="Refresh (R)"
-                >
-                  <span className="text-[#787B86] hover:text-[#000000]">{Icons.refresh}</span>
-                </button>
-
-                {/* Stats - pushed to the right */}
-                <div className="ml-auto text-sm text-[#B2B5BE]">
-                  <span>{filteredEscrows.length} escrows</span>
-                </div>
-              </div>
-              
-              {/* Welcome message BELOW search - LARGER TEXT */}
-              <div className="text-xl font-medium text-[#000000]">
-                Welcome, {user?.email?.split('@')[0]}!
-              </div>
-            </div>
-
-            {/* TABLE HEADERS */}
-            <div className="h-12 flex items-center px-8 border-b border-[#E0E2E7] bg-white relative">
-              <div className="flex items-center text-xs font-medium text-[#B2B5BE] uppercase tracking-wider w-full">
-                <div className="relative" style={{ width: `${columnWidths.party}%` }}>
-                  PARTY
-                  <div 
-                    className="absolute right-0 top-0 h-full w-4 cursor-col-resize hover:bg-[#E0E2E7] opacity-0 hover:opacity-100 transition-opacity"
-                    onMouseDown={(e) => startColumnResize('party', e)}
-                  >
-                    <div className="absolute right-1.5 top-0 h-full w-px bg-[#E0E2E7]" />
-                  </div>
-                </div>
-                <div className="relative overflow-hidden" style={{ width: `${columnWidths.description}%` }}>
-                  DESCRIPTION
-                  <div 
-                    className="absolute right-0 top-0 h-full w-4 cursor-col-resize hover:bg-[#E0E2E7] opacity-0 hover:opacity-100 transition-opacity"
-                    onMouseDown={(e) => startColumnResize('description', e)}
-                  >
-                    <div className="absolute right-1.5 top-0 h-full w-px bg-[#E0E2E7]" />
-                  </div>
-                </div>
-                <div className="relative" style={{ width: `${columnWidths.status}%` }}>
-                  STATUS
-                  <div 
-                    className="absolute right-0 top-0 h-full w-4 cursor-col-resize hover:bg-[#E0E2E7] opacity-0 hover:opacity-100 transition-opacity"
-                    onMouseDown={(e) => startColumnResize('status', e)}
-                  >
-                    <div className="absolute right-1.5 top-0 h-full w-px bg-[#E0E2E7]" />
-                  </div>
-                </div>
-                <div className="relative text-right" style={{ width: `${columnWidths.amount}%` }}>
-                  AMOUNT
-                  <div 
-                    className="absolute right-0 top-0 h-full w-4 cursor-col-resize hover:bg-[#E0E2E7] opacity-0 hover:opacity-100 transition-opacity"
-                    onMouseDown={(e) => startColumnResize('amount', e)}
-                  >
-                    <div className="absolute right-1.5 top-0 h-full w-px bg-[#E0E2E7]" />
-                  </div>
-                </div>
-                <div className="relative text-center" style={{ width: `${columnWidths.action}%` }}>
-                  ACTION
-                  <div 
-                    className="absolute right-0 top-0 h-full w-4 cursor-col-resize hover:bg-[#E0E2E7] opacity-0 hover:opacity-100 transition-opacity"
-                    onMouseDown={(e) => startColumnResize('action', e)}
-                  >
-                    <div className="absolute right-1.5 top-0 h-full w-px bg-[#E0E2E7]" />
-                  </div>
-                </div>
-                <div className="text-right" style={{ width: `${columnWidths.time}%` }}>
-                  TIME
-                </div>
-              </div>
-            </div>
-
-            {/* Space before rows */}
-            <div className="h-6 bg-white" />
-
-            {/* Escrow list */}
-            <div className="flex-1 overflow-y-auto bg-white">
-              {filteredEscrows.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <p className="text-2xl font-normal mb-2 text-[#000000]">No escrows found</p>
-                  <p className="text-base text-[#787B86] mb-8">Create your first escrow to get started</p>
-                  <button
-                    onClick={handleCreateNew}
-                    className="px-8 py-3 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] font-medium transition-colors"
-                  >
-                    Create escrow
-                  </button>
-                </div>
-              ) : (
-                <div className="px-8">
-                  {/* Escrow rows - WITH VISIBLE ROUNDED BORDERS */}
-                  {filteredEscrows.map((escrow) => {
-                    const isReceiver = user?.email === escrow.freelancer_email;
-                    const otherParty = isReceiver ? escrow.client_email : escrow.freelancer_email;
-                    const amount = (escrow.amount_cents / 100).toFixed(2);
-                    const time = getRelativeTime(escrow.created_at);
-                    
-                    const statusStyles: Record<string, { text: string; bg: string; color: string }> = {
-                      'INITIATED': { text: 'New', bg: 'bg-[#F0F2F5]', color: 'text-[#787B86]' },
-                      'ACCEPTED': { text: 'Accepted', bg: 'bg-[#FEF3C7]', color: 'text-[#F7931A]' },
-                      'FUNDED': { text: 'Funded', bg: 'bg-[#E3EFFD]', color: 'text-[#2962FF]' },
-                      'RELEASED': { text: 'Complete', bg: 'bg-[#D1FAE5]', color: 'text-[#26A69A]' },
-                      'DECLINED': { text: 'Declined', bg: 'bg-[#FEE2E2]', color: 'text-[#EF5350]' },
-                    };
-                    const status = statusStyles[escrow.status] || { text: escrow.status, bg: 'bg-[#F0F2F5]', color: 'text-[#787B86]' };
-                    const actionInfo = needsAction(escrow);
-                    
-                    return (
-                      <div
-                        key={escrow.id}
-                        className={clsx(
-                          "group px-4 py-4 mb-2 rounded-lg cursor-pointer transition-all flex items-center",
-                          selectedEscrowId === escrow.id 
-                            ? "bg-white border-2 border-[#000000]" 
-                            : "bg-white border-2 border-transparent hover:border-[#E0E2E7]"
-                        )}
-                        onClick={() => handleSelectEscrow(escrow.id)}
-                      >
-                        {/* Party */}
-                        <div style={{ width: `${columnWidths.party}%` }} className="pr-2">
-                          <p className="text-sm font-medium text-[#000000] truncate">
-                            {isReceiver ? 'From: ' : 'To: '}{otherParty}
-                          </p>
-                        </div>
-
-                        {/* Description - PREVENT OVERFLOW */}
-                        <div style={{ width: `${columnWidths.description}%` }} className="px-2 overflow-hidden">
-                          <p className="text-sm text-[#787B86] truncate">
-                            {escrow.description || `Escrow #${escrow.id.slice(0, 8)}`}
-                          </p>
-                        </div>
-
-                        {/* Status */}
-                        <div style={{ width: `${columnWidths.status}%` }}>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${status.bg} ${status.color}`}>
-                            {status.text}
-                          </span>
-                        </div>
-
-                        {/* Amount */}
-                        <div style={{ width: `${columnWidths.amount}%` }} className="text-right">
-                          <span className="text-sm font-medium text-[#000000]">${amount}</span>
-                        </div>
-
-                        {/* Action */}
-                        <div style={{ width: `${columnWidths.action}%` }} className="flex justify-center">
-                          {actionInfo && actionInfo.isPrimary && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelectEscrow(escrow.id);
-                              }}
-                              className="px-3 py-1.5 bg-[#2962FF] text-white text-xs font-medium rounded-md hover:bg-[#1E53E5] transition-colors"
-                            >
-                              {actionInfo.action}
-                            </button>
-                          )}
-                          {actionInfo && !actionInfo.isPrimary && (
-                            <span className="text-xs text-[#B2B5BE]">{actionInfo.action}</span>
-                          )}
-                        </div>
-
-                        {/* Time */}
-                        <div style={{ width: `${columnWidths.time}%` }} className="text-right">
-                          <span className="text-sm text-[#B2B5BE]">{time}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+            <div className="flex items-center gap-2">
+              {!isProduction && (
+                <div className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
+                  {isStaging ? 'STAGING' : 'TEST'} MODE
                 </div>
               )}
+              <button onClick={() => onNavigate('transparency')} className={btn.outlineSmall}>
+                Transparency
+              </button>
+              <button onClick={() => onNavigate('help')} className={btn.outlineSmall}>
+                Help
+              </button>
+              <div className="hidden sm:flex flex-col items-end leading-tight ml-1">
+                <span className="max-w-[240px] truncate text-[13px] font-medium">{user?.email}</span>
+                <button onClick={signOut} className="text-[11px] text-[#787B86] hover:text-[#0F172A]">
+                  Sign out
+                </button>
+              </div>
+              <div className="ml-1 hidden sm:flex h-9 w-9 items-center justify-center rounded-full bg-[#F3F4F6]">
+                <span className="text-[13px] font-medium">{user?.email?.[0]?.toUpperCase()}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* DRAGGABLE DIVIDER */}
-        {rightPanelOpen && (
-          <div
-            className="w-px bg-[#E0E2E7] hover:bg-[#2962FF] cursor-col-resize relative group transition-colors"
-            onMouseDown={() => setIsResizing(true)}
-            style={{
-              backgroundColor: isResizing ? '#2962FF' : undefined
-            }}
-          >
-            <div className="absolute inset-y-0 -left-1 -right-1" />
+        {/* Mobile header */}
+        <div className="md:hidden flex h-full items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <button
+              className="-ml-1 p-2 rounded-md hover:bg-[#F3F4F6]"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open menu"
+            >
+              <MenuIcon size={20} />
+            </button>
+            <button onClick={() => onNavigate('marketing')} className="flex items-center">
+              <span className="text-[16px] font-medium tracking-[-0.01em] text-[#0F172A]">escrowhaven.io</span>
+            </button>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            {!isProduction && (
+              <div className="px-1.5 py-0.5 bg-yellow-100 text-yellow-800 rounded text-[10px] font-medium">
+                {isStaging ? 'STG' : 'TEST'}
+              </div>
+            )}
+            <div className="relative w-[180px]">
+              <input
+                id="search-input-mobile"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search…"
+                className="w-full rounded-md border border-[#E2E8F0] bg-white pl-8 pr-2 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-[#DBEAFE]"
+              />
+              <span className="pointer-events-none absolute left-2 top-1.5 text-[#94A3B8]">
+                <SearchIcon size={16} />
+              </span>
+            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className={clsx(btn.outlineSmall, isRefreshing && 'opacity-50')}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        </div>
+      </header>
 
-        {/* RIGHT PANEL */}
-        {rightPanelOpen && (
-          <div 
-            className="bg-white flex flex-col relative border-l border-[#E0E2E7]"
-            style={{ 
-              width: `${rightPanelWidth}px`,
-              minWidth: '380px',
-              maxWidth: '70%',
-              transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-            }}
-          >
-            <div className="absolute inset-0 overflow-hidden flex flex-col">
-              {rightPanelView === 'create' ? (
-                <CreateEscrowWizardWrapper
-                  isOpen={true} 
-                  onClose={handleCloseRightPanel}
-                  onEscrowCreated={handleEscrowCreated}
-                />
-              ) : rightPanelView === 'detail' && selectedEscrowId ? (
-                <EscrowDetailPanelWrapper
-                  escrowId={selectedEscrowId}
-                  isOpen={true}
-                  onClose={handleCloseRightPanel}
-                  onUpdate={fetchEscrows}
-                />
-              ) : null}
+      {/* Body */}
+      <div className="flex h-[calc(100vh-56px)] w-full overflow-hidden">
+        {/* Sidebar */}
+        <aside className="hidden md:flex w-60 flex-shrink-0 border-r border-[#E5E7EB] bg-white flex-col min-h-0">
+          <div className="p-3">
+            <button onClick={openCreate} className={btn.primary + ' w-full gap-2'}>
+              <Plus size={16} />
+              New Escrow
+            </button>
+          </div>
+          <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
+            {(
+              [
+                { id: 'all', label: 'All escrows', icon: FileText },
+                { id: 'needs', label: 'Need Action', icon: AlertCircle },
+                { id: 'sent', label: 'Sent', icon: Send },
+                { id: 'received', label: 'Received', icon: Download },
+                { id: 'active', label: 'Active', icon: DollarSign },
+                { id: 'completed', label: 'Completed', icon: CheckCircle },
+              ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
+            ).map((f) => {
+              const Icon = f.icon;
+              const active = activeFolder === f.id;
+              const count = getFolderCount(f.id);
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => handleFolderChange(f.id)}
+                  className={clsx(
+                    'mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] transition',
+                    active ? 'bg-[#EFF6FF] text-[#2962FF]' : 'text-[#334155] hover:bg-[#F8FAFC]'
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon size={16} className={active ? 'text-[#2962FF]' : 'text-[#475569]'} />
+                    {f.label}
+                  </span>
+                  {count > 0 && (
+                    <span
+                      className={clsx(
+                        'rounded-full px-2 py-0.5 text-[11px]',
+                        active ? 'bg-[#2962FF] text-white' : 'bg-[#E2E8F0] text-[#475569]'
+                      )}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        {/* Content */}
+        <div className="flex min-w-0 flex-1 flex-col min-h-0 bg-white">
+          {/* Metrics */}
+          <div className="border-b border-[#E5E7EB] bg-white px-4 md:px-6 pt-3 pb-3">
+            <div className="hidden md:grid grid-cols-3 gap-3">
+              <div className="rounded-md border border-[#E2E8F0] p-3">
+                <div className="text-[12px] text-[#64748B]">Active Escrows</div>
+                <div className="mt-1 text-[20px] font-semibold">
+                  ${metrics.protectedInEscrow.toFixed(2)}
+                  {!isProduction && metrics.protectedInEscrow > 0 && (
+                    <span className="ml-1 text-[10px] text-yellow-600 font-normal">(TEST)</span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-[12px] text-[#2962FF]">{metrics.activeEscrows} in progress</div>
+              </div>
+              <div className="rounded-md border border-[#E2E8F0] p-3">
+                <div className="text-[12px] text-[#64748B]">Lifetime Earnings</div>
+                <div className="mt-1 text-[20px] font-semibold">
+                  ${metrics.totalEarnings.toFixed(2)}
+                  {!isProduction && metrics.totalEarnings > 0 && (
+                    <span className="ml-1 text-[10px] text-yellow-600 font-normal">(TEST)</span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-[12px] text-[#64748B]">
+                  {metrics.completedCount} completed • {metrics.refundedCount} refunded
+                </div>
+              </div>
+              <div className="rounded-md border border-[#E2E8F0] p-3">
+                <div className="text-[12px] text-[#64748B]">Ready to Withdraw</div>
+                <div className="mt-1 text-[20px] font-semibold">
+                  ${metrics.availableToWithdraw.toFixed(2)}
+                  {!isProduction && metrics.availableToWithdraw > 0 && (
+                    <span className="ml-1 text-[10px] text-yellow-600 font-normal">(TEST)</span>
+                  )}
+                </div>
+                <div className="mt-1">
+                  <button
+                    onClick={handleWithdraw}
+                    disabled={metrics.availableToWithdraw === 0}
+                    className={clsx(
+                      btn.linkBlue,
+                      'text-[12px]',
+                      metrics.availableToWithdraw === 0 && 'text-[#94A3B8] hover:no-underline cursor-default'
+                    )}
+                  >
+                    Withdraw <span aria-hidden>→</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile metrics with decimals preserved */}
+            <div className="md:hidden grid grid-cols-3 gap-2">
+              <div className="rounded-md border border-[#E2E8F0] p-2">
+                <div className="text-[10.5px] text-[#64748B]">Protected</div>
+                <div className="text-[14px] font-semibold leading-snug">${metrics.protectedInEscrow.toFixed(2)}</div>
+                <div className="text-[10.5px] text-[#2962FF]">{metrics.activeEscrows} active</div>
+              </div>
+              <div className="rounded-md border border-[#E2E8F0] p-2">
+                <div className="text-[10.5px] text-[#64748B]">Earnings</div>
+                <div className="text-[14px] font-semibold leading-snug">${metrics.totalEarnings.toFixed(2)}</div>
+                <div className="text-[10.5px] text-[#16a34a]">{metrics.completedCount} completed • {metrics.refundedCount} refunded</div>
+              </div>
+              <div className="rounded-md border border-[#E2E8F0] p-2">
+                <div className="text-[10.5px] text-[#64748B]">Available</div>
+                <div className="text-[14px] font-semibold leading-snug">${metrics.availableToWithdraw.toFixed(2)}</div>
+                <button
+                  onClick={handleWithdraw}
+                  disabled={metrics.availableToWithdraw === 0}
+                  className={clsx(
+                    btn.linkBlue,
+                    'text-[11px] leading-none mt-0.5',
+                    metrics.availableToWithdraw === 0 && 'text-[#94A3B8] hover:no-underline cursor-default'
+                  )}
+                >
+                  Withdraw →
+                </button>
+              </div>
             </div>
           </div>
-        )}
+
+          {/* List + Right panel */}
+          <div
+            ref={gridRef}
+            className="grid min-h-0 flex-1"
+            style={{ 
+              gridTemplateColumns: rightPanelOpen && !isMobile 
+                ? `minmax(0,1fr) ${rightPanelWidth || Math.floor((gridRef.current?.getBoundingClientRect().width || 1200) * 0.33)}px`
+                : '1fr' 
+            }}
+          >
+            {/* List */}
+            <div className="min-w-0 min-h-0 flex flex-col">
+              {/* Column headings */}
+              <div className="hidden md:flex items-center border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
+                <div className="flex-[3.5] text-[11px] font-medium text-[#64748B]">
+                  Party / Description
+                </div>
+                <div className="hidden lg:block flex-[0.8] text-[11px] font-medium text-[#64748B]">
+                  Status
+                </div>
+                <div className="hidden md:block flex-[1.2] text-right text-[11px] font-medium text-[#64748B]">
+                  Amount
+                </div>
+                <div className="hidden xl:block flex-[2] text-center text-[11px] font-medium text-[#64748B]">
+                  Action
+                </div>
+                <div className="xl:hidden flex-[1]"></div>
+                <div className="hidden sm:block flex-[1.5] text-right text-[11px] font-medium text-[#64748B]">
+                  Last Update
+                </div>
+              </div>
+
+              {/* Mobile list header */}
+              <div className="md:hidden h-9 border-b border-[#E5E7EB] bg-white px-4 flex items-center text-[12px] text-[#64748B]">
+                Escrows ({displayCount})
+              </div>
+
+              {/* List */}
+              <div className="min-h-0 flex-1 overflow-y-auto bg-white">
+                {sortedEscrows.length === 0 && !isLoadingMore ? (
+                  <div className="flex h-full flex-col items-center justify-center px-4">
+                    <div className="mb-1 text-[16px]">No escrows found</div>
+                    <div className="mb-4 text-[13px] text-[#64748B] text-center">
+                      {activeFolder !== 'all' 
+                        ? `No escrows in "${activeFolder}" folder`
+                        : isProduction 
+                          ? 'Create your first escrow to get started' 
+                          : 'Create a test escrow to try it out'}
+                    </div>
+                    <button onClick={openCreate} className={btn.primary + ' gap-2'}>
+                      <Plus size={16} />
+                      New Escrow
+                    </button>
+                  </div>
+                ) : (
+                  <div className="md:bg-white">
+                    {sortedEscrows.map((e) => renderEscrowRow(e))}
+                    
+                    {isLoadingMore && (
+                      <div className="flex justify-center py-4">
+                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#E2E8F0] border-t-[#2962FF]" />
+                      </div>
+                    )}
+                    
+                    {hasMore && !isLoadingMore && (
+                      <div ref={observerTarget} className="h-10" />
+                    )}
+                    
+                    {!hasMore && sortedEscrows.length > 0 && (
+                      <div className="text-center py-4 text-[13px] text-[#64748B]">
+                        All {sortedEscrows.length} escrows loaded
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right panel - Desktop */}
+            {rightPanelOpen && !isMobile && (
+              <div className="relative border-l border-[#E5E7EB] bg-white min-h-0 overflow-hidden">
+                <div
+                  className="absolute inset-y-0 left-0 w-1 cursor-col-resize hover:bg-[#2962FF] z-10"
+                  onMouseDown={() => setIsResizing(true)}
+                />
+                <div className="h-full">
+                  {rightPanelView === 'create' ? (
+                    <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
+                  ) : rightPanelView === 'detail' && selectedEscrowId ? (
+                    <EscrowDetailPanelWrapper
+                      escrowId={selectedEscrowId}
+                      isOpen
+                      onClose={closePanel}
+                      onUpdate={handleRefresh}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Mobile nav drawer */}
+      {mobileNavOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileNavOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="absolute left-0 top-0 h-full w-[82vw] max-w-[300px] bg-white shadow-xl flex flex-col">
+            <div className="h-14 flex items-center justify-between px-4 border-b border-[#E5E7EB]">
+              <div className="flex items-center">
+                <span className="text-[16px] font-medium">escrowhaven.io</span>
+              </div>
+              <button className="p-2 rounded-md hover:bg-[#F3F4F6]" onClick={() => setMobileNavOpen(false)} aria-label="Close menu">
+                <CloseIcon size={18} />
+              </button>
+            </div>
+            <div className="p-3">
+              <button onClick={() => { setMobileNavOpen(false); openCreate(); }} className={btn.primary + ' w-full gap-2'}>
+                <Plus size={16} />
+                New Escrow
+              </button>
+            </div>
+            <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
+              {(
+                [
+                  { id: 'all', label: 'All escrows', icon: FileText },
+                  { id: 'needs', label: 'Need Action', icon: AlertCircle },
+                  { id: 'sent', label: 'Sent', icon: Send },
+                  { id: 'received', label: 'Received', icon: Download },
+                  { id: 'active', label: 'Active', icon: DollarSign },
+                  { id: 'completed', label: 'Completed', icon: CheckCircle },
+                ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
+              ).map((f) => {
+                const Icon = f.icon;
+                const active = activeFolder === f.id;
+                const count = getFolderCount(f.id);
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => { handleFolderChange(f.id); setMobileNavOpen(false); }}
+                    className={clsx(
+                      'mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[14px] transition',
+                      active ? 'bg-[#EFF6FF] text-[#2962FF]' : 'text-[#334155] hover:bg-[#F8FAFC]'
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Icon size={18} className={active ? 'text-[#2962FF]' : 'text-[#475569]'} />
+                      {f.label}
+                    </span>
+                    {count > 0 && (
+                      <span
+                        className={clsx(
+                          'rounded-full px-2 py-0.5 text-[12px]',
+                          active ? 'bg-[#2962FF] text-white' : 'bg-[#E2E8F0] text-[#475569]'
+                        )}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile panel */}
+      {rightPanelOpen && isMobile && (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col">
+          {rightPanelView === 'create' ? (
+            <CreateEscrowWizardWrapper isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
+          ) : rightPanelView === 'detail' && selectedEscrowId ? (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <EscrowDetailPanel
+                escrowId={selectedEscrowId}
+                isOpen
+                onClose={closePanel}
+                onUpdate={handleRefresh}
+              />
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      <OffRampModal
+        isOpen={showOffRampModal}
+        onClose={() => {
+          setShowOffRampModal(false);
+          setCurrentWithdrawalId(null);
+        }}
+        availableAmount={metrics.availableToWithdraw}
+        userEmail={user?.email || ''}
+        walletAddress={''}
+        withdrawalId={currentWithdrawalId || ''}
+      />
     </div>
   );
 }

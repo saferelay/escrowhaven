@@ -42,7 +42,7 @@ export default function LoginPage() {
                 <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <span className="text-2xl font-semibold text-gray-900">SafeRelay</span>
+            <span className="text-2xl font-semibold text-gray-900">escrowhaven</span>
           </div>
         </div>
         

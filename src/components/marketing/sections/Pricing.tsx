@@ -13,7 +13,7 @@ export function Pricing() {
         
         <div className="grid lg:grid-cols-2 gap-8 max-w-3xl mx-auto">
           <div className="bg-white border border-[#E0E2E7] rounded-xl p-10">
-            <h3 className="text-2xl font-medium text-black mb-2">EscrowHaven Pay-As-You-Go</h3>
+            <h3 className="text-2xl font-medium text-black mb-2">escrowhaven Pay-As-You-Go</h3>
             <p className="text-3xl text-black mb-6">$0/month</p>
             <ul className="space-y-3 text-sm text-[#787B86] mb-8">
               <li>• 1.99% platform fee (only on release)</li>
@@ -29,7 +29,7 @@ export function Pricing() {
           
           <div className="bg-white border-2 border-[#2962FF] rounded-xl p-10">
             <div className="flex justify-between items-start mb-2">
-              <h3 className="text-2xl font-medium text-black">EscrowHaven Pro</h3>
+              <h3 className="text-2xl font-medium text-black">escrowhaven Pro</h3>
             </div>
             <p className="text-3xl text-black mb-6">$25/month</p>
             <ul className="space-y-3 text-sm text-[#787B86] mb-8">

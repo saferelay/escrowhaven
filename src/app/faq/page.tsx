@@ -9,7 +9,7 @@ export default function FAQPage() {
     },
     {
       question: "Who pays the 1.99% fee?",
-      answer: "The recipient does. When funds are released, the recipient receives 98.01% of the total amount, and SafeRelay takes 1.99% as a platform fee."
+      answer: "The recipient does. When funds are released, the recipient receives 98.01% of the total amount, and escrowhaven takes 1.99% as a platform fee."
     },
     {
       question: "How long do card payments take?",
@@ -28,7 +28,7 @@ export default function FAQPage() {
       answer: "We support instant payouts to over 100 countries through our partner Transak. Contact us to check if your country is supported."
     },
     {
-      question: "Is SafeRelay secure?",
+      question: "Is escrowhaven secure?",
       answer: "Yes. All funds are held in audited smart contracts on the blockchain. We never have access to your money - only you and your counterparty can release funds through mutual agreement."
     },
     {
@@ -67,7 +67,7 @@ export default function FAQPage() {
             We're here to help. Contact our support team for personalized assistance.
           </p>
           <a 
-            href="mailto:support@saferelay.com" 
+            href="mailto:support@escrowhaven.io" 
             className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Contact Support

@@ -2,10 +2,121 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, 'Segoe UI', Ubuntu, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+/* Base styles */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, 'Segoe UI', Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Payment Widget Styling */
+.payment-widget-iframe {
+  background-color: #FFFFFF;
+  border-radius: 8px;
+}
+
+/* Override inline styles from payment providers */
+iframe[src*="transak.com"],
+iframe[src*="global.transak.com"],
+iframe[src*="global-stg.transak.com"],
+iframe[src*="onramp.money"] {
+  background-color: #FFFFFF !important;
+  border-radius: 8px !important;
+}
+
+/* Modal overlay */
+.payment-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* Modal content */
+.payment-modal-content {
+  background-color: #FFFFFF;
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 520px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
   }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  width: 3rem;
+  height: 3rem;
+  border: 3px solid #E5E7EB;
+  border-top-color: #2563EB;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Force white background in dark mode */
+@media (prefers-color-scheme: dark) {
+  iframe[src*="transak.com"],
+  iframe[src*="global.transak.com"],
+  iframe[src*="global-stg.transak.com"],
+  iframe[src*="onramp.money"] {
+    background-color: #FFFFFF !important;
+    color-scheme: light !important;
+  }
+}
+
+/* Custom scrollbar */
+.payment-modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.payment-modal-content::-webkit-scrollbar-track {
+  background: #F3F4F6;
+}
+
+.payment-modal-content::-webkit-scrollbar-thumb {
+  background: #9CA3AF;
+  border-radius: 3px;
+}
+
+.payment-modal-content::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
 }

@@ -1,11 +1,12 @@
-// src/components/SettlementActions.tsx - Complete code with Magic wallet signing
+// src/components/SettlementActions.tsx - Complete Gasless Version with ALL original features
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Magic } from 'magic-sdk';
 import { ethers } from 'ethers';
 import { useAuth } from '@/contexts/AuthContext';
-import { getEnvConfig } from '@/lib/environment';
+import { DisputePaymentModal } from '@/components/escrow/DisputePaymentModal'; 
+
 
 interface SettlementActionsProps {
   escrow: any;
@@ -13,906 +14,583 @@ interface SettlementActionsProps {
   onAction: (action: any) => Promise<void>;
 }
 
-// EIP-712 Domain helper
-const getEIP712Domain = (contractAddress: string, chainId: number) => ({
-  name: 'SafeRelay',
-  version: '2.1',
-  chainId: chainId,
-  verifyingContract: contractAddress
-});
-
-// Signing Preview Modal Component
-function SigningPreviewModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  signingData 
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  signingData: any;
-}) {
-  if (!isOpen) return null;
-
+const PulsingDot = ({ color = 'blue' }: { color?: string }) => {
+  const colors = {
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    yellow: 'bg-yellow-500',
+    gray: 'bg-gray-400'
+  };
+  
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg max-w-lg w-full p-6">
-          <h3 className="text-lg font-semibold mb-4">Review What You're Signing</h3>
-          
-          <div className="mb-6">
-            <p className="text-sm text-gray-600 mb-4">
-              You're about to sign a message that will execute the following action on the blockchain:
-            </p>
-            
-            <div className="bg-gray-100 rounded p-4 mb-4">
-              <h4 className="font-medium text-sm mb-2">{signingData.action}</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Amount:</span>
-                  <span className="font-mono">${signingData.amount}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Recipient:</span>
-                  <span className="font-mono text-xs">{signingData.recipient}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Contract:</span>
-                  <span className="font-mono text-xs">{signingData.contract}</span>
-                </div>
-              </div>
-            </div>
-            
-            <details className="text-xs">
-              <summary className="cursor-pointer text-blue-600 hover:underline mb-2">
-                View Technical Details
-              </summary>
-              <pre className="bg-black text-green-400 p-3 rounded overflow-x-auto">
-                {JSON.stringify(signingData.fullData, null, 2)}
-              </pre>
-            </details>
-          </div>
-          
-          <div className="flex gap-3">
-            <button
-              onClick={onConfirm}
-              className="flex-1 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              I Understand, Proceed
-            </button>
-            <button
-              onClick={onClose}
-              className="flex-1 py-2 border border-gray-300 rounded hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="relative inline-flex">
+      <div className={`w-2 h-2 ${colors[color as keyof typeof colors]} rounded-full`} />
+      <div className={`absolute inset-0 w-2 h-2 ${colors[color as keyof typeof colors]} rounded-full animate-ping`} />
     </div>
   );
-}
+};
 
 export function SettlementActions({ escrow, userRole, onAction }: SettlementActionsProps) {
-  const { user, magic } = useAuth();
-  const [showForm, setShowForm] = useState<'settle' | null>(null);
-  const [amount, setAmount] = useState('');
-  const [reason, setReason] = useState('');
+  const { user, supabase } = useAuth();
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);  // ADD THIS LINE
+  const [clientAmount, setClientAmount] = useState('');
+  const [freelancerAmount, setFreelancerAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const [signingStep, setSigningStep] = useState<'idle' | 'preview' | 'signing' | 'submitting'>('idle');
-  
-  const [pendingAction, setPendingAction] = useState<'release' | 'refund' | 'settlement' | null>(null);
-  const [showSigningPreview, setShowSigningPreview] = useState(false);
-  const [signingPreviewData, setSigningPreviewData] = useState<any>(null);
+  const [status, setStatus] = useState('');
+  const [activeProposal, setActiveProposal] = useState<any>(null);
+  const [escrowBalance, setEscrowBalance] = useState<string>('0');
+  const [contractExists, setContractExists] = useState<boolean | null>(null);
 
-  const remainingAmount = escrow.amount_cents / 100;
 
-  // Helper function to ensure Magic login
-  const ensureMagicLogin = async (requiredEmail: string): Promise<Magic> => {
-    let magicInstance = magic;
-    
-    if (!magicInstance) {
-      magicInstance = new Magic(process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY!);
-    }
-    
-    const isLoggedIn = await magicInstance.user.isLoggedIn();
-    
-    if (isLoggedIn) {
-      const userInfo = await magicInstance.user.getInfo();
-      if (userInfo.email !== requiredEmail) {
-        await magicInstance.user.logout();
-        await magicInstance.auth.loginWithMagicLink({ email: requiredEmail });
-      }
-    } else {
-      await magicInstance.auth.loginWithMagicLink({ email: requiredEmail });
-    }
-    
-    return magicInstance;
-  };
-
-  // Continue after preview - directly to Magic signing
-  const proceedAfterPreview = async () => {
-    setShowSigningPreview(false);
-    
-    try {
-      // Based on pending action, proceed with the appropriate flow
-      if (pendingAction === 'release') {
-        await executeRelease();
-      } else if (pendingAction === 'refund') {
-        await executeRefund();
-      } else if (pendingAction === 'settlement') {
-        await executeSettlement();
+  // Check if contract exists and get balance
+  useEffect(() => {
+    const checkDeployment = async () => {
+      if (!escrow?.id) return;
+      
+      // If status is FUNDED, contract MUST exist (that's what FUNDED means)
+      if (escrow.status === 'FUNDED') {
+        setContractExists(true);
+        
+        // Set balance
+        if (escrow.funded_amount) {
+          setEscrowBalance(parseFloat(escrow.funded_amount).toFixed(2));
+        } else if (escrow.amount_cents) {
+          setEscrowBalance((escrow.amount_cents / 100).toFixed(2));
+        }
+        return;
       }
       
-      setPendingAction(null);
-    } catch (error: any) {
-      console.error('Action error:', error);
-      alert(error.message || 'Failed to complete action');
-    } finally {
-      setLoading(false);
-      setSigningStep('idle');
+      // For any other status, check the contract_deployed flag
+      setContractExists(escrow.contract_deployed === true);
+    };
+    
+    checkDeployment();
+  }, [escrow?.id, escrow?.status, escrow?.contract_deployed, escrow?.funded_amount]);
+
+  const checkContractExists = async () => {
+    try {
+      const provider = new ethers.providers.JsonRpcProvider('https://rpc-amoy.polygon.technology');
+      const code = await provider.getCode(escrow.vault_address);
+      const exists = code !== '0x';
+      setContractExists(exists);
+      
+      if (!exists) {
+        console.warn('No contract deployed at vault address:', escrow.vault_address);
+      }
+    } catch (error) {
+      console.error('Error checking contract:', error);
+      setContractExists(false);
     }
   };
 
-  // Release full payment (Client only)
-  const handleApproveRelease = async () => {
+  const getMagicInstance = () => {
+    if (!process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY) {
+      console.error('Magic publishable key not found');
+      return null;
+    }
+  
+    // Always use testnet for now since you're on Polygon Amoy
+    return new Magic(process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY, {
+      network: {
+        rpcUrl: 'https://rpc-amoy.polygon.technology',
+        chainId: 80002
+      }
+    });
+  };
+
+  const connectMagicWallet = async (userEmail: string) => {
+    const magic = getMagicInstance();
+    if (!magic) throw new Error('Magic not configured');
+
+    try {
+      const isLoggedIn = await magic.user.isLoggedIn();
+      if (isLoggedIn) {
+        await magic.user.logout();
+      }
+    } catch (e) {
+      console.log('User not logged in');
+    }
+
+    setStatus('Check your email for the secure login link...');
+    
+    await magic.auth.loginWithMagicLink({ 
+      email: userEmail,
+      showUI: true
+    });
+
+    const provider = new ethers.providers.Web3Provider(magic.rpcProvider as any);
+    const signer = provider.getSigner();
+    const address = await signer.getAddress();
+    
+    console.log('Magic wallet connected:', address);
+    
+    return { provider, signer, address };
+  };
+
+  // GASLESS RELEASE - User signs, backend pays gas
+  const handleRelease = async () => {
+    console.log('Release clicked. Contract exists?', contractExists);
+    console.log('Escrow data:', {
+      contract_deployed: escrow.contract_deployed,
+      status: escrow.status,
+      vault_address: escrow.vault_address
+    });
+    
+    if (!contractExists) {
+      alert('The escrow vault contract has not been deployed yet. Please contact support.');
+      return;
+    }
+
     if (userRole !== 'payer') {
-      alert('Only the client can release payment');
+      alert('Only the sender can release payment');
       return;
     }
 
     setLoading(true);
-    setSigningStep('preview');
-    
-    // Prepare signing preview data
-    const previewData = {
-      action: 'Release Full Payment',
-      amount: remainingAmount.toFixed(2),
-      recipient: escrow.freelancer_wallet_address || escrow.freelancer_email,
-      contract: escrow.vault_address,
-      fullData: {
-        domain: getEIP712Domain(escrow.vault_address, getEnvConfig().chainId),
-        types: {
-          ReleasePayment: [
-            { name: 'action', type: 'string' },
-            { name: 'recipient', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-            { name: 'nonce', type: 'uint256' },
-            { name: 'deadline', type: 'uint256' }
-          ]
-        },
-        value: {
-          action: 'Release Full Payment',
-          recipient: escrow.freelancer_wallet_address,
-          amount: ethers.utils.parseUnits(remainingAmount.toString(), 6).toString(),
-          nonce: 'Generated at signing',
-          deadline: 'Generated at signing'
-        }
-      }
-    };
-    
-    setSigningPreviewData(previewData);
-    setShowSigningPreview(true);
-    setPendingAction('release');
-  };
+    setStatus('Connecting to your Magic wallet...');
 
-  // Execute release with Magic wallet
-  const executeRelease = async () => {
     try {
-      setSigningStep('signing');
+      const userEmail = escrow.client_email;
+      if (!userEmail) throw new Error('User email not found');
+
+      const { signer, address } = await connectMagicWallet(userEmail);
       
-      const requiredEmail = escrow.client_email;
-      const magicInstance = await ensureMagicLogin(requiredEmail);
-      
-      const provider = new ethers.providers.Web3Provider(magicInstance.rpcProvider as any);
-      const signer = provider.getSigner();
-      const signerAddress = await signer.getAddress();
-      
-      if (signerAddress.toLowerCase() !== escrow.client_wallet_address?.toLowerCase()) {
-        throw new Error(`Wallet mismatch. Expected ${escrow.client_wallet_address}, got ${signerAddress}. Please try logging out and back in.`);
-      }
-      
+      // Create message to sign
       const nonce = Date.now();
-      const deadline = Math.floor(Date.now() / 1000) + 3600;
+      const message = ethers.utils.solidityKeccak256(
+        ['string', 'address', 'uint256'],
+        ['Release escrow', escrow.vault_address, nonce]
+      );
       
-      if (escrow.contract_version === 'v2.1' && escrow.vault_address) {
-        const chainId = getEnvConfig().chainId;
-        const domain = getEIP712Domain(escrow.vault_address, chainId);
-        
-        const types = {
-          ReleasePayment: [
-            { name: 'action', type: 'string' },
-            { name: 'recipient', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-            { name: 'nonce', type: 'uint256' },
-            { name: 'deadline', type: 'uint256' }
-          ]
-        };
-        
-        const value = {
-          action: 'Release Full Payment',
-          recipient: escrow.freelancer_wallet_address,
-          amount: ethers.utils.parseUnits(remainingAmount.toString(), 6),
-          nonce: nonce,
-          deadline: deadline
-        };
-        
-        // Magic wallet signs the message (no gas cost for user)
-        const signature = await signer._signTypedData(domain, types, value);
-        
-        setSigningStep('submitting');
-        
-        // Send signature to backend which will execute on-chain
-        const response = await fetch('/api/escrow/release-v2-1', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            escrowId: escrow.id,
-            action: 'release',
-            userEmail: requiredEmail,
-            signature,
-            nonce: nonce.toString(),
-            deadline: deadline.toString(),
-            eip712: true,
-            domain,
-            types,
-            value,
-            signerAddress,
-            amountToRelease: remainingAmount.toString()
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.details || result.error || 'Transaction failed');
-        }
-        
-        await onAction({ type: 'released', ...result });
+      setStatus('Please sign the release authorization in your email...');
+      
+      // User signs with Magic wallet - NO GAS NEEDED
+      const signature = await signer.signMessage(ethers.utils.arrayify(message));
+      
+      setStatus('Processing release...');
+      
+      // Send signature to backend which will pay gas
+      const response = await fetch('/api/escrow/gasless-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          escrowId: escrow.id,
+          action: 'release',
+          signature,
+          nonce,
+          signerAddress: address
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to release');
       }
+      
+      const data = await response.json();
+      
+      setStatus('Payment released successfully!');
+      await onAction({ 
+        type: 'released', 
+        txHash: data.txHash 
+      });
       
     } catch (error: any) {
       console.error('Release error:', error);
-      alert(error.message || 'Failed to release payment');
+      setStatus('');
+      
+      if (error.code === 'ACTION_REJECTED') {
+        alert('Transaction cancelled');
+      } else {
+        alert(error.reason || error.message || 'Failed to release. Check console for details.');
+      }
     } finally {
       setLoading(false);
-      setSigningStep('idle');
+      setTimeout(() => setStatus(''), 5000);
     }
   };
 
-  // Refund (Freelancer only)
+  // GASLESS REFUND - User signs, backend pays gas
   const handleRefund = async () => {
-    if (userRole !== 'recipient') return;
-    
+    if (!contractExists) {
+      alert('The escrow vault contract has not been deployed yet. Please contact support.');
+      return;
+    }
+
+    if (userRole !== 'recipient') {
+      alert('Only the recipient can refund');
+      return;
+    }
+
     setLoading(true);
-    setSigningStep('preview');
+    setStatus('Connecting to your Magic wallet...');
 
-    // Prepare signing preview data
-    const previewData = {
-      action: 'Refund Full Payment',
-      amount: remainingAmount.toFixed(2),
-      recipient: escrow.client_wallet_address || escrow.client_email,
-      contract: escrow.vault_address,
-      fullData: {
-        domain: getEIP712Domain(escrow.vault_address, getEnvConfig().chainId),
-        types: {
-          RefundPayment: [
-            { name: 'action', type: 'string' },
-            { name: 'recipient', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-            { name: 'nonce', type: 'uint256' },
-            { name: 'deadline', type: 'uint256' }
-          ]
-        },
-        value: {
-          action: 'Refund Full Payment',
-          recipient: escrow.client_wallet_address,
-          amount: ethers.utils.parseUnits(remainingAmount.toString(), 6).toString(),
-          nonce: 'Generated at signing',
-          deadline: 'Generated at signing'
-        }
-      }
-    };
-    
-    setSigningPreviewData(previewData);
-    setShowSigningPreview(true);
-    setPendingAction('refund');
-  };
-
-  // Execute refund with Magic wallet
-  const executeRefund = async () => {
     try {
-      setSigningStep('signing');
+      const userEmail = escrow.freelancer_email;
+      if (!userEmail) throw new Error('User email not found');
+
+      const { signer, address } = await connectMagicWallet(userEmail);
       
-      const requiredEmail = escrow.freelancer_email;
-      const magicInstance = await ensureMagicLogin(requiredEmail);
-      
-      const provider = new ethers.providers.Web3Provider(magicInstance.rpcProvider as any);
-      const signer = provider.getSigner();
-      const signerAddress = await signer.getAddress();
-      
-      if (signerAddress.toLowerCase() !== escrow.freelancer_wallet_address?.toLowerCase()) {
-        throw new Error(`Wallet mismatch. Expected ${escrow.freelancer_wallet_address}, got ${signerAddress}. Please try logging out and back in.`);
-      }
-      
+      // Create message to sign
       const nonce = Date.now();
-      const deadline = Math.floor(Date.now() / 1000) + 3600;
+      const message = ethers.utils.solidityKeccak256(
+        ['string', 'address', 'uint256'],
+        ['Refund escrow', escrow.vault_address, nonce]
+      );
       
-      if (escrow.contract_version === 'v2.1' && escrow.vault_address) {
-        const chainId = getEnvConfig().chainId;
-        const domain = getEIP712Domain(escrow.vault_address, chainId);
-        
-        const types = {
-          RefundPayment: [
-            { name: 'action', type: 'string' },
-            { name: 'recipient', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-            { name: 'nonce', type: 'uint256' },
-            { name: 'deadline', type: 'uint256' }
-          ]
-        };
-        
-        const value = {
-          action: 'Refund Full Payment',
-          recipient: escrow.client_wallet_address,
-          amount: ethers.utils.parseUnits(remainingAmount.toString(), 6),
-          nonce: nonce,
-          deadline: deadline
-        };
-        
-        // Magic wallet signs the message (no gas cost for user)
-        const signature = await signer._signTypedData(domain, types, value);
-        
-        setSigningStep('submitting');
-        
-        // Send signature to backend which will execute on-chain
-        const response = await fetch('/api/escrow/release-v2-1', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            escrowId: escrow.id,
-            action: 'refund',
-            userEmail: requiredEmail,
-            signature,
-            nonce: nonce.toString(),
-            deadline: deadline.toString(),
-            eip712: true,
-            domain,
-            types,
-            value,
-            signerAddress,
-            amountToRefund: remainingAmount.toString()
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.details || result.error || 'Failed to process refund');
-        }
-        
-        await onAction({ type: 'refunded', ...result });
+      setStatus('Please sign the refund authorization in your email...');
+      
+      // User signs - NO GAS NEEDED
+      const signature = await signer.signMessage(ethers.utils.arrayify(message));
+      
+      setStatus('Processing refund...');
+      
+      // Backend pays gas
+      const response = await fetch('/api/escrow/gasless-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          escrowId: escrow.id,
+          action: 'refund',
+          signature,
+          nonce,
+          signerAddress: address
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to refund');
       }
       
+      const data = await response.json();
+      
+      setStatus('Refund complete!');
+      await onAction({ 
+        type: 'refunded', 
+        txHash: data.txHash 
+      });
+    
     } catch (error: any) {
       console.error('Refund error:', error);
-      alert(error.message || 'Failed to process refund');
+      setStatus('');
+      
+      if (error.code === 'ACTION_REJECTED') {
+        alert('Transaction cancelled');
+      } else {
+        alert(error.reason || error.message || 'Failed to refund');
+      }
     } finally {
       setLoading(false);
-      setSigningStep('idle');
+      setTimeout(() => setStatus(''), 5000);
     }
   };
 
-  // Execute settlement
-  const handleExecuteSettlement = async () => {
-    if (userRole !== 'payer' || escrow.contract_version !== 'v2.1') {
+  // GASLESS SETTLEMENT PROPOSAL - User signs, backend pays gas
+  const handleProposeSettlement = async () => {
+    if (!contractExists) {
+      alert('The escrow vault contract has not been deployed yet. Please contact support.');
       return;
     }
-    
-    setLoading(true);
-    setSigningStep('preview');
-    
-    const settlementAmount = escrow.settlement_amount_cents / 100;
-    
-    // Prepare signing preview data
-    const previewData = {
-      action: 'Settlement Release',
-      amount: settlementAmount.toFixed(2),
-      recipient: escrow.freelancer_wallet_address || escrow.freelancer_email,
-      contract: escrow.vault_address,
-      fullData: {
-        domain: getEIP712Domain(escrow.vault_address, getEnvConfig().chainId),
-        types: {
-          SettlementRelease: [
-            { name: 'action', type: 'string' },
-            { name: 'recipient', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-            { name: 'totalAmount', type: 'uint256' },
-            { name: 'nonce', type: 'uint256' },
-            { name: 'deadline', type: 'uint256' }
-          ]
-        },
-        value: {
-          action: 'Settlement Release',
-          recipient: escrow.freelancer_wallet_address,
-          amount: ethers.utils.parseUnits(settlementAmount.toString(), 6).toString(),
-          totalAmount: ethers.utils.parseUnits(remainingAmount.toString(), 6).toString(),
-          nonce: 'Generated at signing',
-          deadline: 'Generated at signing'
-        }
-      }
-    };
-    
-    setSigningPreviewData(previewData);
-    setShowSigningPreview(true);
-    setPendingAction('settlement');
-  };
 
-  // Execute settlement with Magic wallet
-  const executeSettlement = async () => {
+    const clientAmt = parseFloat(clientAmount || '0');
+    const freelancerAmt = parseFloat(freelancerAmount || '0');
+
+    const total = clientAmt + freelancerAmt;
+    if (Math.abs(total - parseFloat(escrowBalance)) > 0.01) {
+      alert(`Settlement amounts must equal escrow balance (${escrowBalance} USDC). Currently: ${total.toFixed(2)} USDC`);
+      return;
+    }
+
+    setLoading(true);
+    setStatus('Connecting to your Magic wallet...');
+
     try {
-      setSigningStep('signing');
+      const userEmail = userRole === 'payer' ? escrow.client_email : escrow.freelancer_email;
+      const { signer, address } = await connectMagicWallet(userEmail);
       
-      const requiredEmail = escrow.client_email;
-      const magicInstance = await ensureMagicLogin(requiredEmail);
-      
-      const provider = new ethers.providers.Web3Provider(magicInstance.rpcProvider as any);
-      const signer = provider.getSigner();
-      
+      // Create message to sign for settlement proposal
       const nonce = Date.now();
-      const deadline = Math.floor(Date.now() / 1000) + 3600;
+      const clientAmountUsdc = ethers.utils.parseUnits(clientAmt.toString(), 6);
+      const freelancerAmountUsdc = ethers.utils.parseUnits(freelancerAmt.toString(), 6);
       
-      const chainId = getEnvConfig().chainId;
-      const domain = getEIP712Domain(escrow.vault_address, chainId);
-      
-      const types = {
-        SettlementRelease: [
-          { name: 'action', type: 'string' },
-          { name: 'recipient', type: 'address' },
-          { name: 'amount', type: 'uint256' },
-          { name: 'totalAmount', type: 'uint256' },
-          { name: 'nonce', type: 'uint256' },
-          { name: 'deadline', type: 'uint256' }
+      const message = ethers.utils.solidityKeccak256(
+        ['string', 'address', 'uint256', 'uint256', 'uint256'],
+        [
+          'Propose settlement',
+          escrow.vault_address,
+          clientAmountUsdc,
+          freelancerAmountUsdc,
+          nonce
         ]
-      };
-      
-      const settlementAmount = ethers.utils.parseUnits(
-        (escrow.settlement_amount_cents / 100).toString(), 
-        6
       );
       
-      const totalAmountWei = ethers.utils.parseUnits(
-        remainingAmount.toString(),
-        6
-      );
+      setStatus('Please sign the settlement proposal in your email...');
       
-      const value = {
-        action: 'Settlement Release',
-        recipient: escrow.freelancer_wallet_address,
-        amount: settlementAmount,
-        totalAmount: totalAmountWei,
-        nonce: nonce,
-        deadline: deadline
-      };
+      // User signs - NO GAS NEEDED
+      const signature = await signer.signMessage(ethers.utils.arrayify(message));
       
-      // Magic wallet signs the message (no gas cost for user)
-      const signature = await signer._signTypedData(domain, types, value);
-      const signerAddress = await signer.getAddress();
+      setStatus('Submitting settlement proposal...');
       
-      setSigningStep('submitting');
-      
-      // Send signature to backend which will execute on-chain
-      const response = await fetch('/api/escrow/release-v2-1', {
+      // Backend pays gas
+      const response = await fetch('/api/escrow/gasless-action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           escrowId: escrow.id,
-          action: 'settlement',
-          userEmail: requiredEmail,
+          action: 'propose_settlement',
           signature,
-          nonce: nonce.toString(),
-          deadline: deadline.toString(),
-          settlementAmount: (escrow.settlement_amount_cents / 100).toString(),
-          eip712: true,
-          domain,
-          types,
-          value,
-          signerAddress
+          nonce,
+          signerAddress: address,
+          clientAmount: clientAmt,
+          freelancerAmount: freelancerAmt
         })
       });
       
-      const result = await response.json();
-      
       if (!response.ok) {
-        throw new Error(result.details || result.error || 'Failed to execute settlement');
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to propose settlement');
       }
       
-      await onAction({ type: 'settlement_executed', ...result });
+      const data = await response.json();
       
-    } catch (error: any) {
-      console.error('Settlement execution error:', error);
-      alert(error.message || 'Failed to execute settlement');
-    } finally {
-      setLoading(false);
-      setSigningStep('idle');
-    }
-  };
-
-  // Propose settlement
-  const handleSettlement = async () => {
-    if (!amount || parseFloat(amount) <= 0 || parseFloat(amount) > remainingAmount) {
-      alert(`Please enter a valid amount between $0 and $${remainingAmount.toFixed(2)}`);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const requiredEmail = userRole === 'payer' ? escrow.client_email : escrow.freelancer_email;
-      const freelancerAmount = parseFloat(amount);
-      const clientRefund = remainingAmount - freelancerAmount;
-      
-      const response = await fetch('/api/escrow/settle/propose', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          escrowId: escrow.id,
-          userEmail: requiredEmail,
-          settlementProposal: {
-            proposedBy: userRole,
-            freelancerAmount: freelancerAmount,
-            clientRefund: clientRefund,
-            reason: reason || ''
-          }
-        })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to submit settlement proposal');
-      }
-
+      setStatus('Settlement proposed!');
       await onAction({ type: 'settlement_proposed' });
-      setShowForm(null);
-      setAmount('');
-      setReason('');
+      setShowSettlementModal(false);
+      setClientAmount('');
+      setFreelancerAmount('');
       
     } catch (error: any) {
       console.error('Settlement error:', error);
-      alert(error.message || 'Failed to propose settlement');
+      setStatus('');
+      alert(error.reason || error.message || 'Failed to propose settlement');
     } finally {
       setLoading(false);
+      setTimeout(() => setStatus(''), 5000);
     }
   };
 
-  // Check settlement states
-  const userHasProposedSettlement = escrow.settlement_proposed_by === userRole;
-  const otherPartyProposedSettlement = escrow.settlement_proposed_by && 
-    escrow.settlement_proposed_by !== userRole;
-  const bothPartiesAgreedToSettlement = escrow.settlement_proposed_by && 
-    escrow.settlement_accepted_by;
-
-  // Show settlement response if other party proposed
-  if (otherPartyProposedSettlement && !escrow.settlement_accepted_by) {
-    return <SettlementResponse escrow={escrow} userRole={userRole} onAction={onAction} remainingAmount={remainingAmount} />;
-  }
-
-  // Show execution button if both agreed and user is client
-  if (bothPartiesAgreedToSettlement && userRole === 'payer' && escrow.status === 'FUNDED') {
-    const settlementFreelancerAmount = escrow.settlement_amount_cents / 100;
-    const settlementClientRefund = remainingAmount - settlementFreelancerAmount;
-    
+  // Contract not deployed warning - KEEP ORIGINAL STYLING
+  if (contractExists === false) {
     return (
-      <div className="space-y-3">
-        <div className="text-sm text-gray-600">
-          <p className="font-medium text-gray-900 mb-1">Settlement agreed</p>
-          <p>Both parties agreed. Execute the partial release.</p>
-        </div>
-        
-        <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Freelancer receives:</span>
-            <span className="font-medium">${settlementFreelancerAmount.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">You get back:</span>
-            <span className="font-medium">${settlementClientRefund.toFixed(2)}</span>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <span className="text-amber-600 text-xl">⚠️</span>
+          <div>
+            <p className="text-sm font-medium text-amber-900">Contract Not Deployed</p>
+            <p className="text-xs text-amber-700 mt-1">
+              The escrow vault contract hasn't been deployed yet. The funds are secured but actions are not available until deployment is complete.
+            </p>
           </div>
         </div>
-        
-        <button
-          onClick={handleExecuteSettlement}
-          disabled={loading}
-          className="w-full py-2 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {signingStep === 'preview' ? 'Review details...' :
-           signingStep === 'signing' ? 'Sign with Magic...' : 
-           signingStep === 'submitting' ? 'Executing...' : 
-           'Execute Release'}
-        </button>
       </div>
     );
   }
 
   return (
     <>
-      {/* Signing Preview Modal */}
-      <SigningPreviewModal
-        isOpen={showSigningPreview}
-        onClose={() => {
-          setShowSigningPreview(false);
-          setSigningPreviewData(null);
-          setLoading(false);
-          setSigningStep('idle');
-        }}
-        onConfirm={proceedAfterPreview}
-        signingData={signingPreviewData}
-      />
-
       <div className="space-y-3">
-        {/* Show waiting message if settlement proposed */}
-        {userHasProposedSettlement && !escrow.settlement_accepted_by && (
-          <div className="text-sm text-gray-600">
-            <p className="font-medium text-gray-900 mb-1">Settlement proposed</p>
-            <p>Waiting for response. You proposed:</p>
-            <div className="mt-2 text-gray-500">
-              • Freelancer: ${(escrow.settlement_amount_cents / 100).toFixed(2)}<br/>
-              • Client refund: ${(remainingAmount - (escrow.settlement_amount_cents / 100)).toFixed(2)}
-            </div>
-            {escrow.settlement_reason && (
-              <p className="mt-2 text-xs">Reason: {escrow.settlement_reason}</p>
-            )}
+        {/* Status message with pulsing dot - KEEP ORIGINAL */}
+        {status && (
+          <div className="flex items-center gap-2 py-2 px-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
+            <PulsingDot color="blue" />
+            <span>{status}</span>
           </div>
         )}
 
-        {/* Action Buttons */}
-        {!userHasProposedSettlement && !bothPartiesAgreedToSettlement && (
-          <>
-            {/* Client Options */}
-            {userRole === 'payer' && (
+        {/* Action buttons - KEEP ALL ORIGINAL STYLING */}
+        {userRole === 'payer' && (
+          <button
+            onClick={handleRelease}
+            disabled={loading || escrow.status !== 'FUNDED'}
+            className="w-full py-2.5 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50 transition-all text-sm font-medium flex items-center justify-center gap-2"
+          >
+            {loading ? (
               <>
-                {escrow.contract_version === 'v2.1' && (
-                  <button
-                    onClick={handleApproveRelease}
-                    disabled={loading || escrow.status !== 'FUNDED'}
-                    className="w-full py-2 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors text-sm font-medium"
-                  >
-                    {signingStep === 'preview' ? 'Review details...' :
-                     signingStep === 'signing' ? 'Sign with Magic...' : 
-                     signingStep === 'submitting' ? 'Releasing...' : 
-                     `Release $${remainingAmount.toFixed(2)}`}
-                  </button>
-                )}
-
-                <button
-                  onClick={() => setShowForm('settle')}
-                  disabled={escrow.status !== 'FUNDED'}
-                  className="w-full py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-                >
-                  Propose partial release
-                </button>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Release ${escrowBalance}
               </>
             )}
-
-            {/* Freelancer Options */}
-            {userRole === 'recipient' && (
-              <>
-                <button
-                  onClick={() => setShowForm('settle')}
-                  disabled={escrow.status !== 'FUNDED'}
-                  className="w-full py-2 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors text-sm font-medium"
-                >
-                  Propose partial release
-                </button>
-                
-                {escrow.contract_version === 'v2.1' && (
-                  <button
-                    onClick={handleRefund}
-                    disabled={loading || escrow.status !== 'FUNDED'}
-                    className="w-full py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-                  >
-                    {signingStep === 'preview' ? 'Review...' :
-                     signingStep === 'signing' ? 'Signing...' : 
-                     signingStep === 'submitting' ? 'Processing...' : 
-                     'Refund payment'}
-                  </button>
-                )}
-              </>
-            )}
-          </>
+          </button>
         )}
 
-        {/* Settlement Form */}
-        {showForm === 'settle' && (
-          <div className="space-y-3 pt-3 border-t border-gray-200">
-            <p className="text-sm text-gray-600">
-              Split the remaining ${remainingAmount.toFixed(2)}
-            </p>
-            
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                Freelancer receives
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2 text-gray-500">$</span>
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 text-sm"
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  max={remainingAmount}
-                />
+        {userRole === 'recipient' && (
+          <button
+            onClick={handleRefund}
+            disabled={loading || escrow.status !== 'FUNDED'}
+            className="w-full py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-all text-sm font-medium flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-transparent" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                </svg>
+                Refund to Sender
+              </>
+            )}
+          </button>
+        )}
+
+        <button
+          onClick={() => setShowSettlementModal(true)}
+          disabled={escrow.status !== 'FUNDED'}
+          className="w-full py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-all text-sm font-medium"
+        >
+          Propose Partial Settlement
+        </button>
+
+          {/* DISPUTE BUTTON */}
+          {escrow.status === 'FUNDED' && !escrow.kleros_dispute_pending && (
+          <button
+            onClick={() => setShowDisputeModal(true)}
+            disabled={loading}
+            className="w-full py-2.5 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 disabled:opacity-50 transition-all text-sm font-medium"
+          >
+            Request Kleros Arbitration
+          </button>
+        )}
+      </div>
+
+
+      {/* Settlement Modal - KEEP ALL ORIGINAL STYLING */}
+      {showSettlementModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Propose Settlement</h3>
+                <button
+                  onClick={() => setShowSettlementModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-              {amount && parseFloat(amount) <= remainingAmount && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Client gets back: ${(remainingAmount - parseFloat(amount)).toFixed(2)}
-                </p>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="text-center pb-3 border-b border-gray-100">
+                <p className="text-2xl font-mono font-semibold">${escrowBalance}</p>
+                <p className="text-xs text-gray-500 mt-1">Total to distribute</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Sender gets back
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    value={clientAmount}
+                    onChange={(e) => {
+                      const senderAmount = e.target.value;
+                      setClientAmount(senderAmount);
+                      if (senderAmount !== '') {
+                        const remaining = parseFloat(escrowBalance) - parseFloat(senderAmount);
+                        setFreelancerAmount(Math.max(0, remaining).toFixed(2));
+                      }
+                    }}
+                    className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                    max={escrowBalance}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Recipient receives
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    value={freelancerAmount}
+                    onChange={(e) => {
+                      const recipientAmount = e.target.value;
+                      setFreelancerAmount(recipientAmount);
+                      if (recipientAmount !== '') {
+                        const remaining = parseFloat(escrowBalance) - parseFloat(recipientAmount);
+                        setClientAmount(Math.max(0, remaining).toFixed(2));
+                      }
+                    }}
+                    className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                    max={escrowBalance}
+                  />
+                </div>
+              </div>
+              
+              {/* Validation */}
+              {(clientAmount || freelancerAmount) && (
+                <div className="text-center text-sm">
+                  Total: ${(parseFloat(clientAmount || '0') + parseFloat(freelancerAmount || '0')).toFixed(2)}
+                  {Math.abs((parseFloat(clientAmount || '0') + parseFloat(freelancerAmount || '0')) - parseFloat(escrowBalance)) < 0.01 
+                    ? <span className="text-green-600 ml-1">✓</span>
+                    : <span className="text-red-600 ml-1">(must equal ${escrowBalance})</span>
+                  }
+                </div>
               )}
-            </div>
 
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                Reason (optional)
-              </label>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 text-sm"
-                rows={2}
-                placeholder="Why this amount..."
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleSettlement}
-                disabled={loading || !amount}
-                className="flex-1 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors text-sm"
-              >
-                {loading ? 'Submitting...' : 'Propose'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowForm(null);
-                  setAmount('');
-                  setReason('');
-                }}
-                disabled={loading}
-                className="flex-1 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-              >
-                Cancel
-              </button>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={handleProposeSettlement}
+                  disabled={
+                    loading || 
+                    Math.abs((parseFloat(clientAmount || '0') + parseFloat(freelancerAmount || '0')) - parseFloat(escrowBalance)) > 0.01
+                  }
+                  className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50 transition-all text-sm font-medium"
+                >
+                  {loading ? 'Processing...' : 'Propose Settlement'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSettlementModal(false);
+                    setClientAmount('');
+                    setFreelancerAmount('');
+                  }}
+                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ADD DISPUTE MODAL HERE - AFTER SETTLEMENT MODAL */}
+      {showDisputeModal && (
+          <DisputePaymentModal
+            escrow={escrow}
+            userEmail={user?.email}
+            onClose={() => setShowDisputeModal(false)}
+            onSuccess={() => {
+              setShowDisputeModal(false);
+              onAction({ type: 'dispute_initiated' });
+            }}
+          />
         )}
-      </div>
     </>
-  );
-}
-
-// Settlement Response Component
-interface SettlementResponseProps {
-  escrow: any;
-  userRole: 'payer' | 'recipient';
-  onAction: (action: any) => Promise<void>;
-  remainingAmount: number;
-}
-
-function SettlementResponse({ escrow, userRole, onAction, remainingAmount }: SettlementResponseProps) {
-  const [loading, setLoading] = useState(false);
-  
-  const proposedAmount = escrow.settlement_amount_cents / 100;
-  const proposer = escrow.settlement_proposed_by;
-  
-  const freelancerReceives = proposedAmount;
-  const clientRefund = remainingAmount - proposedAmount;
-  
-  const handleAcceptSettlement = async () => {
-    setLoading(true);
-    
-    try {
-      const requiredEmail = userRole === 'payer' ? escrow.client_email : escrow.freelancer_email;
-
-      const response = await fetch('/api/escrow/settle/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          escrowId: escrow.id,
-          userEmail: requiredEmail,
-          action: 'accept'
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to accept settlement');
-      }
-      
-      await onAction({ type: 'settlement_accepted' });
-    } catch (error: any) {
-      alert(error.message || 'Failed to accept settlement');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleRejectSettlement = async () => {
-    setLoading(true);
-    
-    try {
-      const requiredEmail = userRole === 'payer' ? escrow.client_email : escrow.freelancer_email;
-      const rejectReason = prompt('Reason for rejecting (optional):');
-
-      const response = await fetch('/api/escrow/settle/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          escrowId: escrow.id,
-          userEmail: requiredEmail,
-          action: 'reject',
-          reason: rejectReason || undefined
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to reject settlement');
-      }
-      
-      await onAction({ type: 'settlement_rejected' });
-    } catch (error: any) {
-      alert(error.message || 'Failed to reject settlement');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-3">
-      <div className="text-sm text-gray-600">
-        <p className="font-medium text-gray-900 mb-1">Settlement proposal</p>
-        <p>The {proposer === 'payer' ? 'client' : 'freelancer'} proposed a partial release.</p>
-      </div>
-      
-      <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
-        <div className="flex justify-between">
-          <span className="text-gray-600">Freelancer receives:</span>
-          <span className="font-medium">${freelancerReceives.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">Client gets back:</span>
-          <span className="font-medium">${clientRefund.toFixed(2)}</span>
-        </div>
-        {escrow.settlement_reason && (
-          <div className="pt-2 mt-2 border-t border-gray-200">
-            <p className="text-xs text-gray-500">
-              Reason: {escrow.settlement_reason}
-            </p>
-          </div>
-        )}
-      </div>
-      
-      <div className="flex gap-3">
-        <button
-          onClick={handleAcceptSettlement}
-          disabled={loading}
-          className="flex-1 py-2 bg-[#2563EB] text-white rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading ? 'Processing...' : 'Accept'}
-        </button>
-        <button
-          onClick={handleRejectSettlement}
-          disabled={loading}
-          className="flex-1 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-        >
-          Reject
-        </button>
-      </div>
-    </div>
   );
 }

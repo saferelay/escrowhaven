@@ -58,7 +58,7 @@ export function Transparency() {
             </h2>
             
             <p className="text-[#787B86] mb-8">
-              Every EscrowHaven payment has a verifiable on-chain record. Nothing can be altered, reversed, or hidden.
+              Every escrowhaven payment has a verifiable on-chain record. Nothing can be altered, reversed, or hidden.
             </p>
             
             <ul className="space-y-4 text-[#787B86]">

@@ -19,7 +19,7 @@ export async function sendEmail(options: EmailOptions) {
   
   // In test mode, redirect all emails to verified address
   const originalTo = options.to;
-  if (process.env.NEXT_PUBLIC_ENV === 'test' || process.env.NODE_ENV === 'development') {
+  if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' || process.env.NODE_ENV === 'development') {
     options.to = 'hello.saferelay@gmail.com';
     console.log('📧 Test mode: Redirecting email from', originalTo, 'to', options.to);
     
@@ -37,7 +37,7 @@ export async function sendEmail(options: EmailOptions) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'SafeRelay <onboarding@resend.dev>',
+      from: 'escrowhaven <onboarding@resend.dev>',
       to: options.to,
       subject: options.subject,
       html: options.html,
@@ -59,15 +59,15 @@ export async function sendEmail(options: EmailOptions) {
 export const emailTemplates = {
   magicLink: ({ email, magicLink }: { email: string; magicLink: string }) => ({
     to: email,
-    subject: 'Your SafeRelay Magic Link',
+    subject: 'Your escrowhaven Magic Link',
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #2563EB; padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">Sign in to SafeRelay</h1>
+          <h1 style="color: white; margin: 0; font-size: 24px;">Sign in to escrowhaven</h1>
         </div>
         <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
           <p style="color: #374151; font-size: 16px; margin-bottom: 24px;">
-            Click the button below to sign in to your SafeRelay account. This link will expire in 1 hour.
+            Click the button below to sign in to your escrowhaven account. This link will expire in 1 hour.
           </p>
           <div style="text-align: center; margin-bottom: 24px;">
             <a href="${magicLink}" style="display: inline-block; background: #2563EB; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">
@@ -89,7 +89,7 @@ export const emailTemplates = {
     escrowId: string;
   }) => ({
     to: recipientEmail,
-    subject: `You've been paid ${amount} via SafeRelay!`,
+    subject: `You've been paid ${amount} via escrowhaven!`,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #2563EB; padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -97,7 +97,7 @@ export const emailTemplates = {
         </div>
         <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
           <p style="color: #374151; font-size: 16px; margin-bottom: 24px;">
-            Great news! <strong>${payerEmail}</strong> has sent you a payment of <strong style="color: #059669;">${amount}</strong> through SafeRelay.
+            Great news! <strong>${payerEmail}</strong> has sent you a payment of <strong style="color: #059669;">${amount}</strong> through escrowhaven.
           </p>
           <div style="background: #F0FDF4; border: 2px solid #BBF7D0; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
             <div style="font-size: 14px; color: #065F46; margin-bottom: 8px;">Payment Amount</div>
@@ -185,11 +185,11 @@ export const emailTemplates = {
           <div style="text-align: center; padding: 24px; background: #F8FAFC; border-radius: 8px;">
             <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600;">How was your experience?</p>
             <p style="margin: 0; color: #6b7280; font-size: 14px;">
-              We'd love to hear your feedback to improve SafeRelay.
+              We'd love to hear your feedback to improve escrowhaven.
             </p>
           </div>
           <p style="color: #6b7280; font-size: 14px; margin-top: 24px; text-align: center;">
-            Thank you for using SafeRelay! We hope to see you again soon.
+            Thank you for using escrowhaven! We hope to see you again soon.
           </p>
         </div>
       </div>

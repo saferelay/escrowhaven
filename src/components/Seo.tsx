@@ -13,7 +13,7 @@ export function Seo({
   title = `${BRAND_NAME} – 98% Payouts, No Chargebacks`,
   description = `${BRAND_NAME} lets freelancers keep 98% of every invoice while clients pay risk-free through escrow. No crypto wallet needed.`,
   ogImage = '/og-image.png',
-  canonical = 'https://saferelay.com'
+  canonical = 'https://escrowhaven.io'
 }: SeoProps) {
   const faqData = {
     "@context": "https://schema.org",
@@ -32,7 +32,7 @@ export function Seo({
         "name": "Who pays the 1.99% fee?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "The recipient does. When funds are released, the recipient receives 98.01% of the total amount, and SafeRelay takes 1.99% as a platform fee."
+          "text": "The recipient does. When funds are released, the recipient receives 98.01% of the total amount, and escrowhaven takes 1.99% as a platform fee."
         }
       },
       {

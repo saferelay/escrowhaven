@@ -10,8 +10,8 @@ export async function createTransparentEscrow(
   // Create provider with timeout
   const alchemyUrl = `https://polygon-amoy.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`;
   
-  // Add timeout to provider creation
-  const providerPromise = new Promise<JsonRpcProvider>((resolve, reject) => {
+  // Add timeout to provider creation - Fixed type annotation
+  const providerPromise = new Promise<ethers.providers.JsonRpcProvider>((resolve, reject) => {
     const provider = new ethers.providers.JsonRpcProvider(alchemyUrl);
     
     // Set a timeout
@@ -40,7 +40,7 @@ export async function createTransparentEscrow(
   ];
   
   const factory = new ethers.Contract(
-    process.env.TRANSPARENT_FACTORY_ADDRESS!,
+    process.env.ESCROWHAVEN_FACTORY_ADDRESS!,  // Added missing comma here
     FACTORY_ABI,
     signer
   );

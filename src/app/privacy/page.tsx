@@ -35,8 +35,8 @@ export default function PrivacyPage() {
               <p>
                 If you have any questions about our privacy practices, please contact us at:
                 <br />
-                <a href="mailto:privacy@saferelay.com" className="text-blue-600 hover:underline">
-                  privacy@saferelay.com
+                <a href="mailto:support@escrowhaven.io" className="text-blue-600 hover:underline">
+                  support@escrowhaven.io
                 </a>
               </p>
             </section>

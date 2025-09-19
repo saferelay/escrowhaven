@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { Logo } from '@/components/icons/Logo';
 
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -51,9 +52,10 @@ export function Navigation() {
           <div className="flex items-center">
             <button 
               onClick={() => router.push('/')}
-              className="text-lg font-semibold text-black hover:text-[#2962FF] transition-colors"
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
-              ESCROWHAVEN
+              <Logo size={56} color="#000000" />
+              <span className="text-lg font-semibold text-black">escrowhaven</span>
             </button>
           </div>
           

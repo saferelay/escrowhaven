@@ -299,9 +299,9 @@ export function ContractSecurityPage({ onBack }: ContractSecurityPageProps) {
                     <h4 className="font-mono text-sm font-semibold mb-2">No Admin Functions</h4>
                     <p className="text-gray-600 mb-3">What's NOT in the code</p>
                     <div className="bg-red-50 rounded border border-red-200 p-4">
-                      <p className="text-red-600 font-mono text-sm line-through">function emergencyWithdraw() onlyOwner {...}</p>
-                      <p className="text-red-600 font-mono text-sm line-through">function changeRecipient() onlyAdmin {...}</p>
-                      <p className="text-red-600 font-mono text-sm line-through">function pause() onlyOwner {...}</p>
+                      <p className="text-red-600 font-mono text-sm line-through">function emergencyWithdraw() onlyOwner {/* ... */}</p>
+                      <p className="text-red-600 font-mono text-sm line-through">function changeRecipient() onlyAdmin {/* ... */}</p>
+                      <p className="text-red-600 font-mono text-sm line-through">function pause() onlyOwner {/* ... */}</p>
                     </div>
                     <p className="text-sm text-green-600 mt-2">✓ What this means: SafeRelay cannot access or redirect your funds</p>
                   </div>

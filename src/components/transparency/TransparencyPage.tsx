@@ -1,4 +1,4 @@
-// src/components/transparency/TransparencyPage.tsx - Complete with robust verification
+// src/components/transparency/TransparencyPage.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -7,34 +7,31 @@ interface TransparencyPageProps {
   onNavigate: (view: string) => void;
 }
 
-// Environment detection
-const isDevelopment = process.env.NEXT_PUBLIC_ENV === 'development' || process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' || 
+                      process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
 
-// Contract addresses from env - with proper fallbacks
+// Since MOCK_USDC_ADDRESS doesn't have NEXT_PUBLIC prefix, hardcode it or add the prefix
 const CONTRACTS = {
   development: {
-    factoryV1: process.env.NEXT_PUBLIC_FACTORY_V1_ADDRESS || '0x66807A3fa2C628BD3f52D543F2225bFbf13ea293',
-    factoryV2: process.env.NEXT_PUBLIC_FACTORY_V2_ADDRESS || '0x0bD2bB0007473e695C727e6591C5Be0f5CADe25A',
-    factoryV2_1: process.env.NEXT_PUBLIC_FACTORY_V2_1_ADDRESS || '0xb72000c2404fAdfcc641Ef85e381966eC6a0eAe7',
-    mockUSDC: process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS || '0x8B0180f2101c8260d49339abfEe87927412494B4',
+    factory: process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS || '0x0000000000000000000000000000000000000000',
+    usdcToken: '0x8B0180f2101c8260d49339abfEe87927412494B4', // Mock USDC for testnet
     network: 'Polygon Amoy (Testnet)',
     explorerBase: 'https://amoy.polygonscan.com',
-    rpcUrl: 'https://polygon-amoy.drpc.org'
+    rpcUrl: 'https://polygon-amoy.drpc.org',
+    tokenName: 'Mock USDC'
   },
   production: {
-    factoryV1: process.env.NEXT_PUBLIC_FACTORY_V1_ADDRESS_PROD || '0x0000000000000000000000000000000000000000',
-    factoryV2: process.env.NEXT_PUBLIC_FACTORY_V2_ADDRESS_PROD || '0x0000000000000000000000000000000000000000',
-    factoryV2_1: process.env.NEXT_PUBLIC_FACTORY_V2_1_ADDRESS_PROD || '0x0000000000000000000000000000000000000000',
-    usdc: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+    factory: process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS || '0x0000000000000000000000000000000000000000',
+    usdcToken: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // Real USDC on Polygon
     network: 'Polygon Mainnet',
     explorerBase: 'https://polygonscan.com',
-    rpcUrl: 'https://polygon-rpc.com'
+    rpcUrl: 'https://polygon-rpc.com',
+    tokenName: 'USDC'
   }
 };
 
 const currentContracts = isDevelopment ? CONTRACTS.development : CONTRACTS.production;
 
-// Helper to normalize addresses for comparison
 const normalizeAddress = (address: string) => {
   if (!address) return '';
   return address.toLowerCase().trim();
@@ -72,7 +69,6 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
   const fetchStats = async () => {
     try {
       if (isDevelopment) {
-        // Mock data for development
         setStats({
           totalEscrows: 147,
           totalVolume: 523400,
@@ -100,7 +96,6 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
   const fetchRecentEscrows = async () => {
     try {
       if (isDevelopment) {
-        // Mock data for development
         setRecentEscrows([
           {
             id: '0x1234...5678',
@@ -114,13 +109,6 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
             amount: 1200,
             status: 'FUNDED',
             created: new Date(Date.now() - 7200000).toISOString(),
-            network: 'testnet'
-          },
-          {
-            id: '0xabcd...efgh',
-            amount: 5000,
-            status: 'RELEASED',
-            created: new Date(Date.now() - 86400000).toISOString(),
             network: 'testnet'
           }
         ]);
@@ -153,36 +141,26 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
       const addressToVerify = verifyAddress.trim();
       const normalizedInput = normalizeAddress(addressToVerify);
       
-      // First check if it's a known factory contract
-      const factoryContracts = [
-        { name: 'Factory V1', address: currentContracts.factoryV1 },
-        { name: 'Factory V2', address: currentContracts.factoryV2 },
-        { name: 'Factory V2.1', address: currentContracts.factoryV2_1 },
-      ];
-      
-      for (const factory of factoryContracts) {
-        if (normalizeAddress(factory.address) === normalizedInput && factory.address !== '0x0000000000000000000000000000000000000000') {
-          setVerificationResult({
-            valid: true,
-            type: factory.name,
-            message: `Official SafeRelay ${factory.name} contract on ${currentContracts.network}`,
-            details: {
-              network: currentContracts.network,
-              contractType: 'Factory Contract',
-              verified: true
-            }
-          });
-          setVerifying(false);
-          return;
-        }
-      }
-      
-      // Check if it's the Mock USDC (development) or USDC token (production)
-      if (isDevelopment && normalizeAddress(currentContracts.mockUSDC) === normalizedInput) {
+      if (normalizeAddress(currentContracts.factory) === normalizedInput && currentContracts.factory !== '0x0000000000000000000000000000000000000000') {
         setVerificationResult({
           valid: true,
-          type: 'Mock USDC Token',
-          message: `Test USDC token for development on ${currentContracts.network}`,
+          type: 'escrowhaven Factory',
+          message: `Official escrowhaven factory contract on ${currentContracts.network}`,
+          details: {
+            network: currentContracts.network,
+            contractType: 'Factory Contract',
+            verified: true
+          }
+        });
+        setVerifying(false);
+        return;
+      }
+      
+      if (normalizeAddress(currentContracts.usdcToken) === normalizedInput) {
+        setVerificationResult({
+          valid: true,
+          type: currentContracts.tokenName,
+          message: `${currentContracts.tokenName} on ${currentContracts.network}`,
           details: {
             network: currentContracts.network,
             contractType: 'ERC20 Token',
@@ -193,34 +171,16 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
         return;
       }
       
-      if (!isDevelopment && currentContracts.usdc && normalizeAddress(currentContracts.usdc) === normalizedInput) {
-        setVerificationResult({
-          valid: true,
-          type: 'USDC Token',
-          message: `Official USDC token on ${currentContracts.network}`,
-          details: {
-            network: currentContracts.network,
-            contractType: 'ERC20 Token',
-            verified: true
-          }
-        });
-        setVerifying(false);
-        return;
-      }
-      
-      // Check if it's a deployed escrow vault via API
-      console.log('Checking database for vault:', addressToVerify);
       const response = await fetch(`/api/public/verify-contract?address=${encodeURIComponent(addressToVerify)}`);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Verification response:', data);
         
         if (data.isValid) {
           setVerificationResult({
             valid: true,
             type: data.type || 'Escrow Vault',
-            message: data.message || `Valid SafeRelay escrow contract`,
+            message: data.message || `Valid escrowhaven escrow contract`,
             status: data.status,
             details: data.details
           });
@@ -228,16 +188,14 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
           setVerificationResult({
             valid: false,
             type: 'Not Found',
-            message: data.message || 'This address is not recognized as a SafeRelay contract. It may be a different contract or not yet indexed.'
+            message: data.message || 'This address is not recognized as an escrowhaven contract.'
           });
         }
       } else {
-        // API error - provide helpful fallback
-        console.error('Verification API error:', response.status);
         setVerificationResult({
           valid: false,
           type: 'Verification Error',
-          message: 'Unable to verify at this time. You can still check the contract directly on the blockchain explorer below.'
+          message: 'Unable to verify at this time. Check the blockchain explorer below.'
         });
       }
     } catch (error) {
@@ -245,7 +203,7 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
       setVerificationResult({
         valid: false,
         type: 'Error',
-        message: 'Verification service is temporarily unavailable. Please try again or check the blockchain explorer.'
+        message: 'Verification service is temporarily unavailable.'
       });
     } finally {
       setVerifying(false);
@@ -267,7 +225,6 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Clean header */}
       <header className="fixed top-0 w-full bg-white z-50 border-b border-gray-200">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
@@ -292,9 +249,7 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
         </div>
       </header>
 
-      {/* Main content */}
       <main className="pt-14">
-        {/* Hero section */}
         <section className="py-16 px-6 border-b border-gray-200">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-3xl font-normal text-gray-900 mb-4">Transparency Hub</h1>
@@ -304,7 +259,6 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
           </div>
         </section>
 
-        {/* Navigation tabs */}
         <div className="border-b border-gray-200">
           <div className="max-w-6xl mx-auto px-6">
             <nav className="flex space-x-8">
@@ -330,12 +284,9 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
           </div>
         </div>
 
-        {/* Tab content */}
         <div className="max-w-6xl mx-auto px-6 py-12">
-          {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-12">
-              {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="p-6 bg-white border border-gray-200 rounded-lg">
                   <div className="text-sm text-gray-600 mb-1">Total Escrows</div>
@@ -362,7 +313,6 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                 </div>
               </div>
 
-              {/* Recent Activity */}
               <div>
                 <h2 className="text-xl font-normal text-gray-900 mb-6">Recent Activity</h2>
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -414,13 +364,12 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
             </div>
           )}
 
-          {/* Smart Contracts Tab */}
           {activeTab === 'contracts' && (
             <div className="space-y-8">
               <div className="prose max-w-none">
                 <p className="text-gray-600">
-                  All SafeRelay contracts are immutable, verified, and contain no admin functions. 
-                  Once deployed, not even SafeRelay can modify or access funds.
+                  All escrowhaven contracts are immutable, verified, and contain no admin functions. 
+                  Once deployed, not even escrowhaven can modify or access funds.
                 </p>
               </div>
 
@@ -442,16 +391,15 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                   </div>
                 </div>
 
-                {/* Contract list */}
                 <div className="space-y-3">
                   <div className="p-4 bg-white border border-gray-200 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium text-gray-900">Factory V2.1</div>
-                        <div className="text-xs text-gray-500 font-mono mt-1">{currentContracts.factoryV2_1}</div>
+                        <div className="font-medium text-gray-900">escrowhaven Factory</div>
+                        <div className="text-xs text-gray-500 font-mono mt-1">{currentContracts.factory}</div>
                       </div>
                       <a 
-                        href={`${currentContracts.explorerBase}/address/${currentContracts.factoryV2_1}#code`}
+                        href={`${currentContracts.explorerBase}/address/${currentContracts.factory}#code`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline text-sm"
@@ -464,15 +412,11 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                   <div className="p-4 bg-white border border-gray-200 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium text-gray-900">
-                          {isDevelopment ? 'Mock USDC' : 'USDC Token'}
-                        </div>
-                        <div className="text-xs text-gray-500 font-mono mt-1">
-                          {isDevelopment ? currentContracts.mockUSDC : currentContracts.usdc}
-                        </div>
+                        <div className="font-medium text-gray-900">{currentContracts.tokenName}</div>
+                        <div className="text-xs text-gray-500 font-mono mt-1">{currentContracts.usdcToken}</div>
                       </div>
                       <a 
-                        href={`${currentContracts.explorerBase}/address/${isDevelopment ? currentContracts.mockUSDC : currentContracts.usdc}`}
+                        href={`${currentContracts.explorerBase}/address/${currentContracts.usdcToken}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline text-sm"
@@ -484,7 +428,6 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                 </div>
               </div>
 
-              {/* Security Features */}
               <div className="grid md:grid-cols-2 gap-6 mt-8">
                 <div className="p-6 bg-white border border-gray-200 rounded-lg">
                   <h3 className="font-medium text-gray-900 mb-3">Security Guarantees</h3>
@@ -505,7 +448,7 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                       <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span>EIP-712 signature verification</span>
+                      <span>Magic wallet authentication</span>
                     </li>
                     <li className="flex items-start">
                       <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -524,9 +467,9 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                       <span className="text-xl font-normal text-gray-900">1.99%</span>
                     </div>
                     <div className="text-sm text-gray-500 space-y-1">
-                      <div>$1,000 escrow → Recipient gets $980.10</div>
-                      <div>$5,000 escrow → Recipient gets $4,900.50</div>
-                      <div>$10,000 escrow → Recipient gets $9,801.00</div>
+                      <div>$1,000 escrow → Receiver gets $980.10</div>
+                      <div>$5,000 escrow → Receiver gets $4,900.50</div>
+                      <div>$10,000 escrow → Receiver gets $9,801.00</div>
                     </div>
                   </div>
                 </div>
@@ -534,22 +477,19 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
             </div>
           )}
 
-          {/* Proof of No Custody Tab */}
           {activeTab === 'custody' && (
             <div className="space-y-8">
               <div className="prose max-w-none">
                 <h2 className="text-2xl font-normal text-gray-900 mb-4">True Non-Custodial Architecture</h2>
                 <p className="text-gray-600">
-                  SafeRelay uses EIP-712 cryptographic signatures for all fund movements. 
-                  Only the actual parties (client and freelancer) can authorize releases or refunds - SafeRelay has zero control.
+                  escrowhaven uses Magic wallets for authentication with simple single-approval control.
+                  Only the actual parties can move funds - escrowhaven has zero control over escrow funds.
                 </p>
               </div>
 
-              {/* How Signatures Work */}
               <div className="p-8 bg-gray-50 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 mb-6">How Our Non-Custodial System Works</h3>
                 
-                {/* Visual Flow */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   <div className="text-center">
                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -559,7 +499,7 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                     </div>
                     <h4 className="font-medium text-gray-900 mb-2">1. Funds Locked</h4>
                     <p className="text-sm text-gray-600">
-                      USDC sent to immutable escrow contract with hardcoded parties
+                      USDC sent to immutable escrow contract with hardcoded wallet addresses
                     </p>
                   </div>
 
@@ -569,9 +509,9 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
                     </div>
-                    <h4 className="font-medium text-gray-900 mb-2">2. Signature Required</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">2. Single Approval</h4>
                     <p className="text-sm text-gray-600">
-                      Only client can sign release, only freelancer can sign refund
+                      Sender can release funds, Receiver can refund - single approval control
                     </p>
                   </div>
 
@@ -583,75 +523,70 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                     </div>
                     <h4 className="font-medium text-gray-900 mb-2">3. Automatic Distribution</h4>
                     <p className="text-sm text-gray-600">
-                      Smart contract verifies signature and distributes funds
+                      Smart contract splits payment: 98.01% to receiver, 1.99% platform fee
                     </p>
                   </div>
                 </div>
 
-                {/* Contract Functions */}
                 <div className="bg-white rounded-lg p-6 border border-gray-200">
                   <h4 className="font-medium text-gray-900 mb-4">Contract Functions & Who Can Call Them</h4>
                   <div className="space-y-3 font-mono text-sm">
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                      <span className="text-gray-700">releaseWithSignature()</span>
-                      <span className="text-green-600 font-semibold">✓ Only Client's Signature</span>
+                      <span className="text-gray-700">release()</span>
+                      <span className="text-green-600 font-semibold">✓ Only Sender's Wallet</span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                      <span className="text-gray-700">refundWithSignature()</span>
-                      <span className="text-blue-600 font-semibold">✓ Only Freelancer's Signature</span>
+                      <span className="text-gray-700">refund()</span>
+                      <span className="text-blue-600 font-semibold">✓ Only Receiver's Wallet</span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                      <span className="text-gray-700">settlementRelease()</span>
-                      <span className="text-purple-600 font-semibold">✓ Only Client's Signature</span>
+                      <span className="text-gray-700">proposeSettlement()</span>
+                      <span className="text-purple-600 font-semibold">✓ Either Party</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                      <span className="text-gray-700">acceptSettlement()</span>
+                      <span className="text-purple-600 font-semibold">✓ Other Party</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Key Security Points */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="p-6 bg-white border border-gray-200 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                    <span className="text-red-500 mr-2">🔐</span>
-                    What SafeRelay CANNOT Do
-                  </h4>
+                  <h4 className="font-medium text-gray-900 mb-3">What escrowhaven CANNOT Do</h4>
                   <ul className="space-y-2 text-sm text-gray-600">
-                    <li>• Cannot release funds (only client can)</li>
-                    <li>• Cannot refund funds (only freelancer can)</li>
+                    <li>• Cannot release funds (only sender can)</li>
+                    <li>• Cannot refund funds (only receiver can)</li>
                     <li>• Cannot modify escrow terms</li>
-                    <li>• Cannot access funds without valid signature</li>
+                    <li>• Cannot access funds without authorization</li>
                     <li>• Cannot change fee percentage (hardcoded at 1.99%)</li>
                     <li>• Cannot upgrade or modify deployed contracts</li>
                   </ul>
                 </div>
 
                 <div className="p-6 bg-white border border-gray-200 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                    <span className="text-green-500 mr-2">✅</span>
-                    Cryptographic Guarantees
-                  </h4>
+                  <h4 className="font-medium text-gray-900 mb-3">Security Guarantees</h4>
                   <ul className="space-y-2 text-sm text-gray-600">
-                    <li>• EIP-712 typed signatures prevent forgery</li>
-                    <li>• Each signature includes deadline & nonce</li>
-                    <li>• Domain separator prevents cross-chain replay</li>
-                    <li>• Signatures verified on-chain by contract</li>
+                    <li>• Email-authenticated Magic wallets</li>
                     <li>• Immutable parties set at deployment</li>
+                    <li>• Single-approval release mechanism</li>
+                    <li>• Automatic payment splitting</li>
                     <li>• All actions emit verifiable events</li>
+                    <li>• No backdoor or admin functions</li>
                   </ul>
                 </div>
               </div>
 
-              {/* Technical Verification */}
               <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">🔍 Verify It Yourself</h4>
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Verify It Yourself</h4>
                 <p className="text-sm text-gray-600 mb-4">
-                  Check any SafeRelay escrow contract on the blockchain:
+                  Check any escrowhaven escrow contract on the blockchain:
                 </p>
                 <div className="bg-white rounded p-4 font-mono text-xs border border-gray-200 space-y-2">
                   <div className="text-gray-700">
                     <span className="text-gray-500">// Immutable addresses set in constructor</span><br/>
-                    client: <span className="text-blue-600">0x123...abc</span> <span className="text-green-600">// Cannot be changed</span><br/>
-                    freelancer: <span className="text-blue-600">0x456...def</span> <span className="text-green-600">// Cannot be changed</span>
+                    clientMagicWallet: <span className="text-blue-600">0x123...abc</span> <span className="text-green-600">// Cannot be changed</span><br/>
+                    freelancerMagicWallet: <span className="text-blue-600">0x456...def</span> <span className="text-green-600">// Cannot be changed</span>
                   </div>
                   <div className="text-gray-700 pt-2">
                     <span className="text-gray-500">// No owner or admin functions exist</span><br/>
@@ -659,14 +594,9 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                     pause(): <span className="text-red-600 font-bold">Error: Function does not exist</span><br/>
                     withdraw(): <span className="text-red-600 font-bold">Error: Function does not exist</span>
                   </div>
-                  <div className="text-gray-700 pt-2">
-                    <span className="text-gray-500">// Only signatures can move funds</span><br/>
-                    released: <span className="text-purple-600">false</span> <span className="text-green-600">// Changes only with valid signature</span><br/>
-                    refunded: <span className="text-purple-600">false</span> <span className="text-green-600">// Changes only with valid signature</span>
-                  </div>
                 </div>
                 <a 
-                  href={`${currentContracts.explorerBase}/address/${currentContracts.factoryV2_1}#code`}
+                  href={`${currentContracts.explorerBase}/address/${currentContracts.factory}#code`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-4"
@@ -674,43 +604,15 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                   View verified source code on explorer →
                 </a>
               </div>
-
-              {/* EIP-712 Signature Example */}
-              <div className="p-6 bg-gray-50 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">Example: What a Release Signature Contains</h4>
-                <div className="bg-white rounded p-4 font-mono text-xs border border-gray-200">
-                  <pre className="text-gray-700">{`{
-  "domain": {
-    "name": "SafeRelay",
-    "version": "2.1",
-    "chainId": 137,
-    "verifyingContract": "0xEscrowAddress..."
-  },
-  "message": {
-    "action": "Release Full Payment",
-    "recipient": "0xFreelancerAddress...",
-    "amount": "1000000000", // USDC amount
-    "nonce": 1,
-    "deadline": 1704067200 // Unix timestamp
-  },
-  "signer": "0xClientAddress..." // Only client can sign this
-}`}</pre>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  This signature can only be created by the client's private key and verified by the smart contract.
-                </p>
-              </div>
             </div>
           )}
 
-          {/* Verify Contract Tab */}
           {activeTab === 'verify' && (
             <div className="max-w-2xl mx-auto">
               <div className="prose max-w-none mb-8">
                 <h2 className="text-2xl font-normal text-gray-900 mb-4">Verify Contract</h2>
                 <p className="text-gray-600">
-                  Enter any contract address to verify if it's an official SafeRelay contract.
-                  This tool checks both factory contracts and individual escrow vaults.
+                  Enter any contract address to verify if it's an official escrowhaven contract.
                 </p>
               </div>
 
@@ -764,36 +666,6 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                           {verificationResult.message}
                         </div>
                         
-                        {/* Show additional details if available */}
-                        {verificationResult.valid && verificationResult.details && (
-                          <div className="mt-3 pt-3 border-t border-green-200 text-sm text-green-700">
-                            <div className="space-y-1">
-                              {verificationResult.details.created && (
-                                <div>Created: {verificationResult.details.created}</div>
-                              )}
-                              {verificationResult.details.status && (
-                                <div>Status: <span className="font-medium">{verificationResult.details.status}</span></div>
-                              )}
-                              {verificationResult.details.amount && (
-                                <div>Amount: <span className="font-medium">{verificationResult.details.amount}</span></div>
-                              )}
-                              {verificationResult.details.network && (
-                                <div>Network: {verificationResult.details.network}</div>
-                              )}
-                              {verificationResult.details.parties && (
-                                <div className="mt-2">
-                                  <div>Client: {verificationResult.details.parties.client}</div>
-                                  <div>Freelancer: {verificationResult.details.parties.freelancer}</div>
-                                </div>
-                              )}
-                              {verificationResult.details.contractType && (
-                                <div>Type: {verificationResult.details.contractType}</div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Always show explorer link */}
                         {verifyAddress && (
                           <a 
                             href={`${currentContracts.explorerBase}/address/${verifyAddress}`}
@@ -809,11 +681,10 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                   </div>
                 )}
                 
-                {/* Help text */}
                 <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600">
                   <p className="font-medium mb-2">What can be verified:</p>
                   <ul className="space-y-1 ml-4">
-                    <li>• SafeRelay factory contracts</li>
+                    <li>• escrowhaven factory contracts</li>
                     <li>• Individual escrow vault contracts</li>
                     <li>• USDC token contracts</li>
                   </ul>
@@ -826,13 +697,12 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
           )}
         </div>
 
-        {/* Footer */}
         <footer className="border-t border-gray-200 py-8 px-6 text-center">
           <p className="text-sm text-gray-600">
             All data is pulled directly from the blockchain and updated in real-time.
           </p>
           <p className="text-sm text-gray-600 mt-2">
-            SafeRelay uses EIP-712 signatures for true non-custodial escrow. All contracts are verified on {currentContracts.network}.
+            escrowhaven uses email-authenticated wallets for true non-custodial escrow. All contracts are verified on {currentContracts.network}.
           </p>
         </footer>
       </main>

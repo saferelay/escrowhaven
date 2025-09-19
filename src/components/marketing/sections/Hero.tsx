@@ -145,7 +145,7 @@ export function Hero() {
                 
                 {/* Bottom bar */}
                 <div className="bg-[#F8F9FD] text-[#787B86] text-xs px-4 py-2 text-center border-t border-[#E0E2E7]">
-                  Secured by smart contracts on Polygon blockchain. EscrowHaven never holds your funds.
+                  Secured by smart contracts on Polygon blockchain escrowhaven never holds your funds.
                 </div>
               </div>
             </div>

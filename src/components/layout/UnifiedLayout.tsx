@@ -60,7 +60,7 @@ export function UnifiedLayout({ children, showCTA = false }: UnifiedLayoutProps)
                   <path d="M12 12L16 16" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
                 </svg>
               </div>
-              <span className="text-xl font-semibold text-slate-900">SafeRelay</span>
+              <span className="text-xl font-semibold text-slate-900">escrowhaven</span>
             </Link>
 
             {/* Center Navigation - Desktop */}
@@ -203,7 +203,7 @@ export function UnifiedLayout({ children, showCTA = false }: UnifiedLayoutProps)
                 </svg>
               </div>
               <h2 className="text-xl font-semibold text-slate-900">Welcome back</h2>
-              <p className="text-sm text-slate-500 mt-1">Sign in to your SafeRelay account</p>
+              <p className="text-sm text-slate-500 mt-1">Sign in to your escrowhaven account</p>
             </div>
             
             <form onSubmit={handleLogin} className="space-y-4">
@@ -242,7 +242,7 @@ export function UnifiedLayout({ children, showCTA = false }: UnifiedLayoutProps)
             
             <div className="mt-6 pt-6 border-t border-slate-200">
               <p className="text-xs text-slate-500 text-center">
-                New to SafeRelay?{' '}
+                New to escrowhaven?{' '}
                 <button 
                   onClick={() => {
                     setShowLoginModal(false);

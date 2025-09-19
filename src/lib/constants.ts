@@ -1,1 +1,1 @@
-export const BRAND_NAME = 'SafeRelay';
+export const BRAND_NAME = 'escrowhaven';

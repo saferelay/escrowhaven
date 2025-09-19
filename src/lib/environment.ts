@@ -1,4 +1,5 @@
-// Environment configuration for SafeRelay
+// src/lib/environment.ts
+// Environment configuration for escrowhaven
 // This manages different environments: development, staging, and production
 
 export type Environment = 'development' | 'staging' | 'production';
@@ -34,8 +35,8 @@ export interface EnvConfig {
 // Get environment from multiple sources
 export function getEnvironment(): Environment {
   // 1. Check explicit environment variable
-  if (process.env.NEXT_PUBLIC_ENV) {
-    return process.env.NEXT_PUBLIC_ENV as Environment;
+  if (process.env.NEXT_PUBLIC_ENVIRONMENT) {
+    return process.env.NEXT_PUBLIC_ENVIRONMENT as Environment;
   }
   
   // 2. Check domain-based detection (for production)
@@ -59,7 +60,7 @@ export function getEnvironment(): Environment {
 const configs: Record<Environment, EnvConfig> = {
   development: {
     name: 'development',
-    displayName: 'SafeRelay Dev',
+    displayName: 'escrowhaven Dev',
     
     // APIs
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -80,14 +81,14 @@ const configs: Record<Environment, EnvConfig> = {
       ? `https://polygon-amoy.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
       : 'https://rpc-amoy.polygon.technology',
     blockExplorer: 'https://www.oklink.com/amoy',
-    factoryAddress: process.env.SAFERELAY_FACTORY_V2_1_ADDRESS || '0xb72000c2404fAdfcc641Ef85e381966eC6a0eAe7',
+    factoryAddress: process.env.ESCROWHAVEN_FACTORY_ADDRESS || process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS || '0x0000000000000000000000000000000000000000',
     usdcAddress: '0x8B0180f2101c8260d49339abfEe87927412494B4',
     mockUsdcAddress: '0x8B0180f2101c8260d49339abfEe87927412494B4',
   },
   
   staging: {
     name: 'staging',
-    displayName: 'SafeRelay',
+    displayName: 'escrowhaven',
     
     // APIs
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL_STAGING || process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -108,14 +109,14 @@ const configs: Record<Environment, EnvConfig> = {
       ? `https://polygon-amoy.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
       : 'https://rpc-amoy.polygon.technology',
     blockExplorer: 'https://www.oklink.com/amoy',
-    factoryAddress: process.env.SAFERELAY_FACTORY_V2_1_ADDRESS || '0xb72000c2404fAdfcc641Ef85e381966eC6a0eAe7',
+    factoryAddress: process.env.ESCROWHAVEN_FACTORY_ADDRESS || process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS || '0x0000000000000000000000000000000000000000',
     usdcAddress: '0x8B0180f2101c8260d49339abfEe87927412494B4',
     mockUsdcAddress: '0x8B0180f2101c8260d49339abfEe87927412494B4',
   },
   
   production: {
     name: 'production',
-    displayName: 'SafeRelay',
+    displayName: 'EscrowHaven',
     
     // APIs - Production keys
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -136,8 +137,8 @@ const configs: Record<Environment, EnvConfig> = {
       ? `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
       : 'https://polygon-rpc.com',
     blockExplorer: 'https://polygonscan.com',
-    factoryAddress: process.env.SAFERELAY_FACTORY_ADDRESS_PROD || '0x0000000000000000000000000000000000000000',
-    usdcAddress: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+    factoryAddress: process.env.ESCROWHAVEN_FACTORY_ADDRESS_MAINNET || process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS_MAINNET || '0x0000000000000000000000000000000000000000',
+    usdcAddress: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // Real USDC on Polygon
     mockUsdcAddress: undefined,
   }
 };
@@ -160,8 +161,7 @@ export function shouldShowTestUI(): boolean {
 
 // Admin access control
 const ADMIN_EMAILS = [
-  'admin@saferelay.com',
-  'sgabbadon@gmail.com',
+  'hello@escrowhaven.com',
   // Add other admin emails here
 ];
 

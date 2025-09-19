@@ -1,5 +1,5 @@
-require("@nomicfoundation/hardhat-toolbox");
-require("dotenv").config();
+require("@nomicfoundation/hardhat-ethers");
+require("dotenv").config({ path: '../.env.local' }); // Updated to read from parent directory
 
 module.exports = {
   solidity: {
@@ -8,50 +8,35 @@ module.exports = {
       optimizer: {
         enabled: true,
         runs: 200
-      }
+      },
+      viaIR: true
     }
   },
   networks: {
     hardhat: {
       chainId: 1337
     },
-    polygon_amoy: {
-      url: "https://rpc-amoy.polygon.technology",
+    "polygon-amoy": {
+      url: process.env.ALCHEMY_API_KEY 
+        ? `https://polygon-amoy.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
+        : "https://rpc-amoy.polygon.technology",
       chainId: 80002,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      gasPrice: 35000000000 // 35 gwei
+      gasPrice: 35000000000
     },
-    polygon_mainnet: {
-      url: "https://polygon-rpc.com",
+    "polygon-mainnet": {
+      url: process.env.ALCHEMY_API_KEY
+        ? `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
+        : "https://polygon-rpc.com",
       chainId: 137,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
-    },
-    base_sepolia: {
-      url: "https://sepolia.base.org",
-      chainId: 84532,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
-    },
-    base: {
-      url: "https://mainnet.base.org",
-      chainId: 8453,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+      accounts: process.env.DEPLOYMENT_PRIVATE_KEY_MAINNET 
+        ? [process.env.DEPLOYMENT_PRIVATE_KEY_MAINNET] 
+        : process.env.PRIVATE_KEY 
+        ? [process.env.PRIVATE_KEY]
+        : [],
+      gasPrice: 100000000000, // 100 gwei for faster confirmation
+      timeout: 60000 // 60 second timeout for mainnet
     }
-  },
-  etherscan: {
-    apiKey: {
-      polygonAmoy: process.env.POLYGONSCAN_API_KEY || "YOUR_POLYGONSCAN_API_KEY",
-      polygon: process.env.POLYGONSCAN_API_KEY || "YOUR_POLYGONSCAN_API_KEY"
-    },
-    customChains: [
-      {
-        network: "polygonAmoy",
-        chainId: 80002,
-        urls: {
-          apiURL: "https://api-amoy.polygonscan.com/api",
-          browserURL: "https://amoy.polygonscan.com"
-        }
-      }
-    ]
   },
   paths: {
     sources: "./contracts",
