@@ -1,3 +1,4 @@
+// src/components/marketing/sections/PaymentPrecision.tsx
 'use client';
 
 export function PaymentPrecision() {
@@ -17,11 +18,11 @@ export function PaymentPrecision() {
             <ul className="space-y-4 text-[#787B86]">
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>
-                <span>Lock funds in minutes via card, bank, Apple Pay, or Google Pay</span>
+                <span>Fund in minutes via Stripe or Onramp.money</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>
-                <span>Release instantly when work is approved</span>
+                <span>Release instantly with gasless signatures</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>
@@ -29,7 +30,7 @@ export function PaymentPrecision() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>
-                <span>Avoid hidden delays or holds</span>
+                <span>Never worry about chargebacks or delays</span>
               </li>
             </ul>
           </div>

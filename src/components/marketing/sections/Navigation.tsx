@@ -1,9 +1,9 @@
+// src/components/marketing/sections/Navigation.tsx - FIXED LINKS
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Logo } from '@/components/icons/Logo';
 
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -27,12 +27,10 @@ export function Navigation() {
   };
 
   const handleDashboard = () => {
-    // For hash navigation, set the hash directly
     window.location.hash = 'dashboard';
   };
 
   const handleStartEscrow = () => {
-    // If logged in, go to dashboard, otherwise go to signup
     if (user) {
       window.location.hash = 'dashboard';
     } else {
@@ -48,23 +46,20 @@ export function Navigation() {
     }`}>
       <div className="w-full px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo - far left */}
+          {/* Logo - simple text */}
           <div className="flex items-center">
             <button 
               onClick={() => router.push('/')}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+              className="hover:opacity-80 transition-opacity"
             >
-              <Logo size={56} color="#000000" />
-              <span className="text-lg font-semibold text-black">escrowhaven</span>
+              <span className="text-lg font-semibold text-black">escrowhaven.io</span>
             </button>
           </div>
           
-          {/* Centered menu */}
+          {/* Centered menu - FIXED ABOUT LINK */}
           <div className="hidden lg:flex items-center space-x-6 absolute left-1/2 transform -translate-x-1/2">
             <a href="#how-it-works" className="text-sm text-[#787B86] hover:text-black transition-colors">How It Works</a>
-            <a href="#use-cases" className="text-sm text-[#787B86] hover:text-black transition-colors">Use Cases</a>
-            <a href="#resources" className="text-sm text-[#787B86] hover:text-black transition-colors">Resources</a>
-            <a href="#about" className="text-sm text-[#787B86] hover:text-black transition-colors">About</a>
+            <a href="/about" className="text-sm text-[#787B86] hover:text-black transition-colors">About</a>
             <a href="#pricing" className="text-sm text-[#787B86] hover:text-black transition-colors">Pricing</a>
           </div>
           

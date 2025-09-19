@@ -1,6 +1,15 @@
+// src/components/marketing/sections/Hero.tsx - WITH SIGNUP CTAs
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 export function Hero() {
+  const router = useRouter();
+
+  const handleSignup = () => {
+    router.push('/signup');
+  };
+
   return (
     <div className="relative bg-white">
       {/* Add 170px from top for heading */}
@@ -14,7 +23,7 @@ export function Hero() {
             </h1>
             
             <p className="text-xl text-[#787B86] max-w-2xl mx-auto mb-12">
-              Lock funds in escrow until both sides agree the job is done. No chargebacks. No delays. No surprises.
+              Lock funds in smart contract escrow until both sides agree the work is done. No chargebacks. No delays. No surprises.
             </p>
             
             <div className="flex justify-center items-center gap-3">
@@ -23,16 +32,22 @@ export function Hero() {
                 placeholder="Enter your email"
                 className="px-5 py-3 bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg text-base w-72 focus:outline-none focus:border-[#2962FF] transition-colors"
               />
-              <button className="px-7 py-3 bg-[#2962FF] text-white rounded-lg text-base font-medium hover:bg-[#1E53E5] transition-colors">
+              <button 
+                onClick={handleSignup}
+                className="px-7 py-3 bg-[#2962FF] text-white rounded-lg text-base font-medium hover:bg-[#1E53E5] transition-colors"
+              >
                 Start an Escrow
               </button>
-              <button className="px-5 py-3 text-[#787B86] hover:text-black text-base font-medium transition-colors">
+              <button 
+                onClick={handleSignup}
+                className="px-5 py-3 text-[#787B86] hover:text-black text-base font-medium transition-colors"
+              >
                 Book a Demo
               </button>
             </div>
           </div>
           
-          {/* Dashboard at 70% of viewport width - Payment flow mockup */}
+          {/* Dashboard at 70% of viewport width - Settlement Actions mockup */}
           <div className="flex justify-center mt-16">
             <div style={{ width: '70vw' }}>
               <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-[#E0E2E7]">
@@ -45,11 +60,11 @@ export function Hero() {
                       <div className="w-3 h-3 bg-[#26A69A] rounded-full"></div>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-[#787B86]">
-                      <span className="bg-white text-black px-2 py-1 rounded text-xs font-medium border border-[#E0E2E7]">Escrow #ESC-4829</span>
+                      <span className="bg-white text-black px-2 py-1 rounded text-xs font-medium border border-[#E0E2E7]">Escrow Details</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <span className="text-[#26A69A] font-medium">● Funded</span>
+                    <span className="text-[#26A69A] font-medium">Funded</span>
                     <button className="text-xs text-[#2962FF] font-medium">View Details</button>
                   </div>
                 </div>
@@ -67,10 +82,11 @@ export function Hero() {
                         <span className="ml-auto text-xs bg-white px-2 py-0.5 rounded border border-[#E0E2E7]">24</span>
                       </div>
                       <div className="flex items-center gap-3 px-3 py-2 text-sm text-[#787B86] hover:bg-white rounded-lg transition-colors cursor-pointer">
-                        <span className="text-[#787B86]">◷</span> Pending
+                        <span className="text-[#787B86]">◷</span> Need Action
+                        <span className="ml-auto text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">2</span>
                       </div>
                       <div className="flex items-center gap-3 px-3 py-2 text-sm text-[#787B86] hover:bg-white rounded-lg transition-colors cursor-pointer">
-                        <span className="text-[#787B86]">$</span> Payouts
+                        <span className="text-[#787B86]">$</span> Available
                       </div>
                       <div className="flex items-center gap-3 px-3 py-2 text-sm text-[#787B86] hover:bg-white rounded-lg transition-colors cursor-pointer">
                         <span className="text-[#787B86]">◈</span> Reports
@@ -81,15 +97,14 @@ export function Hero() {
                   {/* Main content */}
                   <div className="flex-1 p-8">
                     <div className="mb-8">
-                      <h2 className="text-xl font-normal text-black mb-6">Current Escrow</h2>
+                      <h2 className="text-xl font-normal text-black mb-6">Settlement Actions</h2>
                       
                       <div className="flex gap-2 mb-8">
                         <button className="px-4 py-2 bg-[#2962FF] text-white rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#1E53E5] transition-colors">
-                          <span>✓</span> Approve Release
+                          <span>✓</span> Release $3,500
                         </button>
-                        <button className="px-4 py-2 bg-white border border-[#E0E2E7] text-[#787B86] rounded-lg text-sm hover:border-[#787B86] transition-colors">Request Partial</button>
-                        <button className="px-4 py-2 bg-white border border-[#E0E2E7] text-[#787B86] rounded-lg text-sm hover:border-[#787B86] transition-colors">Message</button>
-                        <button className="px-4 py-2 bg-white border border-[#E0E2E7] text-[#787B86] rounded-lg text-sm hover:border-[#787B86] transition-colors">Dispute</button>
+                        <button className="px-4 py-2 bg-white border border-[#E0E2E7] text-[#787B86] rounded-lg text-sm hover:border-[#787B86] transition-colors">Propose Settlement</button>
+                        <button className="px-4 py-2 bg-white border border-[#E0E2E7] text-[#787B86] rounded-lg text-sm hover:border-[#787B86] transition-colors">Refund</button>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-8">
@@ -99,8 +114,8 @@ export function Hero() {
                             $3,500<sup className="text-lg">.00</sup>
                           </div>
                           <div className="text-sm text-[#787B86]">
-                            <span className="text-[#26A69A]">Funded</span> • 
-                            <span className="ml-2">Created 2 days ago</span>
+                            <span className="text-[#26A69A]">Smart Contract Secured</span> • 
+                            <span className="ml-2">Funded 2 days ago</span>
                           </div>
                           
                           {/* Status timeline */}
@@ -117,7 +132,7 @@ export function Hero() {
                             <div className="flex-1 h-1 bg-[#E0E2E7]"></div>
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 bg-[#E0E2E7] rounded-full flex items-center justify-center text-[#787B86] text-xs">3</div>
-                              <span className="text-xs text-[#787B86]">Approved</span>
+                              <span className="text-xs text-[#787B86]">Complete</span>
                             </div>
                           </div>
                         </div>
@@ -125,16 +140,14 @@ export function Hero() {
                         <div className="space-y-4">
                           <div className="bg-white rounded-lg p-5 border border-[#E0E2E7]">
                             <div className="text-sm text-[#787B86] mb-1">From</div>
-                            <div className="text-base text-black font-medium">TechStartup Inc.</div>
-                            <div className="text-sm text-[#787B86]">client@techstartup.com</div>
+                            <div className="text-base text-black font-medium">client@company.com</div>
                           </div>
                           <div className="bg-white rounded-lg p-5 border border-[#E0E2E7]">
                             <div className="text-sm text-[#787B86] mb-1">To</div>
-                            <div className="text-base text-black font-medium">Sarah Johnson</div>
-                            <div className="text-sm text-[#787B86]">sarah@designstudio.com</div>
+                            <div className="text-base text-black font-medium">freelancer@email.com</div>
                           </div>
                           <div className="bg-white rounded-lg p-5 border border-[#E0E2E7]">
-                            <div className="text-sm text-[#787B86] mb-1">Your Payout (after 1.99% fee)</div>
+                            <div className="text-sm text-[#787B86] mb-1">You receive (after 1.99% fee)</div>
                             <div className="text-xl font-light text-black">$3,430<sup className="text-xs">.35</sup></div>
                           </div>
                         </div>
@@ -145,7 +158,7 @@ export function Hero() {
                 
                 {/* Bottom bar */}
                 <div className="bg-[#F8F9FD] text-[#787B86] text-xs px-4 py-2 text-center border-t border-[#E0E2E7]">
-                  Secured by smart contracts on Polygon blockchain escrowhaven never holds your funds.
+                  Secured by smart contracts on Polygon blockchain • escrowhaven never holds your funds
                 </div>
               </div>
             </div>
@@ -153,7 +166,7 @@ export function Hero() {
         </div>
       </div>
       
-      {/* Section below hero - Escrow lifecycle */}
+      {/* Section below hero */}
       <div className="py-20 border-t border-[#E0E2E7]">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-12">

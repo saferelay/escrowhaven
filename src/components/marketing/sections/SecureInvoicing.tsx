@@ -1,3 +1,4 @@
+// src/components/marketing/sections/SecureInvoicing.tsx
 'use client';
 
 export function SecureInvoicing() {

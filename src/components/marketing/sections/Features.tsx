@@ -1,6 +1,15 @@
+// src/components/marketing/sections/Features.tsx - WITH SIGNUP CTAs
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 export function Features() {
+  const router = useRouter();
+
+  const handleSignup = () => {
+    router.push('/signup');
+  };
+
   return (
     <div className="py-24 bg-white border-t border-[#E0E2E7]">
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
@@ -12,13 +21,13 @@ export function Features() {
           "escrowhaven gives me the confidence to start projects without worrying about payment — and my clients feel safe funding them."
         </p>
         
-        {/* Search command palette placeholder - Create Escrow mockup */}
+        {/* Create Escrow mockup */}
         <div className="mb-20">
           <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-xl shadow-lg border border-[#E0E2E7] overflow-hidden">
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <span className="text-[#787B86]">🔍</span>
+                  <span className="text-[#787B86]">Search</span>
                   <input 
                     type="text" 
                     placeholder="Create Escrow" 
@@ -30,13 +39,13 @@ export function Features() {
                   <div className="text-sm text-[#787B86] mb-2">Quick Actions</div>
                   <div className="space-y-2">
                     <div className="p-3 bg-white rounded hover:bg-[#F8F9FD] cursor-pointer border border-[#E0E2E7]">
-                      <span className="text-sm">💰 Create new escrow</span>
+                      <span className="text-sm">Create new escrow</span>
                     </div>
                     <div className="p-3 bg-white rounded hover:bg-[#F8F9FD] cursor-pointer border border-[#E0E2E7]">
-                      <span className="text-sm">📋 Use template</span>
+                      <span className="text-sm">Fund existing escrow</span>
                     </div>
                     <div className="p-3 bg-white rounded hover:bg-[#F8F9FD] cursor-pointer border border-[#E0E2E7]">
-                      <span className="text-sm">👥 Invite collaborator</span>
+                      <span className="text-sm">View escrow details</span>
                     </div>
                   </div>
                 </div>
@@ -65,23 +74,26 @@ export function Features() {
                   <div className="text-sm text-[#787B86] mb-2">Recipient Email</div>
                   <input type="text" value="freelancer@email.com" className="w-full px-3 py-2 bg-[#F8F9FD] border border-[#E0E2E7] rounded text-black" disabled />
                 </div>
-                <button className="w-full py-2 bg-[#2962FF] text-white rounded-lg font-medium">
+                <button 
+                  onClick={handleSignup}
+                  className="w-full py-2 bg-[#2962FF] text-white rounded-lg font-medium"
+                >
                   Create Escrow Link
                 </button>
               </div>
             </div>
             
-            <a href="#" className="text-base text-[#2962FF] font-medium hover:text-[#1E53E5] transition-colors">
+            <a href="#how-it-works" className="text-base text-[#2962FF] font-medium hover:text-[#1E53E5] transition-colors">
               Learn More →
             </a>
           </div>
           
           <div className="bg-white rounded-2xl p-12 border border-[#E0E2E7] shadow-sm">
             <h3 className="text-2xl font-normal text-black mb-4">
-              Approve, refund, or split anytime
+              Approve, refund, or settle anytime
             </h3>
             <p className="text-base text-[#787B86] mb-6">
-              Need to release part of the funds? Issue a full refund? escrowhaven supports partial releases and mutual settlements with one click.
+              Need to release part of the funds? Issue a full refund? escrowhaven supports partial settlements and mutual agreements with gasless transactions.
             </p>
             
             {/* Release options mockup */}
@@ -91,7 +103,7 @@ export function Features() {
                   Full Release ($2,500)
                 </button>
                 <button className="w-full py-3 bg-white text-[#787B86] border border-[#E0E2E7] rounded-lg text-sm">
-                  Partial Release
+                  Propose Settlement
                 </button>
                 <button className="w-full py-3 bg-white text-[#787B86] border border-[#E0E2E7] rounded-lg text-sm">
                   Full Refund
@@ -99,7 +111,7 @@ export function Features() {
               </div>
             </div>
             
-            <a href="#" className="text-base text-[#2962FF] font-medium hover:text-[#1E53E5] transition-colors">
+            <a href="#pricing" className="text-base text-[#2962FF] font-medium hover:text-[#1E53E5] transition-colors">
               See Options →
             </a>
           </div>

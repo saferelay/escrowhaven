@@ -1,12 +1,13 @@
+// src/components/marketing/sections/HowItWorks.tsx
 'use client';
 
 export function HowItWorks() {
   return (
-    <div className="py-24 bg-white border-t border-[#E0E2E7]">
+    <div id="how-it-works" className="py-24 bg-white border-t border-[#E0E2E7]">
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-4xl lg:text-5xl font-normal text-black mb-6">
-            How SafeRelay works
+            How escrowhaven works
           </h2>
         </div>
         
@@ -27,7 +28,7 @@ export function HowItWorks() {
             </div>
             <h3 className="text-lg font-medium text-black mb-2">Fund Securely</h3>
             <p className="text-sm text-[#787B86]">
-              Client pays via card, bank, or wallet — funds lock in smart contract.
+              Client pays via Stripe or bank transfer — funds lock in smart contract.
             </p>
           </div>
           
@@ -47,7 +48,7 @@ export function HowItWorks() {
             </div>
             <h3 className="text-lg font-medium text-black mb-2">Instant Release</h3>
             <p className="text-sm text-[#787B86]">
-              Funds arrive within minutes via Transak.
+              Funds arrive within minutes via Onramp.money.
             </p>
           </div>
         </div>

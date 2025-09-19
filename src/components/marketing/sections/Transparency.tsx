@@ -1,3 +1,4 @@
+// src/components/marketing/sections/Transparency.tsx
 'use client';
 
 export function Transparency() {
@@ -23,26 +24,6 @@ export function Transparency() {
               
               <div className="p-6">
                 <div className="space-y-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#787B86]">Transaction Hash</span>
-                    <span className="font-mono text-black">0x742d35Cc6634...</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#787B86]">Status</span>
-                    <span className="text-[#26A69A] font-medium">✓ Success</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#787B86]">Block</span>
-                    <span className="text-black">48,329,102</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#787B86]">From</span>
-                    <span className="font-mono text-black text-xs">0xClient...</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#787B86]">To</span>
-                    <span className="font-mono text-black text-xs">0xEscrow...</span>
-                  </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-[#787B86]">Value</span>
                     <span className="text-black font-medium">5,000 USDC</span>

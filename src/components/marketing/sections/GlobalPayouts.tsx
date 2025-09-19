@@ -1,3 +1,4 @@
+// src/components/marketing/sections/GlobalPayouts.tsx
 'use client';
 
 export function GlobalPayouts() {
@@ -17,11 +18,11 @@ export function GlobalPayouts() {
             <ul className="space-y-4 text-[#787B86]">
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>
-                <span>Keep 98% of your earnings (1.99% platform fee)</span>
+                <span>Keep 98.01% of your earnings (1.99% platform fee)</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>
-                <span>Withdraw to 150+ countries via Transak</span>
+                <span>Withdraw to bank accounts via Onramp.money</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>
@@ -43,7 +44,7 @@ export function GlobalPayouts() {
             <div className="bg-white rounded-xl shadow-sm p-8 border border-[#E0E2E7]">
               <div className="mb-6">
                 <h3 className="text-lg font-medium text-black mb-2">Instant Global Payouts</h3>
-                <p className="text-sm text-[#787B86]">Available in 150+ countries</p>
+                <p className="text-sm text-[#787B86]">Available worldwide</p>
               </div>
               
               <div className="space-y-3">
@@ -58,7 +59,7 @@ export function GlobalPayouts() {
                 <div className="flex items-center justify-between p-3 bg-[#F8F9FD] rounded-lg">
                   <div>
                     <div className="text-sm font-medium text-black">Direct to Bank</div>
-                    <div className="text-xs text-[#787B86]">Via Transak</div>
+                    <div className="text-xs text-[#787B86]">Via Onramp.money</div>
                   </div>
                   <span className="text-sm text-[#26A69A] font-medium">Available</span>
                 </div>
