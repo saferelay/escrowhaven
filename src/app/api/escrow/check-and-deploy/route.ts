@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
+import { sendEmail, emailTemplates } from '@/lib/email';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -202,6 +203,20 @@ export async function POST(request: NextRequest) {
         if (updateData && updateData[0]) {
           console.log('New status:', updateData[0].status);
         }
+        try {
+          for (const email of [escrow.client_email, escrow.freelancer_email]) {
+            await sendEmail(emailTemplates.escrowFunded({
+              email,
+              amount: `$${balanceInUsdc.toFixed(2)}`,
+              escrowId,
+              role: email === escrow.client_email ? 'payer' : 'recipient'
+            }));
+          }
+          console.log('Funding notification emails sent');
+        } catch (emailError) {
+          console.error('Funding emails failed but deployment succeeded:', emailError);
+        }
+        
       }
       
       return NextResponse.json({ 

@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
+import { sendEmail, emailTemplates } from '@/lib/email'; // Add at top
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -190,6 +192,32 @@ export async function POST(request: NextRequest) {
         // Don't fail the whole request since blockchain action succeeded
       } else {
         console.log('Database updated successfully:', updateResult);
+        try {
+          if (action === 'release') {
+            // To recipient
+            await sendEmail(emailTemplates.paymentReleased({
+              recipientEmail: escrow.freelancer_email,
+              amount: `$${(escrow.amount_cents / 100).toFixed(2)}`,
+              netAmount: `$${((escrow.amount_cents * 0.9801) / 100).toFixed(2)}`,
+              senderEmail: escrow.client_email
+            }));
+            
+            // To sender
+            await sendEmail(emailTemplates.paymentSent({
+              senderEmail: escrow.client_email,
+              recipientEmail: escrow.freelancer_email,
+              amount: `$${(escrow.amount_cents / 100).toFixed(2)}`
+            }));
+          } else if (action === 'refund') {
+            await sendEmail(emailTemplates.escrowRefunded({
+              email: escrow.client_email,
+              amount: `$${(escrow.amount_cents / 100).toFixed(2)}`,
+              isInitiator: true
+            }));
+          }
+        } catch (emailError) {
+          console.error('Notification emails failed:', emailError);
+        }
       }
       
     } else if (action === 'propose_settlement') {
