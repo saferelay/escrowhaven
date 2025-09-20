@@ -4,10 +4,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SettlementActions } from '@/components/SettlementActions';
-import { PaymentMethodModal } from '@/components/PaymentMethodModal';
 import clsx from 'clsx';
 import { getOrCreateSalt } from '@/lib/onramp';
-import { StripeOnrampWidget } from '@/components/StripeOnrampWidget';
 
 // Icon components
 const FileTextIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -488,18 +486,14 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   const [escrow, setEscrow] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
-  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'stripe' | 'onramp' | null>(null);
-  const [paymentUrl, setPaymentUrl] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
   const [copied, setCopied] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
-  const [showStripeWidget, setShowStripeWidget] = useState(false);
+  const [showTransakModal, setShowTransakModal] = useState(false);
+  const [transakUrl, setTransakUrl] = useState('');
   
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -552,7 +546,6 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
           
           if (!newSession || refreshError) {
             console.error('Session refresh failed:', refreshError);
-            // Don't redirect, just return - let the user re-login manually
             setLoading(false);
             return;
           }
@@ -577,14 +570,14 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
             // Try one more refresh
             await supabase.auth.refreshSession();
             retries--;
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
           } else {
             break;
           }
         }
         
         if (error) {
-          if (error.message !== 'JWT expired') { // Only log non-JWT errors
+          if (error.message !== 'JWT expired') {
             console.error('Error fetching escrow:', error.message);
           }
           return;
@@ -594,7 +587,6 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
           setEscrow(data);
         }
       } catch (error: any) {
-        // Only log if it's not a JWT error
         if (!error?.message?.includes('JWT')) {
           console.error('Unexpected error:', error?.message || 'Unknown error');
         }
@@ -698,119 +690,76 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   };
 
   const handleFund = async () => {
-    setShowPaymentMethodModal(true);
-  };
-
-// Update this in your EscrowDetailPanel.tsx
-
-// Update this in your EscrowDetailPanel.tsx
-
-const handlePaymentMethodSelected = async (method: 'stripe' | 'onramp') => {
-  setSelectedPaymentMethod(method);
-  setShowPaymentMethodModal(false);
-  setProcessing(true);
-
-  try {
-    const { salt } = await getOrCreateSalt(escrow.id, supabase);
-    
-    const { data: walletData } = await supabase
-      .from('user_wallets')
-      .select('wallet_address')
-      .eq('email', user?.email)
-      .single();
-    
-    const clientWallet = walletData?.wallet_address;
-    
-    let freelancerWallet = escrow.freelancer_wallet_address || 
-                          escrow.recipient_wallet_address;
-
-    if (!freelancerWallet) {
-      const { data: freelancerWalletData } = await supabase
+    setProcessing(true);
+    try {
+      const { salt } = await getOrCreateSalt(escrow.id, supabase);
+      
+      // Get wallets
+      const { data: walletData } = await supabase
         .from('user_wallets')
         .select('wallet_address')
-        .eq('email', escrow.freelancer_email)
-        .maybeSingle();
+        .eq('email', user?.email)
+        .single();
       
-      freelancerWallet = freelancerWalletData?.wallet_address;
-    }
-    
-    if (!clientWallet || !freelancerWallet) {
-      alert(`Missing wallet address: ${!clientWallet ? 'Your' : "Recipient's"} wallet needs to be connected first`);
-      setProcessing(false);
-      return;
-    }
-
-    if (method === 'stripe') {
-      console.log('Initiating Stripe payment with data:', {
-        escrowId: escrow.id,
-        email: user?.email || escrow.client_email,
-        amount: escrow.amount_cents / 100,
-        salt: salt,
-        clientAddress: clientWallet,
-        freelancerAddress: freelancerWallet
-      });
-    
-      const response = await fetch('/api/stripe/create-crypto-session', {
+      const clientWallet = walletData?.wallet_address;
+      let freelancerWallet = escrow.freelancer_wallet_address || 
+                            escrow.recipient_wallet_address;
+  
+      if (!freelancerWallet) {
+        const { data: freelancerWalletData } = await supabase
+          .from('user_wallets')
+          .select('wallet_address')
+          .eq('email', escrow.freelancer_email)
+          .maybeSingle();
+        
+        freelancerWallet = freelancerWalletData?.wallet_address;
+      }
+      
+      if (!clientWallet || !freelancerWallet) {
+        alert(`Missing wallet address: ${!clientWallet ? 'Your' : "Recipient's"} wallet needs to be connected first`);
+        setProcessing(false);
+        return;
+      }
+  
+      // Get vault address from factory contract
+      const response = await fetch('/api/vault/address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          escrowId: escrow.id,
-          email: user?.email || escrow.client_email,
-          amount: escrow.amount_cents / 100,
-          salt: salt,
+          salt,
           clientAddress: clientWallet,
           freelancerAddress: freelancerWallet
         })
       });
-    
+  
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API response error:', response.status, errorText);
-        throw new Error(`API error: ${response.status} - ${errorText}`);
+        throw new Error('Failed to get vault address');
       }
-    
-      const data = await response.json();
-      console.log('Stripe response received:', data);
+  
+      const { vaultAddress } = await response.json();
       
-      if (data.error) {
-        throw new Error(data.error);
-      }
-    
-      if (data.clientSecret) {
-        console.log('Setting client secret:', data.clientSecret); // Debug log
-        setStripeClientSecret(data.clientSecret);
-        setShowStripeWidget(true);
-        console.log('States updated, widget should show'); // Debug log
-      } else {
-        throw new Error('No client secret received from Stripe');
-      }
-    } else {
-      // Use Onramp.money for bank transfers (unchanged)
-      const { createOnrampWidget } = await import('@/lib/onramp');
-      
-      const widgetUrl = createOnrampWidget({
+      console.log('Vault address for funding:', vaultAddress);
+  
+      // Create Transak widget
+      const { createTransakWidget } = await import('@/lib/transak');
+      const widgetUrl = createTransakWidget({
         email: user?.email || escrow.client_email,
-        targetUsdcAmount: escrow.amount_cents / 100,
         escrowId: escrow.id,
-        factoryAddress: process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS!,
-        clientAddress: clientWallet,
-        freelancerAddress: freelancerWallet,
-        salt: salt,
+        amount: escrow.amount_cents / 100,
+        vaultAddress, // This is the address where Transak will send USDC
         isTestMode: escrow.is_test_mode || false
       });
       
-      setPaymentUrl(widgetUrl);
-      setShowPaymentModal(true);
+      // Open Transak modal
+      setTransakUrl(widgetUrl);
+      setShowTransakModal(true);
+    } catch (error: any) {
+      console.error('Funding error:', error);
+      alert(`Failed to initiate payment: ${error.message || 'Unknown error'}`);
+    } finally {
+      setProcessing(false);
     }
-  } catch (error: any) {
-    console.error('Funding error:', error);
-    alert(`Failed to initiate payment: ${error.message || 'Unknown error'}`);
-  } finally {
-    setProcessing(false);
-  }
-};
-
-
+  };
 
   if (!isOpen) return null;
 
@@ -1164,7 +1113,7 @@ const handlePaymentMethodSelected = async (method: 'stripe' | 'onramp') => {
                           <span className="text-gray-300">|</span>
                           <span className="flex items-center gap-1.5">
                             <ScaleIcon className="w-3.5 h-3.5 text-[#2962FF]" />
-                            <span className="text-gray-700">Kleros for disputes</span>
+                            <span className="text-gray-700">Settlement for disputes</span>
                           </span>
                         </>
                       ) : (
@@ -1181,7 +1130,7 @@ const handlePaymentMethodSelected = async (method: 'stripe' | 'onramp') => {
                           <span className="text-gray-300">|</span>
                           <span className="flex items-center gap-1.5">
                             <ScaleIcon className="w-3.5 h-3.5 text-[#2962FF]" />
-                            <span className="text-gray-700">Kleros for disputes</span>
+                            <span className="text-gray-700">Settlement for disputes</span>
                           </span>
                         </>
                       )}
@@ -1218,16 +1167,6 @@ const handlePaymentMethodSelected = async (method: 'stripe' | 'onramp') => {
           )}
         </div>
       </div>
-
-      {/* Payment Method Modal */}
-      {showPaymentMethodModal && (
-        <PaymentMethodModal
-          isOpen={showPaymentMethodModal}
-          onClose={() => setShowPaymentMethodModal(false)}
-          onSelect={handlePaymentMethodSelected}
-          amount={escrow.amount_cents / 100}
-        />
-      )}
 
       {/* Terms Modal */}
       {showTermsModal && (
@@ -1278,24 +1217,24 @@ const handlePaymentMethodSelected = async (method: 'stripe' | 'onramp') => {
         </div>
       )}
 
-      {/* Payment Modal for Onramp.money */}
-      {showPaymentModal && selectedPaymentMethod === 'onramp' && (
+      {/* Transak Payment Modal */}
+      {showTransakModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-[520px] w-full shadow-2xl">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-medium">
-                    Add ${(escrow.amount_cents / 100).toFixed(2)} via Bank Transfer
+                    Fund Escrow: ${(escrow.amount_cents / 100).toFixed(2)}
                   </h3>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Secure ACH transfer - funds will be available in 1-3 business days
+                    Pay with card or bank transfer
                   </p>
                 </div>
                 <button
                   onClick={() => {
-                    setShowPaymentModal(false);
-                    setSelectedPaymentMethod(null);
+                    setShowTransakModal(false);
+                    setTransakUrl('');
                   }}
                   className="p-1.5 hover:bg-gray-100 rounded-lg"
                 >
@@ -1305,14 +1244,16 @@ const handlePaymentMethodSelected = async (method: 'stripe' | 'onramp') => {
                 </button>
               </div>
             </div>
-            <div className="px-6 py-3 border-b border-gray-200 flex items-center gap-3">
-              <ShieldIcon className="w-4 h-4 text-blue-600" />
-              <p className="text-sm text-gray-700">
-                Protected until you approve release to {escrow.freelancer_email}
-              </p>
+            <div className="px-6 py-3 border-b border-gray-200 bg-blue-50">
+              <div className="flex items-center gap-2">
+                <ShieldIcon className="w-4 h-4 text-blue-600" />
+                <p className="text-xs text-gray-700">
+                  USDC will be sent directly to your secure escrow vault
+                </p>
+              </div>
             </div>
             <iframe
-              src={paymentUrl}
+              src={transakUrl}
               className="w-full"
               style={{ height: '600px', border: 'none' }}
               allow="camera;microphone;payment"
@@ -1320,50 +1261,6 @@ const handlePaymentMethodSelected = async (method: 'stripe' | 'onramp') => {
           </div>
         </div>
       )}
-      {/* Stripe Widget */}
-      {showStripeWidget && stripeClientSecret && (
-  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-xl max-w-[600px] w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-      <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-medium">
-              Purchase ${(escrow.amount_cents / 100).toFixed(2)} USDC
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Instant card payment - USDC will be sent directly to the escrow
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              setShowStripeWidget(false);
-              setStripeClientSecret(null);
-              setSelectedPaymentMethod(null);
-            }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto p-6">
-        <StripeOnrampWidget 
-          clientSecret={stripeClientSecret}
-          onComplete={() => {
-            setShowStripeWidget(false);
-            setStripeClientSecret(null);
-            if (onUpdate) onUpdate();
-          }}
-          onError={(error) => {
-            console.error('Stripe onramp error:', error);
-          }}
-        />
-      </div>
-    </div>
-  </div>
-)}
     </>
   );
 }

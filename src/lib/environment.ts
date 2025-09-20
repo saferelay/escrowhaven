@@ -11,7 +11,8 @@ export interface EnvConfig {
   // API Keys and URLs
   supabaseUrl: string;
   supabaseAnonKey: string;
-  transakApiKey: string;
+  transakApiKey: string;           // Production & Transak One (same key)
+  transakApiKeyStaging: string;    // Staging/Test environment
   magicPublishableKey: string;
   
   // Feature Flags
@@ -65,7 +66,8 @@ const configs: Record<Environment, EnvConfig> = {
     // APIs
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
     supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    transakApiKey: process.env.NEXT_PUBLIC_TRANSAK_API_KEY_STAGING || 'c1dfcf5c-8bc2-419c-bf7e-29f1e1831605',
+    transakApiKey: process.env.NEXT_PUBLIC_TRANSAK_API_KEY_PRODUCTION || '',  // Production key (also for Transak One)
+    transakApiKeyStaging: process.env.NEXT_PUBLIC_TRANSAK_API_KEY_STAGING || 'c1dfcf5c-8bc2-419c-bf7e-29f1e1831605',
     magicPublishableKey: process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY!,
     
     // Features
@@ -93,7 +95,8 @@ const configs: Record<Environment, EnvConfig> = {
     // APIs
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL_STAGING || process.env.NEXT_PUBLIC_SUPABASE_URL!,
     supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_STAGING || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    transakApiKey: process.env.NEXT_PUBLIC_TRANSAK_API_KEY_STAGING || 'c1dfcf5c-8bc2-419c-bf7e-29f1e1831605',
+    transakApiKey: process.env.NEXT_PUBLIC_TRANSAK_API_KEY_PRODUCTION || '',  // Production key (also for Transak One)
+    transakApiKeyStaging: process.env.NEXT_PUBLIC_TRANSAK_API_KEY_STAGING || 'c1dfcf5c-8bc2-419c-bf7e-29f1e1831605',
     magicPublishableKey: process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY!,
     
     // Features - Test mode but looks like production
@@ -121,7 +124,8 @@ const configs: Record<Environment, EnvConfig> = {
     // APIs - Production keys
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
     supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    transakApiKey: process.env.NEXT_PUBLIC_TRANSAK_API_KEY_PRODUCTION!,
+    transakApiKey: process.env.NEXT_PUBLIC_TRANSAK_API_KEY_PRODUCTION!,  // Same key works for Transak One
+    transakApiKeyStaging: '',  // Not used in production
     magicPublishableKey: process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY!,
     
     // Features - Real money mode
@@ -194,6 +198,20 @@ export function getEnvironmentInfo() {
   };
 }
 
+// Get the appropriate Transak API key based on environment
+export function getTransakApiKey(): string {
+  const config = getEnvConfig();
+  // Use staging key for test mode, production key for real money
+  return config.isTestMode ? config.transakApiKeyStaging : config.transakApiKey;
+}
+
+// Check if Transak One (atomic deployment) is available
+export function isTransakOneAvailable(): boolean {
+  const config = getEnvConfig();
+  // Transak One only available in production with the production API key
+  return !config.isTestMode && !!config.transakApiKey;
+}
+
 // Export for use in components
 export default {
   getEnvironment,
@@ -203,4 +221,6 @@ export default {
   isAdminUser,
   canAccessTestFeatures,
   getEnvironmentInfo,
+  getTransakApiKey,
+  isTransakOneAvailable,
 };

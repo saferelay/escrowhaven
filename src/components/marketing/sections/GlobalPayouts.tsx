@@ -22,7 +22,7 @@ export function GlobalPayouts() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>
-                <span>Withdraw to bank accounts via Onramp.money</span>
+                <span>Withdraw to bank accounts via Transak</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>

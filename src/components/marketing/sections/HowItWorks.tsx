@@ -28,7 +28,7 @@ export function HowItWorks() {
             </div>
             <h3 className="text-lg font-medium text-black mb-2">Fund Securely</h3>
             <p className="text-sm text-[#787B86]">
-              Client pays via Stripe or bank transfer — funds lock in smart contract.
+              Client pays via Credit Card or several other payment options — funds lock in smart contract.
             </p>
           </div>
           
@@ -48,7 +48,7 @@ export function HowItWorks() {
             </div>
             <h3 className="text-lg font-medium text-black mb-2">Instant Release</h3>
             <p className="text-sm text-[#787B86]">
-              Funds arrive within minutes via Onramp.money.
+              Funds arrive within minutes via Transak.
             </p>
           </div>
         </div>

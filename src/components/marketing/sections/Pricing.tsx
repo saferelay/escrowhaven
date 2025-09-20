@@ -26,7 +26,7 @@ export function Pricing() {
             <p className="text-3xl text-black mb-6">$0/month</p>
             <ul className="space-y-3 text-sm text-[#787B86] mb-8">
               <li>• 1.99% platform fee (only on release)</li>
-              <li>• Payment processing fees by Stripe and Onramp.money apply</li>
+              <li>• Payment processing fees by Transak apply</li>
               <li>• Instant payout via Onramp.money</li>
               <li>• Unlimited escrows</li>
               <li>• Email support</li>

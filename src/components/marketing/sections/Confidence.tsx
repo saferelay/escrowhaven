@@ -20,7 +20,7 @@ export function Confidence() {
     },
     'payment-partners': {
       title: 'Reputable Payment Partners',
-      description: 'Payments and payouts via Stripe and Onramp.money for secure global coverage.'
+      description: 'Payments and payouts via Transak for secure global coverage.'
     },
     'fraud': {
       title: 'Fraud Protection',
