@@ -376,6 +376,30 @@ export async function POST(request: NextRequest) {
           console.log('Final status:', finalUpdate[0].status);
           console.log('Contract deployed:', finalUpdate[0].contract_deployed);
         }
+
+        console.log('Scheduling contract verification...');
+        setTimeout(async () => {
+          try {
+            const verifyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/contracts/verify`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                vaultAddress: predictedVault,
+                clientWallet: clientAddress,
+                freelancerWallet: freelancerAddress,
+                splitterAddress: predictedSplitter,
+                escrowId: escrowId
+              })
+            });
+            
+            if (verifyResponse.ok) {
+              console.log('✅ Contract verification scheduled');
+            }
+          } catch (verifyError) {
+            console.error('Failed to schedule verification:', verifyError);
+            // Not critical - batch job will catch it later
+          }
+        }, 30000); // 30 second delay for Polygonscan to index
       }
       
       const explorerUrl = isProduction

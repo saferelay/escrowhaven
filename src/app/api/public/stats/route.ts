@@ -1,62 +1,75 @@
-// Create: src/app/api/public/stats/route.ts
-
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-export async function GET(request: NextRequest) {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// Your mainnet factory address
+const MAINNET_FACTORY = '0xb6Ac0936f512e1c79C8514A417d127D034Cb2045';
+
+export async function GET() {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    
-    // Get aggregate stats only - no individual user data
-    const { data: escrows, error } = await supabase
+    // Only get mainnet escrows (ones with the production factory address)
+    const { data: stats, error } = await supabase
       .from('escrows')
-      .select('amount_cents, status');
+      .select('*')
+      .eq('factory_address', MAINNET_FACTORY);
+
+    if (error) throw error;
+
+    const escrows = stats || [];
     
-    if (error) {
-      console.error('Failed to fetch stats:', error);
-      return NextResponse.json({
-        totalEscrows: 0,
-        totalVolume: 0,
-        totalFeesEarned: 0,
-        averageEscrowSize: 0,
-        successRate: 100,
-        activeEscrows: 0,
-        completedEscrows: 0,
-        refundedEscrows: 0
-      });
-    }
-    
-    // Calculate aggregate statistics only
-    const stats = {
-      totalEscrows: escrows.length,
-      totalVolume: escrows.reduce((sum, e) => sum + (e.amount_cents / 100), 0),
-      totalFeesEarned: escrows
-        .filter(e => e.status === 'RELEASED')
-        .reduce((sum, e) => sum + (e.amount_cents / 100 * 0.0199), 0),
-      averageEscrowSize: escrows.length > 0 
-        ? escrows.reduce((sum, e) => sum + (e.amount_cents / 100), 0) / escrows.length 
-        : 0,
-      successRate: escrows.length > 0 
-        ? (escrows.filter(e => e.status === 'RELEASED').length / escrows.length * 100).toFixed(1)
-        : 100,
-      activeEscrows: escrows.filter(e => e.status === 'FUNDED').length,
-      completedEscrows: escrows.filter(e => e.status === 'RELEASED').length,
-      refundedEscrows: escrows.filter(e => e.status === 'REFUNDED').length
-    };
-    
-    return NextResponse.json(stats);
-    
+    const totalEscrows = escrows.length;
+    const activeEscrows = escrows.filter(e => 
+      ['FUNDED', 'ACCEPTED'].includes(e.status)
+    ).length;
+    const completedEscrows = escrows.filter(e => 
+      ['RELEASED', 'COMPLETED', 'SETTLED'].includes(e.status)
+    ).length;
+    const refundedEscrows = escrows.filter(e => 
+      e.status === 'REFUNDED'
+    ).length;
+
+    // Calculate total volume in cents, then convert to dollars
+    const totalVolume = escrows.reduce((sum, e) => 
+      sum + (e.amount_cents || 0), 0
+    );
+
+    // Calculate fees from completed escrows (1.99% fee)
+    const totalFeesEarned = escrows.filter(e => 
+      ['RELEASED', 'COMPLETED', 'SETTLED'].includes(e.status)
+    ).reduce((sum, e) => 
+      sum + ((e.amount_cents || 0) * 0.0199), 0
+    );
+
+    const averageEscrowSize = totalEscrows > 0 
+      ? Math.round(totalVolume / totalEscrows / 100)
+      : 0;
+
+    const successRate = totalEscrows > 0
+      ? Math.round((completedEscrows / totalEscrows) * 100 * 10) / 10
+      : 100; // Show 100% if all completed
+
+    return NextResponse.json({
+      totalEscrows,
+      totalVolume: Math.round(totalVolume / 100), // Convert cents to dollars
+      totalFeesEarned: Math.round(totalFeesEarned / 100),
+      averageEscrowSize,
+      successRate,
+      activeEscrows,
+      completedEscrows,
+      refundedEscrows
+    });
   } catch (error) {
-    console.error('Error calculating stats:', error);
+    console.error('Stats API error:', error);
     return NextResponse.json({
       totalEscrows: 0,
       totalVolume: 0,
       totalFeesEarned: 0,
       averageEscrowSize: 0,
-      successRate: 100,
+      successRate: 0,
       activeEscrows: 0,
       completedEscrows: 0,
       refundedEscrows: 0

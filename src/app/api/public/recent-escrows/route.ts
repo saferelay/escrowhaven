@@ -1,43 +1,44 @@
-// Create: src/app/api/public/recent-escrows/route.ts
-
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-export async function GET(request: NextRequest) {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const MAINNET_FACTORY = '0xb6Ac0936f512e1c79C8514A417d127D034Cb2045';
+
+export async function GET() {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    
-    // Get recent escrows WITHOUT email addresses
+    // Only get mainnet escrows, ordered by most recent
     const { data: escrows, error } = await supabase
       .from('escrows')
-      .select('vault_address, amount_cents, status, created_at, network, is_test_mode')
+      .select('*')
+      .eq('factory_address', MAINNET_FACTORY)
       .order('created_at', { ascending: false })
-      .limit(10);
-    
-    if (error) {
-      console.error('Failed to fetch recent escrows:', error);
-      return NextResponse.json([]);
-    }
-    
-    // Format for display - NO EMAILS
-    const formatted = escrows.map(escrow => ({
-      id: escrow.vault_address ? 
-        `${escrow.vault_address.slice(0, 6)}...${escrow.vault_address.slice(-4)}` : 
-        '0x...',
-      fullAddress: escrow.vault_address,
-      amount: escrow.amount_cents / 100,
-      status: escrow.status,
-      created: escrow.created_at,
-      network: escrow.is_test_mode ? 'testnet' : (escrow.network || 'polygon')
+      .limit(20);
+
+    if (error) throw error;
+
+    // Format for display
+    const formatted = (escrows || []).map(e => ({
+      id: e.vault_address ? 
+        `${e.vault_address.slice(0, 6)}...${e.vault_address.slice(-4)}` : 
+        `${e.id.slice(0, 8)}`,
+      amount: Math.round((e.amount_cents || 0) / 100),
+      status: e.status,
+      created: e.created_at,
+      fullAddress: e.vault_address,
+      txHash: e.release_tx_hash || e.funding_tx_hash || e.deployment_tx,
+      parties: {
+        client: e.client_email?.replace(/(.{2})(.*)(@.*)/, '$1***$3'), // Partial email privacy
+        freelancer: e.freelancer_email?.replace(/(.{2})(.*)(@.*)/, '$1***$3')
+      }
     }));
-    
+
     return NextResponse.json(formatted);
-    
   } catch (error) {
-    console.error('Error fetching recent escrows:', error);
+    console.error('Recent escrows API error:', error);
     return NextResponse.json([]);
   }
 }

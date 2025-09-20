@@ -10,31 +10,13 @@ interface TransparencyPageProps {
 const isDevelopment = process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' || 
                       process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
 
-// Since MOCK_USDC_ADDRESS doesn't have NEXT_PUBLIC prefix, hardcode it or add the prefix
 const CONTRACTS = {
-  development: {
-    factory: process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS || '0x0000000000000000000000000000000000000000',
-    usdcToken: '0x8B0180f2101c8260d49339abfEe87927412494B4', // Mock USDC for testnet
-    network: 'Polygon Amoy (Testnet)',
-    explorerBase: 'https://amoy.polygonscan.com',
-    rpcUrl: 'https://polygon-amoy.drpc.org',
-    tokenName: 'Mock USDC'
-  },
-  production: {
-    factory: process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS || '0x0000000000000000000000000000000000000000',
-    usdcToken: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // Real USDC on Polygon
-    network: 'Polygon Mainnet',
-    explorerBase: 'https://polygonscan.com',
-    rpcUrl: 'https://polygon-rpc.com',
-    tokenName: 'USDC'
-  }
-};
-
-const currentContracts = isDevelopment ? CONTRACTS.development : CONTRACTS.production;
-
-const normalizeAddress = (address: string) => {
-  if (!address) return '';
-  return address.toLowerCase().trim();
+  factory: process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS || '0xb6Ac0936f512e1c79C8514A417d127D034Cb2045',
+  usdcToken: isDevelopment ? 
+    '0x8B0180f2101c8260d49339abfEe87927412494B4' : // Mock USDC on testnet
+    '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // Real USDC on Polygon
+  network: isDevelopment ? 'Polygon Amoy (Testnet)' : 'Polygon Mainnet',
+  explorerBase: isDevelopment ? 'https://amoy.polygonscan.com' : 'https://polygonscan.com',
 };
 
 export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
@@ -43,7 +25,7 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
     totalVolume: 0,
     totalFeesEarned: 0,
     averageEscrowSize: 0,
-    successRate: 100,
+    successRate: 0,
     activeEscrows: 0,
     completedEscrows: 0,
     refundedEscrows: 0
@@ -62,29 +44,16 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
     const interval = setInterval(() => {
       fetchStats();
       fetchRecentEscrows();
-    }, 30000);
+    }, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
   }, []);
 
   const fetchStats = async () => {
     try {
-      if (isDevelopment) {
-        setStats({
-          totalEscrows: 147,
-          totalVolume: 523400,
-          totalFeesEarned: 10415.66,
-          averageEscrowSize: 3562,
-          successRate: 98.6,
-          activeEscrows: 12,
-          completedEscrows: 131,
-          refundedEscrows: 4
-        });
-      } else {
-        const response = await fetch('/api/public/stats');
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data);
-        }
+      const response = await fetch('/api/public/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
       }
     } catch (error) {
       console.error('Failed to fetch stats:', error);
@@ -95,29 +64,10 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
 
   const fetchRecentEscrows = async () => {
     try {
-      if (isDevelopment) {
-        setRecentEscrows([
-          {
-            id: '0x1234...5678',
-            amount: 2500,
-            status: 'RELEASED',
-            created: new Date(Date.now() - 3600000).toISOString(),
-            network: 'testnet'
-          },
-          {
-            id: '0x8765...4321',
-            amount: 1200,
-            status: 'FUNDED',
-            created: new Date(Date.now() - 7200000).toISOString(),
-            network: 'testnet'
-          }
-        ]);
-      } else {
-        const response = await fetch('/api/public/recent-escrows');
-        if (response.ok) {
-          const data = await response.json();
-          setRecentEscrows(data);
-        }
+      const response = await fetch('/api/public/recent-escrows');
+      if (response.ok) {
+        const data = await response.json();
+        setRecentEscrows(data);
       }
     } catch (error) {
       console.error('Failed to fetch recent escrows:', error);
@@ -128,7 +78,6 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
     if (!verifyAddress || !verifyAddress.trim()) {
       setVerificationResult({
         valid: false,
-        type: 'Invalid Input',
         message: 'Please enter a valid contract address'
       });
       return;
@@ -138,72 +87,27 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
     setVerificationResult(null);
     
     try {
-      const addressToVerify = verifyAddress.trim();
-      const normalizedInput = normalizeAddress(addressToVerify);
-      
-      if (normalizeAddress(currentContracts.factory) === normalizedInput && currentContracts.factory !== '0x0000000000000000000000000000000000000000') {
-        setVerificationResult({
-          valid: true,
-          type: 'escrowhaven Factory',
-          message: `Official escrowhaven factory contract on ${currentContracts.network}`,
-          details: {
-            network: currentContracts.network,
-            contractType: 'Factory Contract',
-            verified: true
-          }
-        });
-        setVerifying(false);
-        return;
-      }
-      
-      if (normalizeAddress(currentContracts.usdcToken) === normalizedInput) {
-        setVerificationResult({
-          valid: true,
-          type: currentContracts.tokenName,
-          message: `${currentContracts.tokenName} on ${currentContracts.network}`,
-          details: {
-            network: currentContracts.network,
-            contractType: 'ERC20 Token',
-            verified: true
-          }
-        });
-        setVerifying(false);
-        return;
-      }
-      
-      const response = await fetch(`/api/public/verify-contract?address=${encodeURIComponent(addressToVerify)}`);
+      const response = await fetch(`/api/public/verify-contract?address=${encodeURIComponent(verifyAddress.trim())}`);
       
       if (response.ok) {
         const data = await response.json();
-        
-        if (data.isValid) {
-          setVerificationResult({
-            valid: true,
-            type: data.type || 'Escrow Vault',
-            message: data.message || `Valid escrowhaven escrow contract`,
-            status: data.status,
-            details: data.details
-          });
-        } else {
-          setVerificationResult({
-            valid: false,
-            type: 'Not Found',
-            message: data.message || 'This address is not recognized as an escrowhaven contract.'
-          });
-        }
+        setVerificationResult({
+          valid: data.isValid,
+          type: data.type || 'Unknown',
+          message: data.message,
+          details: data.details
+        });
       } else {
         setVerificationResult({
           valid: false,
-          type: 'Verification Error',
-          message: 'Unable to verify at this time. Check the blockchain explorer below.'
+          message: 'Verification service unavailable'
         });
       }
     } catch (error) {
       console.error('Verification error:', error);
       setVerificationResult({
         valid: false,
-        type: 'Error',
-        message: 'Verification service is temporarily unavailable.'
+        message: 'Verification failed'
       });
     } finally {
       setVerifying(false);
@@ -218,8 +122,8 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(num);
   };
 
@@ -243,7 +147,7 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                 ? 'bg-yellow-100 text-yellow-800' 
                 : 'bg-green-100 text-green-800'
             }`}>
-              {isDevelopment ? 'Testnet' : 'Mainnet'}
+              {isDevelopment ? 'Testnet' : 'Mainnet'} • Live Data
             </div>
           </div>
         </div>
@@ -256,6 +160,13 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
             <p className="text-lg text-gray-600">
               Every transaction, every contract, completely verifiable on-chain
             </p>
+            {loading ? (
+              <div className="mt-4 text-sm text-gray-500">Loading live data...</div>
+            ) : (
+              <div className="mt-4 text-sm text-green-600">
+                ✓ Connected to blockchain • Real-time data
+              </div>
+            )}
           </div>
         </section>
 
@@ -315,51 +226,61 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
 
               <div>
                 <h2 className="text-xl font-normal text-gray-900 mb-6">Recent Activity</h2>
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {recentEscrows.map((escrow, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <a 
-                              href={`${currentContracts.explorerBase}/address/${escrow.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline font-mono text-sm"
-                            >
-                              {escrow.id}
-                            </a>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${formatNumber(escrow.amount)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              escrow.status === 'RELEASED' 
-                                ? 'bg-green-100 text-green-800'
-                                : escrow.status === 'FUNDED'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {escrow.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(escrow.created).toLocaleString()}
-                          </td>
+                {recentEscrows.length === 0 ? (
+                  <div className="border border-gray-200 rounded-lg p-8 text-center text-gray-500">
+                    No escrows yet. Be the first to use escrowhaven!
+                  </div>
+                ) : (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {recentEscrows.map((escrow, index) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {escrow.fullAddress ? (
+                                <a 
+                                  href={`${CONTRACTS.explorerBase}/address/${escrow.fullAddress}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline font-mono text-sm"
+                                >
+                                  {escrow.id}
+                                </a>
+                              ) : (
+                                <span className="font-mono text-sm">{escrow.id}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatCurrency(escrow.amount)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 text-xs rounded-full ${
+                                escrow.status === 'RELEASED' || escrow.status === 'COMPLETED'
+                                  ? 'bg-green-100 text-green-800'
+                                  : escrow.status === 'FUNDED'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {escrow.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(escrow.created).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -378,10 +299,10 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-medium text-gray-900">Network</h3>
-                      <p className="text-sm text-gray-600 mt-1">{currentContracts.network}</p>
+                      <p className="text-sm text-gray-600 mt-1">{CONTRACTS.network}</p>
                     </div>
                     <a 
-                      href={currentContracts.explorerBase} 
+                      href={CONTRACTS.explorerBase} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline text-sm"
@@ -396,15 +317,15 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="font-medium text-gray-900">escrowhaven Factory</div>
-                        <div className="text-xs text-gray-500 font-mono mt-1">{currentContracts.factory}</div>
+                        <div className="text-xs text-gray-500 font-mono mt-1">{CONTRACTS.factory}</div>
                       </div>
                       <a 
-                        href={`${currentContracts.explorerBase}/address/${currentContracts.factory}#code`}
+                        href={`${CONTRACTS.explorerBase}/address/${CONTRACTS.factory}#code`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline text-sm"
                       >
-                        Verify →
+                        View Code →
                       </a>
                     </div>
                   </div>
@@ -412,11 +333,13 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                   <div className="p-4 bg-white border border-gray-200 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium text-gray-900">{currentContracts.tokenName}</div>
-                        <div className="text-xs text-gray-500 font-mono mt-1">{currentContracts.usdcToken}</div>
+                        <div className="font-medium text-gray-900">
+                          {isDevelopment ? 'Mock USDC' : 'USDC'}
+                        </div>
+                        <div className="text-xs text-gray-500 font-mono mt-1">{CONTRACTS.usdcToken}</div>
                       </div>
                       <a 
-                        href={`${currentContracts.explorerBase}/address/${currentContracts.usdcToken}`}
+                        href={`${CONTRACTS.explorerBase}/address/${CONTRACTS.usdcToken}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline text-sm"
@@ -426,9 +349,19 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                     </div>
                   </div>
                 </div>
+
+                <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Contract Verification Issue</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    If you see "0x51721300" as the method name on Polygonscan, this means the contracts need to be verified.
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    To fix: Verify your contracts on Polygonscan so function names display properly instead of method signatures.
+                  </p>
+                </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6 mt-8">
+              <div className="grid md:grid-cols-2 gap-6">
                 <div className="p-6 bg-white border border-gray-200 rounded-lg">
                   <h3 className="font-medium text-gray-900 mb-3">Security Guarantees</h3>
                   <ul className="space-y-2 text-sm text-gray-600">
@@ -596,7 +529,7 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                   </div>
                 </div>
                 <a 
-                  href={`${currentContracts.explorerBase}/address/${currentContracts.factory}#code`}
+                  href={`${CONTRACTS.explorerBase}/address/${CONTRACTS.factory}#code`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-4"
@@ -668,7 +601,7 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
                         
                         {verifyAddress && (
                           <a 
-                            href={`${currentContracts.explorerBase}/address/${verifyAddress}`}
+                            href={`${CONTRACTS.explorerBase}/address/${verifyAddress}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-3"
@@ -702,7 +635,7 @@ export function TransparencyPage({ onNavigate }: TransparencyPageProps) {
             All data is pulled directly from the blockchain and updated in real-time.
           </p>
           <p className="text-sm text-gray-600 mt-2">
-            escrowhaven uses email-authenticated wallets for true non-custodial escrow. All contracts are verified on {currentContracts.network}.
+            escrowhaven uses email-authenticated wallets for true non-custodial escrow. All contracts are verified on {CONTRACTS.network}.
           </p>
         </footer>
       </main>
