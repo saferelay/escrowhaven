@@ -365,13 +365,13 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
   // CRITICAL FIX: Return a single div, not a fragment
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Header */}
-      <div className="h-14 px-6 flex items-center justify-between border-b border-gray-200">
-        <h2 className="text-sm font-medium text-gray-900">
-          {deploymentStatus === 'idle' ? 'Send Escrow Invitation' : 
-           deploymentStatus === 'deploying' ? 'Sending Invitation...' : 
-           'Invitation Sent'}
-        </h2>
+      {/* FIXED HEADER - Matching dashboard column header exactly */}
+      <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
+        <span className="text-[11px] font-medium text-[#64748B]">
+          {deploymentStatus === 'idle' ? 'SEND ESCROW INVITATION' : 
+           deploymentStatus === 'deploying' ? 'SENDING INVITATION...' : 
+           'INVITATION SENT'}
+        </span>
         <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
           <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

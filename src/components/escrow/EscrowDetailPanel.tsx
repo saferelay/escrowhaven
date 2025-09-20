@@ -766,28 +766,31 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   return (
     <>
       <div className="h-full flex flex-col bg-white">
-        <div className="h-14 px-6 flex items-center justify-between border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm font-medium text-gray-900">Escrow Details</h2>
-            {escrow && (
-              <div className={clsx(
-                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border",
-                escrow.status === 'FUNDED' ? 'border-blue-200 text-blue-700 bg-blue-50' :
-                escrow.status === 'RELEASED' ? 'border-green-200 text-green-700 bg-green-50' :
-                escrow.status === 'INITIATED' ? 'border-gray-200 text-gray-700' :
-                escrow.status === 'DECLINED' ? 'border-red-200 text-red-700 bg-red-50' :
-                'border-yellow-200 text-yellow-700 bg-yellow-50'
-              )}>
-                {escrow.status}
+      {/* FIXED HEADER - Matching dashboard column header height exactly */}
+      <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-medium text-[#64748B]">
+                    ESCROW DETAILS
+                  </span>
+                  {escrow && (
+                    <div className={clsx(
+                      "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border",
+                      escrow.status === 'FUNDED' ? 'border-blue-200 text-blue-700 bg-blue-50' :
+                      escrow.status === 'RELEASED' ? 'border-green-200 text-green-700 bg-green-50' :
+                      escrow.status === 'INITIATED' ? 'border-gray-200 text-gray-700' :
+                      escrow.status === 'DECLINED' ? 'border-red-200 text-red-700 bg-red-50' :
+                      'border-yellow-200 text-yellow-700 bg-yellow-50'
+                    )}>
+                      {escrow.status}
+                    </div>
+                  )}
+                </div>
+                <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-            )}
-          </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
-            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
 
         <ProgressIndicator 
           currentStep={getCurrentStep()} 
