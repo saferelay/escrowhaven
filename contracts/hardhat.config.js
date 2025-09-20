@@ -1,5 +1,6 @@
 require("@nomicfoundation/hardhat-ethers");
-require("dotenv").config({ path: '../.env.local' }); // Updated to read from parent directory
+require("@nomicfoundation/hardhat-verify");
+require("dotenv").config({ path: '../.env.local' });
 
 module.exports = {
   solidity: {
@@ -16,32 +17,21 @@ module.exports = {
     hardhat: {
       chainId: 1337
     },
-    "polygon-amoy": {
-      url: process.env.ALCHEMY_API_KEY 
-        ? `https://polygon-amoy.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
-        : "https://rpc-amoy.polygon.technology",
-      chainId: 80002,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      gasPrice: 35000000000
-    },
-    "polygon-mainnet": {
-      url: process.env.ALCHEMY_API_KEY
-        ? `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
-        : "https://polygon-rpc.com",
+    polygon: {
+      url: "https://polygon-rpc.com",
       chainId: 137,
-      accounts: process.env.DEPLOYMENT_PRIVATE_KEY_MAINNET 
-        ? [process.env.DEPLOYMENT_PRIVATE_KEY_MAINNET] 
-        : process.env.PRIVATE_KEY 
-        ? [process.env.PRIVATE_KEY]
-        : [],
-      gasPrice: 100000000000, // 100 gwei for faster confirmation
-      timeout: 60000 // 60 second timeout for mainnet
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    },
+    "polygon-amoy": {
+      url: "https://rpc-amoy.polygon.technology",
+      chainId: 80002,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   },
-  paths: {
-    sources: "./contracts",
-    tests: "./test",
-    cache: "./cache",
-    artifacts: "./artifacts"
+  etherscan: {
+    apiKey: process.env.POLYGONSCAN_API_KEY  // Single API key for V2
+  },
+  sourcify: {
+    enabled: false
   }
 };
