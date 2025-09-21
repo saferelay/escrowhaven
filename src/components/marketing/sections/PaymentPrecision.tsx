@@ -18,11 +18,11 @@ export function PaymentPrecision() {
             <ul className="space-y-4 text-[#787B86]">
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>
-                <span>Fund in minutes via Stripe or Onramp.money</span>
+                <span>Fund in minutes via Transak</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>
-                <span>Release instantly with gasless signatures</span>
+                <span>Release instantly with unique signatures</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#26A69A]">→</span>

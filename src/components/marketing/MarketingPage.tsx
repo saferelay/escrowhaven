@@ -3,27 +3,31 @@
 
 import { Navigation } from './sections/Navigation';
 import { Hero } from './sections/Hero';
-import { Features } from './sections/Features';
-import { PaymentPrecision } from './sections/PaymentPrecision';  // Section 4: "Handle every payment with precision"
-import { SecureInvoicing } from './sections/SecureInvoicing';    // Section 5: "Request or send payment — escrow included"
-import { GlobalPayouts } from './sections/GlobalPayouts';        // Section 6: "Global payouts without the wait"
-import { Transparency } from './sections/Transparency';          // Section 7: "Full transparency, every time"
-import { Confidence } from './sections/Confidence';              // Section 8: "Escrow you can trust completely"
-import { HowItWorks } from './sections/HowItWorks';             // Section 9: "How SafeRelay works"
-import { Pricing } from './sections/Pricing';                   // Section 10: "Simple, fair pricing"
-import { CTA } from './sections/CTA';                           // Section 11: CTA Section
-import { Footer } from './sections/Footer';                     // Section 12: Footer
+import { Benefits } from './sections/Benefits';              // Changed from Features
+import { PaymentMethods } from './sections/PaymentMethods'; // NEW section
+import { PaymentPrecision } from './sections/PaymentPrecision';
+import { SecureInvoicing } from './sections/SecureInvoicing';
+import { GlobalPayouts } from './sections/GlobalPayouts';
+import { Transparency } from './sections/Transparency';
+import { Comparison } from './sections/Comparison';        // NEW section
+import { Confidence } from './sections/Confidence';
+import { HowItWorks } from './sections/HowItWorks';
+import { Pricing } from './sections/Pricing';
+import { CTA } from './sections/CTA';
+import { Footer } from './sections/Footer';
 
 export default function MarketingPage() {
   return (
     <div className="min-h-screen">
       <Navigation />
       <Hero />
-      <Features />
+      <Benefits />          {/* Changed from Features */}
+      <PaymentMethods />    {/* NEW */}
       <PaymentPrecision />
       <SecureInvoicing />
       <GlobalPayouts />
       <Transparency />
+      <Comparison />        {/* NEW */}
       <Confidence />
       <HowItWorks />
       <Pricing />

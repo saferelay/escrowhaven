@@ -69,20 +69,6 @@ export function Confidence() {
           </div>
         </div>
         
-        {/* Platform fees comparison */}
-        <div className="bg-white rounded-xl p-8 border border-[#E0E2E7]">
-          <h3 className="text-xl font-medium text-black mb-6 text-center">Platform Fees Comparison</h3>
-          <div className="grid grid-cols-2 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-light text-[#26A69A] mb-2">1.99%</div>
-              <div className="text-sm text-[#787B86]">escrowhaven</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-light text-[#EF5350] mb-2">20%</div>
-              <div className="text-sm text-[#787B86]">Typical Platforms</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
