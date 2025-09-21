@@ -1,0 +1,30 @@
+/* src/styles/globals.css - add these utilities */
+@layer utilities {
+    /* Hide on mobile */
+    @media (max-width: 768px) {
+      .hide-mobile {
+        display: none !important;
+      }
+    }
+    
+    /* Stack on mobile */
+    @media (max-width: 768px) {
+      .stack-mobile {
+        grid-template-columns: 1fr !important;
+        flex-direction: column !important;
+      }
+    }
+    
+    /* Responsive text */
+    .text-responsive {
+      font-size: clamp(1rem, 4vw, 1.25rem);
+    }
+    
+    /* Mobile padding */
+    @media (max-width: 768px) {
+      .section-padding {
+        padding-top: 3rem;
+        padding-bottom: 3rem;
+      }
+    }
+  }
