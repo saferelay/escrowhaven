@@ -622,7 +622,7 @@ export function Hero() {
 
                   {/* Footer */}
                   <div className="bg-gray-900 text-gray-400 text-[9px] sm:text-[10px] lg:text-[12px] px-4 py-2 text-center">
-                    escrowhaven.io is a technology platform. Payment processing and payouts are provided by regulated partners. Funds are held directly in smart contracts, not by escrowhaven.
+                    escrowhaven.io is a technology platform. Payment processing and payouts are provided by regulated partners. Funds are held directly in smart contracts, not by escrowhaven.io.
                   </div>
                 </div>
               </div>
