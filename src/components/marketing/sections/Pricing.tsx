@@ -1,110 +1,131 @@
 // src/components/marketing/sections/Pricing.tsx
 'use client';
 
-import { useRouter } from 'next/navigation';
-
 export function Pricing() {
-  const router = useRouter();
-
-  const handleSignup = () => {
-    router.push('/signup');
-  };
-
   return (
-    <div id="pricing" className="py-24 bg-white border-t border-[#E0E2E7]">
-      <div className="max-w-4xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-normal text-black mb-6">
+    <section className="py-16 md:py-24 bg-white">
+      <div className="max-w-screen-xl mx-auto px-6 md:px-8">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-normal text-[#000000] mb-4">
             Simple, transparent pricing
           </h2>
-          <p className="text-xl text-[#787B86]">
-            No monthly fees. No minimums. Just pay when money moves.
+          <p className="text-lg text-[#787B86] max-w-2xl mx-auto">
+            No setup fees. No monthly costs. Pay only when you get paid.
           </p>
         </div>
 
-        {/* Main Pricing Card */}
-        <div className="bg-white border border-[#E0E2E7] rounded-xl overflow-hidden max-w-2xl mx-auto">
-          {/* Header */}
-          <div className="bg-[#F8F9FD] px-8 py-6 text-center border-b border-[#E0E2E7]">
-            <h3 className="text-2xl font-normal text-black mb-2">escrowhaven Pricing</h3>
-            <div className="text-5xl font-normal text-black">1.99%</div>
-            <p className="text-[#787B86] mt-2">Platform fee on successful transactions</p>
-          </div>
-
-          {/* Two Column Benefits */}
-          <div className="grid md:grid-cols-2 divide-x divide-[#E0E2E7]">
-            {/* Freelancers */}
-            <div className="p-8">
-              <h4 className="text-sm font-medium text-black mb-4">FOR FREELANCERS</h4>
-              <div className="space-y-3 mb-6">
-                <div className="text-sm text-[#787B86]">✓ Keep 98.01% of payments</div>
-                <div className="text-sm text-[#787B86]">✓ No monthly fees</div>
-                <div className="text-sm text-[#787B86]">✓ No minimums</div>
-                <div className="text-sm text-[#787B86]">✓ 24-48h payouts</div>
+        <div className="max-w-4xl mx-auto">
+          {/* Main pricing card */}
+          <div className="bg-white rounded-xl border-2 border-[#2962FF] p-8 mb-8">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#F8F9FD] rounded-lg border border-[#E0E2E7] mb-4">
+                <span className="text-xs text-[#787B86] uppercase">One simple fee</span>
               </div>
-              
-              {/* Examples */}
-              <div className="bg-[#F8F9FD] rounded-lg p-4">
-                <p className="text-xs text-[#787B86] font-medium mb-2">YOU RECEIVE</p>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-[#787B86]">$1,000</span>
-                    <span className="font-medium text-black">$980.10</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#787B86]">$5,000</span>
-                    <span className="font-medium text-black">$4,900.50</span>
-                  </div>
-                </div>
+              <div className="flex items-baseline justify-center gap-1">
+                <span className="text-5xl font-normal text-[#000000]">1.99</span>
+                <span className="text-2xl text-[#787B86]">%</span>
               </div>
+              <p className="text-sm text-[#787B86] mt-2">per successful transaction</p>
             </div>
 
-            {/* Clients */}
-            <div className="p-8">
-              <h4 className="text-sm font-medium text-black mb-4">FOR CLIENTS</h4>
-              <div className="space-y-3 mb-6">
-                <div className="text-sm text-[#787B86]">✓ $0 platform fees</div>
-                <div className="text-sm text-[#787B86]">✓ 7+ payment methods</div>
-                <div className="text-sm text-[#787B86]">✓ Pay in your currency</div>
-                <div className="text-sm text-[#787B86]">✓ Full refund option</div>
-              </div>
-              
-              {/* Payment Methods */}
-              <div className="bg-[#F8F9FD] rounded-lg p-4">
-                <p className="text-xs text-[#787B86] font-medium mb-2">PAY WITH</p>
-                <div className="grid grid-cols-3 gap-2 text-xs text-[#787B86]">
-                  <div>Cards</div>
-                  <div>Apple Pay</div>
-                  <div>Bank</div>
-                  <div>Google Pay</div>
-                  <div>ACH</div>
-                  <div>+more</div>
+            {/* What's included */}
+            <div className="border-t border-[#E0E2E7] pt-6">
+              <p className="text-xs text-[#787B86] uppercase mb-4">Everything included</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full border border-[#26A69A] flex items-center justify-center mt-0.5 flex-shrink-0">
+                    <div className="w-2 h-2 bg-[#26A69A] rounded-full"></div>
+                  </div>
+                  <span className="text-sm text-[#000000]">Unlimited escrows</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full border border-[#26A69A] flex items-center justify-center mt-0.5 flex-shrink-0">
+                    <div className="w-2 h-2 bg-[#26A69A] rounded-full"></div>
+                  </div>
+                  <span className="text-sm text-[#000000]">Smart contract security</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full border border-[#26A69A] flex items-center justify-center mt-0.5 flex-shrink-0">
+                    <div className="w-2 h-2 bg-[#26A69A] rounded-full"></div>
+                  </div>
+                  <span className="text-sm text-[#000000]">Instant payouts</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full border border-[#26A69A] flex items-center justify-center mt-0.5 flex-shrink-0">
+                    <div className="w-2 h-2 bg-[#26A69A] rounded-full"></div>
+                  </div>
+                  <span className="text-sm text-[#000000]">24/7 support</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full border border-[#26A69A] flex items-center justify-center mt-0.5 flex-shrink-0">
+                    <div className="w-2 h-2 bg-[#26A69A] rounded-full"></div>
+                  </div>
+                  <span className="text-sm text-[#000000]">Dispute resolution</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full border border-[#26A69A] flex items-center justify-center mt-0.5 flex-shrink-0">
+                    <div className="w-2 h-2 bg-[#26A69A] rounded-full"></div>
+                  </div>
+                  <span className="text-sm text-[#000000]">API access</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="bg-[#F8F9FD] px-8 py-4 text-center border-t border-[#E0E2E7]">
-            <p className="text-xs text-[#787B86]">
-              Powered by Transak • Available in 170+ countries • All fees transparent upfront
-            </p>
+          {/* Comparison table */}
+          <div className="bg-white rounded-xl border border-[#E0E2E7] overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#E0E2E7] bg-[#F8F9FD]">
+              <p className="text-sm font-medium text-[#000000]">How we compare</p>
+            </div>
+            <div className="divide-y divide-[#E0E2E7]">
+              <div className="px-6 py-4 grid grid-cols-3 gap-4">
+                <div className="text-sm text-[#787B86]">Platform</div>
+                <div className="text-sm text-[#787B86]">Their fee</div>
+                <div className="text-sm text-[#787B86]">You save</div>
+              </div>
+              <div className="px-6 py-4 grid grid-cols-3 gap-4 hover:bg-[#F8F9FD] transition-colors">
+                <div className="text-sm text-[#000000] font-medium">EscrowHaven</div>
+                <div className="text-sm text-[#2962FF] font-medium">1.99%</div>
+                <div className="text-sm text-[#26A69A] font-medium">—</div>
+              </div>
+              <div className="px-6 py-4 grid grid-cols-3 gap-4 hover:bg-[#F8F9FD] transition-colors">
+                <div className="text-sm text-[#000000]">Upwork</div>
+                <div className="text-sm text-[#787B86]">20%</div>
+                <div className="text-sm text-[#26A69A]">18.01%</div>
+              </div>
+              <div className="px-6 py-4 grid grid-cols-3 gap-4 hover:bg-[#F8F9FD] transition-colors">
+                <div className="text-sm text-[#000000]">Fiverr</div>
+                <div className="text-sm text-[#787B86]">20%</div>
+                <div className="text-sm text-[#26A69A]">18.01%</div>
+              </div>
+              <div className="px-6 py-4 grid grid-cols-3 gap-4 hover:bg-[#F8F9FD] transition-colors">
+                <div className="text-sm text-[#000000]">PayPal G&S</div>
+                <div className="text-sm text-[#787B86]">3.49% + $0.49</div>
+                <div className="text-sm text-[#26A69A]">1.5%+</div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* CTA */}
-        <div className="text-center mt-12">
-          <button 
-            onClick={handleSignup}
-            className="px-8 py-3 bg-[#2962FF] text-white rounded-lg text-base font-medium hover:bg-[#1E53E5] transition-colors"
-          >
-            Start Your First Escrow
-          </button>
-          <p className="text-sm text-[#787B86] mt-3">
-            Free to start • No credit card required
-          </p>
+          {/* Calculator */}
+          <div className="mt-8 bg-white rounded-xl border border-[#E0E2E7] p-6">
+            <p className="text-sm font-medium text-[#000000] mb-4">Quick calculator</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-[#F8F9FD] rounded-lg p-4 border border-[#E0E2E7]">
+                <p className="text-xs text-[#787B86] mb-1">If you charge</p>
+                <p className="text-xl font-normal text-[#000000]">$10,000</p>
+              </div>
+              <div className="bg-[#F8F9FD] rounded-lg p-4 border border-[#E0E2E7]">
+                <p className="text-xs text-[#787B86] mb-1">You keep</p>
+                <p className="text-xl font-normal text-[#2962FF]">$9,801</p>
+              </div>
+              <div className="bg-[#F8F9FD] rounded-lg p-4 border border-[#E0E2E7]">
+                <p className="text-xs text-[#787B86] mb-1">vs Upwork you save</p>
+                <p className="text-xl font-normal text-[#26A69A]">$1,801</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
