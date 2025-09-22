@@ -41,9 +41,7 @@ export function Hero() {
             </h1>
             
             <p className="text-base sm:text-lg lg:text-xl text-[#787B86] max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto mb-8 sm:mb-10 lg:mb-12 px-4 sm:px-0">
-              Client pays → money locked. Work done → money released. 
-              <span className="hidden sm:inline"> No 20% cuts, no chargebacks, no weeks of waiting. Just clean, fair payments.</span>
-              <span className="sm:hidden"> No 20% cuts. No chargebacks.</span>
+            Clients fund upfront into a secure escrow. Work gets done. Money releases instantly—no chargebacks, no 20% platform cuts.
             </p>
             
             {/* Email signup - stacks on mobile */}
@@ -76,7 +74,7 @@ export function Hero() {
               <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-[#E5E7EB] max-w-md mx-auto">
                 {/* Mobile header */}
                 <div className="h-12 border-b border-[#E5E7EB] bg-white px-4 flex items-center justify-between">
-                  <span className="text-sm font-medium text-[#0F172A]">escrowhaven.io</span>
+                  <span className="text-sm font-medium text-[#0F172A]">escrowhaven</span>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-[#787B86]">sarah@design.co</span>
                     <div className="h-7 w-7 flex items-center justify-center rounded-full bg-[#F3F4F6]">
@@ -107,12 +105,12 @@ export function Hero() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-[#F8F9FD] rounded-lg p-3 border border-[#E0E2E7]">
                       <div className="text-[10px] text-[#64748B] uppercase tracking-wide">Active</div>
-                      <div className="text-lg font-semibold text-black">$7,750</div>
+                      <div className="text-lg font-semibold text-black">$1,950</div>
                       <div className="text-[10px] text-[#2962FF]">3 escrows</div>
                     </div>
                     <div className="bg-[#F8F9FD] rounded-lg p-3 border border-[#E0E2E7]">
                       <div className="text-[10px] text-[#64748B] uppercase tracking-wide">Earnings</div>
-                      <div className="text-lg font-semibold text-black">$18,265</div>
+                      <div className="text-lg font-semibold text-black">$8,265</div>
                       <div className="text-[10px] text-[#787B86]">After fees</div>
                     </div>
                   </div>
@@ -128,11 +126,11 @@ export function Hero() {
                   <div className="divide-y divide-[#E5E7EB]">
                     <div className="px-4 py-3 flex items-center justify-between">
                       <div className="flex-1 mr-3">
-                        <div className="text-sm font-medium text-black">WordPress Development</div>
+                        <div className="text-sm font-medium text-black">WordPress Setup</div>
                         <div className="text-[11px] text-[#787B86] mt-0.5">From startup@techco.io</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-mono font-medium text-black">$2,800</div>
+                        <div className="text-sm font-mono font-medium text-black">$800</div>
                         <div className="text-[10px] text-[#26A69A] mt-0.5">Funded</div>
                       </div>
                     </div>
@@ -150,11 +148,11 @@ export function Hero() {
 
                     <div className="px-4 py-3 flex items-center justify-between">
                       <div className="flex-1 mr-3">
-                        <div className="text-sm font-medium text-black">Product Descriptions</div>
+                        <div className="text-sm font-medium text-black">Product Copy</div>
                         <div className="text-[11px] text-[#787B86] mt-0.5">From ecom@boutique.com</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-mono font-medium text-black">$4,500</div>
+                        <div className="text-sm font-mono font-medium text-black">$700</div>
                         <div className="text-[10px] text-[#787B86] mt-0.5">Waiting</div>
                       </div>
                     </div>
@@ -165,7 +163,7 @@ export function Hero() {
                         <div className="text-[11px] text-[#787B86] mt-0.5">From fitness@startup.io</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-mono font-medium text-black">$1,800</div>
+                        <div className="text-sm font-mono font-medium text-black">$1,200</div>
                         <div className="text-[10px] text-green-600 mt-0.5">Complete</div>
                       </div>
                     </div>
@@ -179,47 +177,60 @@ export function Hero() {
               </div>
             </div>
           ) : (
-            /* Desktop/Tablet: Full dashboard preview */
+            /* Desktop/Tablet: Full dashboard preview with browser frame */
             <div className="flex justify-center mt-16 px-4 lg:px-0">
-              <div style={{ width: '90vw', maxWidth: '1400px' }} className="relative lg:w-[70vw]">
-                <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-[#E5E7EB]">
+              <div className="w-full max-w-6xl">
+                {/* Minimalist Browser Frame */}
+                <div className="bg-[#F8F9FD] rounded-t-xl border border-[#E0E2E7] border-b-0 px-4 py-3">
+                  <div className="flex items-center">
+                    {/* Mac-style browser dots */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#EF5350]"></div>
+                      <div className="w-3 h-3 rounded-full bg-[#F7931A]"></div>
+                      <div className="w-3 h-3 rounded-full bg-[#26A69A]"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Dashboard Content */}
+                <div className="bg-white rounded-b-xl shadow-2xl overflow-hidden border border-[#E5E7EB] border-t-0">
                   {/* Desktop Header */}
-                  <div className="h-14 border-b border-[#E5E7EB] bg-white">
-                    <div className="grid h-full" style={{ gridTemplateColumns: '15rem 1fr' }}>
-                      <div className="flex items-center px-6">
-                        <span className="text-[18px] font-medium tracking-[-0.01em] text-[#0F172A]">escrowhaven.io</span>
+                  <div className="h-12 border-b border-[#E5E7EB] bg-white">
+                    <div className="grid h-full" style={{ gridTemplateColumns: '13rem 1fr' }}>
+                      <div className="flex items-center px-4 border-r border-[#E5E7EB]">
+                        <span className="text-[15px] font-medium tracking-[-0.01em] text-[#0F172A]">Dashboard</span>
                       </div>
-                      <div className="flex items-center justify-between pr-6">
-                        <div className="flex items-center gap-2 pl-6">
-                          <div className="relative w-[240px] lg:w-[280px] xl:w-[320px]">
+                      <div className="flex items-center justify-between pr-4">
+                        <div className="flex items-center gap-2 pl-4">
+                          <div className="relative w-[200px] lg:w-[240px] xl:w-[280px]">
                             <input
                               placeholder="Search..."
-                              className="w-full rounded-md border border-[#E2E8F0] bg-white pl-9 pr-3 py-1.5 text-[13px]"
+                              className="w-full rounded-md border border-[#E2E8F0] bg-white pl-8 pr-2 py-1 text-[11px]"
                               readOnly
                             />
-                            <span className="pointer-events-none absolute left-2.5 top-2 text-[#94A3B8]">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <span className="pointer-events-none absolute left-2 top-1.5 text-[#94A3B8]">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                               </svg>
                             </span>
                           </div>
-                          <button className="px-2.5 py-1.5 border border-[#D0D5DD] text-[13px] rounded-md hidden xl:inline-flex">
+                          <button className="px-2 py-1 border border-[#D0D5DD] text-[10px] rounded-md hidden xl:inline-flex">
                             Refresh
                           </button>
                         </div>
                         <div className="flex items-center gap-2">
-                          <button className="px-2.5 py-1.5 border border-[#D0D5DD] text-[13px] rounded-md hidden lg:inline-flex">
+                          <button className="px-2 py-1 border border-[#D0D5DD] text-[10px] rounded-md hidden lg:inline-flex">
                             Transparency
                           </button>
-                          <button className="px-2.5 py-1.5 border border-[#D0D5DD] text-[13px] rounded-md hidden lg:inline-flex">
+                          <button className="px-2 py-1 border border-[#D0D5DD] text-[10px] rounded-md hidden lg:inline-flex">
                             Help
                           </button>
                           <div className="flex flex-col items-end leading-tight ml-1">
-                            <span className="text-[13px] font-medium">sarah@designstudio.co</span>
-                            <button className="text-[11px] text-[#787B86] hidden xl:inline">Sign out</button>
+                            <span className="text-[11px] font-medium">sarah@designstudio.co</span>
+                            <button className="text-[9px] text-[#787B86] hidden xl:inline">Sign out</button>
                           </div>
-                          <div className="h-9 w-9 flex items-center justify-center rounded-full bg-[#F3F4F6]">
-                            <span className="text-[13px] font-medium">S</span>
+                          <div className="h-7 w-7 flex items-center justify-center rounded-full bg-[#F3F4F6]">
+                            <span className="text-[11px] font-medium">S</span>
                           </div>
                         </div>
                       </div>
@@ -227,56 +238,68 @@ export function Hero() {
                   </div>
 
                   {/* Desktop Body */}
-                  <div className="flex h-[500px] lg:h-[600px] xl:h-[650px] relative">
+                  <div className="flex h-[450px] lg:h-[500px] xl:h-[550px] relative">
                     {/* Sidebar - Hidden on tablet, shown on desktop */}
-                    <div className="w-60 border-r border-[#E5E7EB] bg-white hidden lg:block">
-                      <div className="p-3">
-                        <button className="w-full px-3 py-2 bg-[#2962FF] text-white rounded-md text-sm">
+                    <div className="w-52 border-r border-[#E5E7EB] bg-white hidden lg:block">
+                      <div className="p-2">
+                        <button className="w-full px-2 py-1.5 bg-[#2962FF] text-white rounded-md text-xs">
                           + New Escrow
                         </button>
                       </div>
-                      <nav className="px-3">
-                        <button className="w-full flex items-center justify-between rounded-md px-3 py-2 text-[13px] hover:bg-[#F8FAFC]">
-                          <span className="flex items-center gap-2">
-                            <span className="text-[#475569]">📄</span>
+                      <nav className="px-2">
+                        <button className="w-full flex items-center justify-between rounded-md px-2 py-1.5 text-[11px] hover:bg-[#F8FAFC]">
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-3 h-3 text-[#475569]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
                             All escrows
                           </span>
-                          <span className="bg-[#E2E8F0] text-[#475569] rounded-full px-2 py-0.5 text-[11px]">16</span>
+                          <span className="bg-[#E2E8F0] text-[#475569] rounded-full px-1.5 py-0.5 text-[9px]">16</span>
                         </button>
-                        <button className="w-full flex items-center justify-between rounded-md px-3 py-2 text-[13px] hover:bg-[#F8FAFC]">
-                          <span className="flex items-center gap-2">
-                            <span className="text-[#475569]">⚠️</span>
+                        <button className="w-full flex items-center justify-between rounded-md px-2 py-1.5 text-[11px] hover:bg-[#F8FAFC]">
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-3 h-3 text-[#475569]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
                             Need Action
                           </span>
-                          <span className="bg-[#2962FF] text-white rounded-full px-2 py-0.5 text-[11px]">1</span>
+                          <span className="bg-[#2962FF] text-white rounded-full px-1.5 py-0.5 text-[9px]">1</span>
                         </button>
-                        <button className="w-full flex items-center justify-between rounded-md px-3 py-2 text-[13px] hover:bg-[#F8FAFC]">
-                          <span className="flex items-center gap-2">
-                            <span className="text-[#475569]">↗️</span>
+                        <button className="w-full flex items-center justify-between rounded-md px-2 py-1.5 text-[11px] hover:bg-[#F8FAFC]">
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-3 h-3 text-[#475569]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                            </svg>
                             Sent
                           </span>
-                          <span className="bg-[#E2E8F0] text-[#475569] rounded-full px-2 py-0.5 text-[11px]">5</span>
+                          <span className="bg-[#E2E8F0] text-[#475569] rounded-full px-1.5 py-0.5 text-[9px]">5</span>
                         </button>
-                        <button className="w-full flex items-center justify-between rounded-md px-3 py-2 text-[13px] hover:bg-[#F8FAFC]">
-                          <span className="flex items-center gap-2">
-                            <span className="text-[#475569]">↙️</span>
+                        <button className="w-full flex items-center justify-between rounded-md px-2 py-1.5 text-[11px] hover:bg-[#F8FAFC]">
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-3 h-3 text-[#475569]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
+                            </svg>
                             Received
                           </span>
-                          <span className="bg-[#E2E8F0] text-[#475569] rounded-full px-2 py-0.5 text-[11px]">11</span>
+                          <span className="bg-[#E2E8F0] text-[#475569] rounded-full px-1.5 py-0.5 text-[9px]">11</span>
                         </button>
-                        <button className="w-full flex items-center justify-between rounded-md px-3 py-2 text-[13px] bg-[#EFF6FF] text-[#2962FF]">
-                          <span className="flex items-center gap-2">
-                            <span>💰</span>
+                        <button className="w-full flex items-center justify-between rounded-md px-2 py-1.5 text-[11px] bg-[#EFF6FF] text-[#2962FF]">
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-3 h-3 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                             Active
                           </span>
-                          <span className="bg-[#2962FF] text-white rounded-full px-2 py-0.5 text-[11px]">3</span>
+                          <span className="bg-[#2962FF] text-white rounded-full px-1.5 py-0.5 text-[9px]">3</span>
                         </button>
-                        <button className="w-full flex items-center justify-between rounded-md px-3 py-2 text-[13px] hover:bg-[#F8FAFC]">
-                          <span className="flex items-center gap-2">
-                            <span className="text-[#475569]">✅</span>
+                        <button className="w-full flex items-center justify-between rounded-md px-2 py-1.5 text-[11px] hover:bg-[#F8FAFC]">
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-3 h-3 text-[#475569]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                             Completed
                           </span>
-                          <span className="bg-[#E2E8F0] text-[#475569] rounded-full px-2 py-0.5 text-[11px]">12</span>
+                          <span className="bg-[#E2E8F0] text-[#475569] rounded-full px-1.5 py-0.5 text-[9px]">12</span>
                         </button>
                       </nav>
                     </div>
@@ -284,27 +307,27 @@ export function Hero() {
                     {/* Main Content - Full width on tablet */}
                     <div className="flex-1 overflow-hidden">
                       {/* Metrics Bar */}
-                      <div className="border-b border-[#E5E7EB] bg-white px-4 lg:px-6 pt-3 pb-3">
-                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                          <div className="rounded-md border border-[#E2E8F0] p-2 lg:p-3">
-                            <div className="text-[11px] lg:text-[12px] text-[#64748B]">Active Escrows</div>
-                            <div className="mt-0.5 lg:mt-1 text-[18px] lg:text-[20px] font-semibold">$7,750</div>
-                            <div className="mt-0.5 text-[11px] lg:text-[12px] text-[#2962FF]">3 in progress</div>
+                      <div className="border-b border-[#E5E7EB] bg-white px-3 lg:px-4 pt-2 pb-2">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                          <div className="rounded-md border border-[#E2E8F0] p-2">
+                            <div className="text-[9px] lg:text-[10px] text-[#64748B]">Active Escrows</div>
+                            <div className="mt-0.5 text-[14px] lg:text-[16px] font-semibold">$1,950</div>
+                            <div className="text-[9px] lg:text-[10px] text-[#2962FF]">3 in progress</div>
                           </div>
-                          <div className="rounded-md border border-[#E2E8F0] p-2 lg:p-3">
-                            <div className="text-[11px] lg:text-[12px] text-[#64748B]">Lifetime Earnings</div>
-                            <div className="mt-0.5 lg:mt-1 text-[18px] lg:text-[20px] font-semibold">$18,265</div>
-                            <div className="mt-0.5 text-[11px] lg:text-[12px] text-[#64748B]">After fees</div>
+                          <div className="rounded-md border border-[#E2E8F0] p-2">
+                            <div className="text-[9px] lg:text-[10px] text-[#64748B]">Lifetime Earnings</div>
+                            <div className="mt-0.5 text-[14px] lg:text-[16px] font-semibold">$8,265</div>
+                            <div className="text-[9px] lg:text-[10px] text-[#64748B]">After fees</div>
                           </div>
-                          <div className="rounded-md border border-[#E2E8F0] p-2 lg:p-3 hidden lg:block">
-                            <div className="text-[11px] lg:text-[12px] text-[#64748B]">Lifetime Volume</div>
-                            <div className="mt-0.5 lg:mt-1 text-[18px] lg:text-[20px] font-semibold">$26,015</div>
-                            <div className="mt-0.5 text-[11px] lg:text-[12px] text-[#64748B]">16 escrows</div>
+                          <div className="rounded-md border border-[#E2E8F0] p-2 hidden lg:block">
+                            <div className="text-[9px] lg:text-[10px] text-[#64748B]">Lifetime Volume</div>
+                            <div className="mt-0.5 text-[14px] lg:text-[16px] font-semibold">$12,015</div>
+                            <div className="text-[9px] lg:text-[10px] text-[#64748B]">16 escrows</div>
                           </div>
-                          <div className="rounded-md border border-[#E2E8F0] p-2 lg:p-3 hidden xl:block">
-                            <div className="text-[11px] lg:text-[12px] text-[#64748B]">Ready to Withdraw</div>
-                            <div className="mt-0.5 lg:mt-1 text-[18px] lg:text-[20px] font-semibold">$4,892</div>
-                            <button className="mt-0.5 lg:mt-1 text-[11px] lg:text-[12px] text-[#2962FF] hover:underline">
+                          <div className="rounded-md border border-[#E2E8F0] p-2 hidden xl:block">
+                            <div className="text-[9px] lg:text-[10px] text-[#64748B]">Ready to Withdraw</div>
+                            <div className="mt-0.5 text-[14px] lg:text-[16px] font-semibold">$1,892</div>
+                            <button className="text-[9px] lg:text-[10px] text-[#2962FF] hover:underline">
                               Withdraw →
                             </button>
                           </div>
@@ -312,139 +335,388 @@ export function Hero() {
                       </div>
 
                       {/* Escrow List - Simplified for better mobile/tablet experience */}
-                      <div className="h-[calc(100%-88px)] overflow-y-auto relative">
-                        <div className="sticky top-0 flex items-center border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC] z-10">
-                          <div className="flex-[3.5] text-[11px] font-medium text-[#64748B]">
+                      <div className="h-[calc(100%-68px)] overflow-y-auto relative">
+                        <div className="sticky top-0 flex items-center border-b border-[#E5E7EB] px-3 py-1.5 bg-[#F8FAFC] z-10">
+                          <div className="flex-[3.5] text-[9px] font-medium text-[#64748B]">
                             Party / Description
                           </div>
-                          <div className="flex-[0.8] text-[11px] font-medium text-[#64748B] hidden lg:block">Status</div>
-                          <div className="flex-[1.2] text-right text-[11px] font-medium text-[#64748B]">Amount</div>
-                          <div className="flex-[2] text-center text-[11px] font-medium text-[#64748B] hidden xl:block">Action</div>
-                          <div className="flex-[1.5] text-right text-[11px] font-medium text-[#64748B] hidden lg:block">Last Update</div>
+                          <div className="flex-[0.8] text-[9px] font-medium text-[#64748B] hidden lg:block">Status</div>
+                          <div className="flex-[1.2] text-right text-[9px] font-medium text-[#64748B]">Amount</div>
+                          <div className="flex-[2] text-center text-[9px] font-medium text-[#64748B] hidden xl:block">Action</div>
+                          <div className="flex-[1.5] text-right text-[9px] font-medium text-[#64748B] hidden lg:block">Last Update</div>
                         </div>
 
-                        {/* Escrow rows - keeping all from original */}
-                        <div className="flex items-start border-b border-[#E5E7EB] px-4 py-2.5 bg-[#F7F8FB]">
+                        {/* Active escrows */}
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 bg-[#F7F8FB]">
                           <div className="flex-[3.5]">
                             <div className="flex items-center">
-                              <span className="w-10 text-[11px] text-[#64748B]">From</span>
-                              <span className="text-[13px] font-medium">startup@techco.io</span>
+                              <span className="w-8 text-[9px] text-[#64748B]">From</span>
+                              <span className="text-[11px] font-medium">startup@techco.io</span>
                             </div>
-                            <div className="pl-10 text-[11px] text-[#64748B]">WordPress Plugin Development - Custom Testimonials</div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">WordPress Plugin Development - Contact Form</div>
                           </div>
                           <div className="flex-[0.8] hidden lg:block">
-                            <span className="inline-flex items-center h-5 px-1.5 py-0.5 text-[11px] text-[#475569] border border-[#E2E8F0] rounded">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#2962FF] border border-[#2962FF] rounded">
                               Funded
                             </span>
                           </div>
-                          <div className="flex-[1.2] text-right font-mono text-[13px]">$2,800.00</div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$800.00</div>
                           <div className="flex-[2] justify-center hidden xl:flex">
-                            <button className="inline-flex items-center justify-center rounded-md w-[72px] h-[28px] bg-[#2962FF] text-white text-[11px] font-medium">
+                            <button className="inline-flex items-center justify-center rounded-md w-[60px] h-[22px] bg-[#2962FF] text-white text-[9px] font-medium">
                               Approve
                             </button>
                           </div>
-                          <div className="flex-[1.5] text-right text-[11px] text-[#94A3B8] hidden lg:block">2h</div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">2h</div>
                         </div>
 
-                        {/* Include all other escrow rows from original... */}
-                        {/* I'll include just a few more for brevity, but in production include all */}
-                        <div className="flex items-start border-b border-[#E5E7EB] px-4 py-2.5 hover:bg-[#F8FAFC]">
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC]">
                           <div className="flex-[3.5]">
                             <div className="flex items-center">
-                              <span className="w-10 text-[11px] text-[#64748B]">To</span>
-                              <span className="text-[13px] font-medium">copywriter@content.io</span>
+                              <span className="w-8 text-[9px] text-[#64748B]">To</span>
+                              <span className="text-[11px] font-medium">copywriter@content.io</span>
                             </div>
-                            <div className="pl-10 text-[11px] text-[#64748B]">Blog Article - Future of Remote Work 2025</div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Blog Article - Remote Work Guide</div>
                           </div>
                           <div className="flex-[0.8] hidden lg:block">
-                            <span className="inline-flex items-center h-5 px-1.5 py-0.5 text-[11px] text-[#475569] border border-[#E2E8F0] rounded">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#2962FF] border border-[#2962FF] rounded">
                               Funded
                             </span>
                           </div>
-                          <div className="flex-[1.2] text-right font-mono text-[13px]">$450.00</div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$450.00</div>
                           <div className="flex-[2] justify-center hidden xl:flex">
-                            <button className="inline-flex items-center justify-center rounded-md w-[72px] h-[28px] bg-[#2962FF] text-white text-[11px] font-medium">
+                            <button className="inline-flex items-center justify-center rounded-md w-[60px] h-[22px] bg-[#2962FF] text-white text-[9px] font-medium">
                               Release
                             </button>
                           </div>
-                          <div className="flex-[1.5] text-right text-[11px] text-[#94A3B8] hidden lg:block">1d</div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">1d</div>
+                        </div>
+
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC]">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">From</span>
+                              <span className="text-[11px] font-medium">ecom@boutique.com</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Product Descriptions - 15 Items</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#F7931A] border border-[#F7931A] rounded">
+                              Pending
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$700.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <button className="inline-flex items-center justify-center rounded-md w-[60px] h-[22px] bg-white border border-[#E2E8F0] text-[#475569] text-[9px] font-medium">
+                              View
+                            </button>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">3d</div>
+                        </div>
+
+                        {/* Completed escrows - More entries */}
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC] opacity-75">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">From</span>
+                              <span className="text-[11px] font-medium">fitness@startup.io</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Logo Design - Complete Brand Identity</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#26A69A] border border-[#26A69A] rounded">
+                              Complete
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$1,200.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <span className="text-[9px] text-[#26A69A]">Released</span>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">5d</div>
+                        </div>
+
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC] opacity-75">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">To</span>
+                              <span className="text-[11px] font-medium">developer@agency.io</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Landing Page Development</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#26A69A] border border-[#26A69A] rounded">
+                              Complete
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$1,500.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <span className="text-[9px] text-[#26A69A]">Released</span>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">1w</div>
+                        </div>
+
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC] opacity-75">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">From</span>
+                              <span className="text-[11px] font-medium">legal@lawfirm.com</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Contract Review - Terms of Service</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#26A69A] border border-[#26A69A] rounded">
+                              Complete
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$950.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <span className="text-[9px] text-[#26A69A]">Released</span>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">2w</div>
+                        </div>
+
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC] opacity-70">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">To</span>
+                              <span className="text-[11px] font-medium">video@production.co</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Video Editing - 30 Second Promo</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#26A69A] border border-[#26A69A] rounded">
+                              Complete
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$650.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <span className="text-[9px] text-[#26A69A]">Released</span>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">2w</div>
+                        </div>
+
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC] opacity-65">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">From</span>
+                              <span className="text-[11px] font-medium">realestate@agency.net</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Property Photos - 2 Locations</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#26A69A] border border-[#26A69A] rounded">
+                              Complete
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$550.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <span className="text-[9px] text-[#26A69A]">Released</span>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">3w</div>
+                        </div>
+
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC] opacity-60">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">To</span>
+                              <span className="text-[11px] font-medium">seo@marketing.io</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">SEO Audit - Website Analysis</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#26A69A] border border-[#26A69A] rounded">
+                              Complete
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$400.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <span className="text-[9px] text-[#26A69A]">Released</span>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">1m</div>
+                        </div>
+
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC] opacity-55">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">From</span>
+                              <span className="text-[11px] font-medium">nonprofit@charity.org</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Website Updates - Homepage</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#26A69A] border border-[#26A69A] rounded">
+                              Complete
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$350.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <span className="text-[9px] text-[#26A69A]">Released</span>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">1m</div>
+                        </div>
+
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC] opacity-50">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">To</span>
+                              <span className="text-[11px] font-medium">writer@books.com</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Blog Post - Industry Analysis</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#26A69A] border border-[#26A69A] rounded">
+                              Complete
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$600.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <span className="text-[9px] text-[#26A69A]">Released</span>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">6w</div>
+                        </div>
+
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC] opacity-45">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">From</span>
+                              <span className="text-[11px] font-medium">music@label.com</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Album Cover Design - Digital</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#26A69A] border border-[#26A69A] rounded">
+                              Complete
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$750.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <span className="text-[9px] text-[#26A69A]">Released</span>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">2m</div>
+                        </div>
+
+                        <div className="flex items-start border-b border-[#E5E7EB] px-3 py-2 hover:bg-[#F8FAFC] opacity-40">
+                          <div className="flex-[3.5]">
+                            <div className="flex items-center">
+                              <span className="w-8 text-[9px] text-[#64748B]">To</span>
+                              <span className="text-[11px] font-medium">data@analytics.co</span>
+                            </div>
+                            <div className="pl-8 text-[9px] text-[#64748B]">Data Analysis - Sales Report</div>
+                          </div>
+                          <div className="flex-[0.8] hidden lg:block">
+                            <span className="inline-flex items-center h-4 px-1 py-0.5 text-[9px] text-[#26A69A] border border-[#26A69A] rounded">
+                              Complete
+                            </span>
+                          </div>
+                          <div className="flex-[1.2] text-right font-mono text-[11px]">$1,100.00</div>
+                          <div className="flex-[2] justify-center hidden xl:flex">
+                            <span className="text-[9px] text-[#26A69A]">Released</span>
+                          </div>
+                          <div className="flex-[1.5] text-right text-[9px] text-[#94A3B8] hidden lg:block">2m</div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Right Panel - Only on 2XL screens */}
+                    {/* Right Panel - Showing completed escrow detail */}
                     <div className="w-[420px] border-l border-[#E5E7EB] bg-white hidden 2xl:block">
                       <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
                         <span className="text-[11px] font-medium text-[#64748B]">ESCROW DETAILS</span>
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border border-blue-200 text-blue-700 bg-blue-50">
-                          FUNDED
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border border-[#26A69A] text-[#26A69A] bg-white">
+                          COMPLETE
                         </span>
                       </div>
                       
                       <div className="p-6">
                         <div className="border border-gray-200 rounded-xl p-6 mb-6">
                           <div>
-                            <p className="text-xs text-gray-600 mb-1">Escrow Amount</p>
-                            <div className="text-3xl font-bold text-gray-900">$2,800.00</div>
-                            <p className="text-sm text-gray-600 mt-1">
-                              You'll receive: <span className="font-medium">$2,744.28</span>
-                              <span className="text-xs text-gray-500 ml-1">(1.99% fee)</span>
+                            <p className="text-xs text-gray-600 mb-1">Final Amount</p>
+                            <div className="text-3xl font-bold text-gray-900">$1,200.00</div>
+                            <p className="text-sm text-[#26A69A] mt-1">
+                              Released: <span className="font-medium">$1,176.12</span>
+                              <span className="text-xs text-gray-500 ml-1">(after 1.99% fee)</span>
                             </p>
                           </div>
                           
                           <div className="mt-4 pt-4 border-t border-gray-200 space-y-2 text-sm">
                             <div className="flex justify-between">
-                              <span className="text-gray-600">From:</span>
-                              <span className="font-medium">startup@techco.io</span>
+                              <span className="text-gray-600">Client:</span>
+                              <span className="font-medium">fitness@startup.io</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">To:</span>
+                              <span className="text-gray-600">Freelancer:</span>
                               <span className="font-medium">sarah@designstudio.co</span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="space-y-3">
-                          <button className="w-full py-2.5 bg-[#2962FF] text-white rounded-lg text-sm font-medium hover:bg-[#1E53E5] transition-colors">
-                            Refund Payment
-                          </button>
-                          <button className="w-full py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
-                            Propose Settlement
-                          </button>
+                        {/* Timeline */}
+                        <div className="mb-6">
+                          <h3 className="text-xs font-medium text-gray-900 mb-4 uppercase">Timeline</h3>
+                          <div className="relative">
+                            <div className="absolute left-[6px] w-px bg-gray-200" style={{ top: '6px', height: 'calc(100% - 12px)' }}></div>
+                            
+                            <div className="space-y-4">
+                              <div className="relative flex items-start gap-3">
+                                <div className="w-3 h-3 rounded-full border-2 border-[#26A69A] bg-[#26A69A]"></div>
+                                <div className="flex-1 -mt-0.5">
+                                  <p className="text-xs font-medium text-gray-900">Payment Released</p>
+                                  <p className="text-[10px] text-gray-500">Jan 17, 2025 • 2:30 PM</p>
+                                </div>
+                              </div>
+                              
+                              <div className="relative flex items-start gap-3">
+                                <div className="w-3 h-3 rounded-full border-2 border-[#26A69A] bg-[#26A69A]"></div>
+                                <div className="flex-1 -mt-0.5">
+                                  <p className="text-xs font-medium text-gray-900">Work Approved</p>
+                                  <p className="text-[10px] text-gray-500">Jan 17, 2025 • 2:28 PM</p>
+                                </div>
+                              </div>
+                              
+                              <div className="relative flex items-start gap-3">
+                                <div className="w-3 h-3 rounded-full border-2 border-[#26A69A] bg-[#26A69A]"></div>
+                                <div className="flex-1 -mt-0.5">
+                                  <p className="text-xs font-medium text-gray-900">Escrow Funded</p>
+                                  <p className="text-[10px] text-gray-500">Jan 12, 2025 • 10:15 AM</p>
+                                  <a href="#" className="text-[10px] text-[#2962FF] hover:underline">View tx →</a>
+                                </div>
+                              </div>
+                              
+                              <div className="relative flex items-start gap-3">
+                                <div className="w-3 h-3 rounded-full border-2 border-[#26A69A] bg-[#26A69A]"></div>
+                                <div className="flex-1 -mt-0.5">
+                                  <p className="text-xs font-medium text-gray-900">Escrow Created</p>
+                                  <p className="text-[10px] text-gray-500">Jan 12, 2025 • 9:45 AM</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="mt-6 pt-6 border-t border-gray-200">
-                          <div className="text-xs text-gray-500 space-y-1">
-                            <div className="flex items-center gap-1">
-                              <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
-                              <span>Protected by smart contract</span>
+                        <div className="bg-[#F8F9FD] rounded-lg p-4 border border-[#E0E2E7]">
+                          <div className="text-xs text-gray-600 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span>Contract:</span>
+                              <a href="#" className="text-[#2962FF] hover:underline font-mono text-[10px]">0x7d2f...8a9c</a>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
-                              <span>Funds paid directly to you</span>
+                            <div className="flex items-center justify-between">
+                              <span>Network:</span>
+                              <span className="text-gray-900">Polygon</span>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
-                              <span>No chargebacks possible</span>
+                            <div className="flex items-center justify-between">
+                              <span>Duration:</span>
+                              <span className="text-gray-900">5 days</span>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Blur overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 h-[180px] lg:h-[220px] xl:h-[260px] bg-gradient-to-t from-white/90 via-white/50 to-transparent pointer-events-none" />
+                    {/* Enhanced blur overlay - stronger gradient */}
+                    <div className="absolute bottom-0 left-0 right-0 h-[200px] lg:h-[250px] xl:h-[300px] bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none" />
                   </div>
 
                   {/* Footer */}
-                  <div className="bg-gray-900 text-gray-400 text-[10px] sm:text-[11px] lg:text-[13px] px-4 py-2 text-center">
-                    escrowhaven.io is a technology platform. Payment processing and payouts are provided by regulated partners (e.g., Transak and other licensed providers). Funds are held directly in smart contracts, not by escrowhaven.io.
+                  <div className="bg-gray-900 text-gray-400 text-[9px] sm:text-[10px] lg:text-[12px] px-4 py-2 text-center">
+                    escrowhaven.io is a technology platform. Payment processing and payouts are provided by regulated partners. Funds are held directly in smart contracts, not by escrowhaven.io.
                   </div>
                 </div>
               </div>
