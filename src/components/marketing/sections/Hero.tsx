@@ -616,107 +616,13 @@ export function Hero() {
                       </div>
                     </div>
 
-                    {/* Right Panel - Showing completed escrow detail */}
-                    <div className="w-[420px] border-l border-[#E5E7EB] bg-white hidden 2xl:block">
-                      <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
-                        <span className="text-[11px] font-medium text-[#64748B]">ESCROW DETAILS</span>
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border border-[#26A69A] text-[#26A69A] bg-white">
-                          COMPLETE
-                        </span>
-                      </div>
-                      
-                      <div className="p-6">
-                        <div className="border border-gray-200 rounded-xl p-6 mb-6">
-                          <div>
-                            <p className="text-xs text-gray-600 mb-1">Final Amount</p>
-                            <div className="text-3xl font-bold text-gray-900">$1,200.00</div>
-                            <p className="text-sm text-[#26A69A] mt-1">
-                              Released: <span className="font-medium">$1,176.12</span>
-                              <span className="text-xs text-gray-500 ml-1">(after 1.99% fee)</span>
-                            </p>
-                          </div>
-                          
-                          <div className="mt-4 pt-4 border-t border-gray-200 space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Client:</span>
-                              <span className="font-medium">fitness@startup.io</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Freelancer:</span>
-                              <span className="font-medium">sarah@designstudio.co</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Timeline */}
-                        <div className="mb-6">
-                          <h3 className="text-xs font-medium text-gray-900 mb-4 uppercase">Timeline</h3>
-                          <div className="relative">
-                            <div className="absolute left-[6px] w-px bg-gray-200" style={{ top: '6px', height: 'calc(100% - 12px)' }}></div>
-                            
-                            <div className="space-y-4">
-                              <div className="relative flex items-start gap-3">
-                                <div className="w-3 h-3 rounded-full border-2 border-[#26A69A] bg-[#26A69A]"></div>
-                                <div className="flex-1 -mt-0.5">
-                                  <p className="text-xs font-medium text-gray-900">Payment Released</p>
-                                  <p className="text-[10px] text-gray-500">Jan 17, 2025 • 2:30 PM</p>
-                                </div>
-                              </div>
-                              
-                              <div className="relative flex items-start gap-3">
-                                <div className="w-3 h-3 rounded-full border-2 border-[#26A69A] bg-[#26A69A]"></div>
-                                <div className="flex-1 -mt-0.5">
-                                  <p className="text-xs font-medium text-gray-900">Work Approved</p>
-                                  <p className="text-[10px] text-gray-500">Jan 17, 2025 • 2:28 PM</p>
-                                </div>
-                              </div>
-                              
-                              <div className="relative flex items-start gap-3">
-                                <div className="w-3 h-3 rounded-full border-2 border-[#26A69A] bg-[#26A69A]"></div>
-                                <div className="flex-1 -mt-0.5">
-                                  <p className="text-xs font-medium text-gray-900">Escrow Funded</p>
-                                  <p className="text-[10px] text-gray-500">Jan 12, 2025 • 10:15 AM</p>
-                                  <a href="#" className="text-[10px] text-[#2962FF] hover:underline">View tx →</a>
-                                </div>
-                              </div>
-                              
-                              <div className="relative flex items-start gap-3">
-                                <div className="w-3 h-3 rounded-full border-2 border-[#26A69A] bg-[#26A69A]"></div>
-                                <div className="flex-1 -mt-0.5">
-                                  <p className="text-xs font-medium text-gray-900">Escrow Created</p>
-                                  <p className="text-[10px] text-gray-500">Jan 12, 2025 • 9:45 AM</p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-[#F8F9FD] rounded-lg p-4 border border-[#E0E2E7]">
-                          <div className="text-xs text-gray-600 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span>Contract:</span>
-                              <a href="#" className="text-[#2962FF] hover:underline font-mono text-[10px]">0x7d2f...8a9c</a>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Network:</span>
-                              <span className="text-gray-900">Polygon</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Duration:</span>
-                              <span className="text-gray-900">5 days</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
                     {/* Enhanced blur overlay - stronger gradient */}
                     <div className="absolute bottom-0 left-0 right-0 h-[200px] lg:h-[250px] xl:h-[300px] bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none" />
                   </div>
 
                   {/* Footer */}
                   <div className="bg-gray-900 text-gray-400 text-[9px] sm:text-[10px] lg:text-[12px] px-4 py-2 text-center">
-                    escrowhaven.io is a technology platform. Payment processing and payouts are provided by regulated partners. Funds are held directly in smart contracts, not by escrowhaven.io.
+                    escrowhaven.io is a technology platform. Payment processing and payouts are provided by regulated partners. Funds are held directly in smart contracts, not by escrowhaven.
                   </div>
                 </div>
               </div>
