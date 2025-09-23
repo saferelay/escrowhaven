@@ -1,7 +1,22 @@
 // src/components/marketing/sections/Footer.tsx
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 export function Footer() {
+  const router = useRouter();
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleNavigation = (path: string) => {
+    router.push(path);
+  };
+
   return (
     <footer className="bg-white border-t border-[#E0E2E7]">
       {/* Main footer content */}
@@ -12,10 +27,38 @@ export function Footer() {
             <div>
               <h4 className="font-medium mb-6 text-sm text-black">Product</h4>
               <ul className="space-y-4 text-sm text-[#787B86]">
-                <li><a href="#how-it-works" className="hover:text-black transition-colors">How It Works</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">Create Escrow</a></li>
-                <li><a href="#pricing" className="hover:text-black transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">Security</a></li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('how-it-works')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    How It Works
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => handleNavigation('/signup')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Create Escrow
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('pricing')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Pricing
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('transparency')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Security
+                  </button>
+                </li>
               </ul>
             </div>
             
@@ -23,9 +66,30 @@ export function Footer() {
             <div>
               <h4 className="font-medium mb-6 text-sm text-black">For Clients</h4>
               <ul className="space-y-4 text-sm text-[#787B86]">
-                <li><a href="#" className="hover:text-black transition-colors">Protect Your Payment</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">Hire with Confidence</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">Instant Approvals</a></li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('benefits')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Protect Your Payment
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('how-it-works')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Hire with Confidence
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('comparison')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Instant Approvals
+                  </button>
+                </li>
               </ul>
             </div>
             
@@ -33,9 +97,30 @@ export function Footer() {
             <div>
               <h4 className="font-medium mb-6 text-sm text-black">For Freelancers</h4>
               <ul className="space-y-4 text-sm text-[#787B86]">
-                <li><a href="#" className="hover:text-black transition-colors">Avoid Chargebacks</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">Get Paid Faster</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">Global Withdrawals</a></li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('pain-hook')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Avoid Chargebacks
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('comparison')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Get Paid Faster
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('benefits')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Global Withdrawals
+                  </button>
+                </li>
               </ul>
             </div>
             
@@ -43,10 +128,28 @@ export function Footer() {
             <div>
               <h4 className="font-medium mb-6 text-sm text-black">Resources</h4>
               <ul className="space-y-4 text-sm text-[#787B86]">
-                <li><a href="#" className="hover:text-black transition-colors">Help Center</a></li>
-                <li><a href="/transparency" className="hover:text-black transition-colors">Transparency Reports</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">API Docs</a></li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('faq')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Help Center
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('transparency')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Transparency Reports
+                  </button>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-black transition-colors">Blog</a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-black transition-colors">API Docs</a>
+                </li>
               </ul>
             </div>
             
@@ -54,9 +157,20 @@ export function Footer() {
             <div>
               <h4 className="font-medium mb-6 text-sm text-black">Company</h4>
               <ul className="space-y-4 text-sm text-[#787B86]">
-                <li><a href="#" className="hover:text-black transition-colors">About escrowhaven</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">Careers</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">Contact</a></li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('hero')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    About escrowhaven
+                  </button>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-black transition-colors">Careers</a>
+                </li>
+                <li>
+                  <a href="mailto:support@escrowhaven.io" className="hover:text-black transition-colors">Contact</a>
+                </li>
               </ul>
             </div>
             
@@ -64,10 +178,28 @@ export function Footer() {
             <div>
               <h4 className="font-medium mb-6 text-sm text-black">Account</h4>
               <ul className="space-y-4 text-sm text-[#787B86]">
-                <li><a href="/signup" className="hover:text-black transition-colors">Start Escrow</a></li>
-                <li><a href="/login" className="hover:text-black transition-colors">Log In</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">iOS App</a></li>
-                <li><a href="#" className="hover:text-black transition-colors">Android App</a></li>
+                <li>
+                  <button 
+                    onClick={() => handleNavigation('/signup')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Start Escrow
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => handleNavigation('/login')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Log In
+                  </button>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-black transition-colors">iOS App</a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-black transition-colors">Android App</a>
+                </li>
               </ul>
             </div>
           </div>
@@ -80,11 +212,8 @@ export function Footer() {
               </div>
               <div className="flex items-center gap-6">
                 <span className="text-sm text-[#787B86]">Follow Us</span>
-                <a href="#" className="text-[#787B86] hover:text-black transition-colors" aria-label="Twitter">X</a>
-                <a href="#" className="text-[#787B86] hover:text-black transition-colors" aria-label="LinkedIn">LinkedIn</a>
-                <a href="#" className="text-[#787B86] hover:text-black transition-colors" aria-label="YouTube">YouTube</a>
-                <a href="#" className="text-[#787B86] hover:text-black transition-colors" aria-label="Reddit">Reddit</a>
-                <a href="#" className="text-[#787B86] hover:text-black transition-colors" aria-label="Instagram">Instagram</a>
+                <a href="https://twitter.com/escrowhaven" target="_blank" rel="noopener noreferrer" className="text-[#787B86] hover:text-black transition-colors" aria-label="Twitter">X</a>
+                <a href="https://reddit.com/r/escrowhaven" target="_blank" rel="noopener noreferrer" className="text-[#787B86] hover:text-black transition-colors" aria-label="Reddit">Reddit</a>
               </div>
             </div>
           </div>
@@ -108,7 +237,7 @@ export function Footer() {
               <strong className="text-[#787B86]">4. Smart Contract Risks.</strong> Smart contracts are immutable once deployed. While we conduct code audits and testing, blockchain transactions are irreversible and carry inherent risks, including potential vulnerabilities, exploits, or network issues.
             </p>
             <p>
-              <strong className="text-[#787B86]">5. Payment Processing.</strong> All fiat-to-crypto conversions are provided by Stripe and Onramp.money, our third-party payment partners. KYC/AML verification may be required. Standard processing fees apply.
+              <strong className="text-[#787B86]">5. Payment Processing.</strong> All fiat-to-crypto conversions are provided by Transak, our third-party payment partners. KYC/AML verification may be required. Standard processing fees apply.
             </p>
             <p>
               <strong className="text-[#787B86]">6. Platform Fees.</strong> escrowhaven charges a 1.99% fee on successful escrow releases. This fee is automatically deducted from the released amount via our smart contract splitter.
