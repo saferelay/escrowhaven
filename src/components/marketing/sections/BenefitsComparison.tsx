@@ -1,7 +1,11 @@
 // src/components/marketing/sections/BenefitsComparison.tsx
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 export function BenefitsComparison() {
+  const router = useRouter();
+  
   const freelancerBenefits = [
     {
       title: "No chargebacks",
@@ -31,6 +35,10 @@ export function BenefitsComparison() {
       description: "Track everything in real-time"
     }
   ];
+
+  const handleSignupClick = () => {
+    router.push('/signup');
+  };
 
   return (
     <section className="py-16 md:py-24 bg-white">
@@ -151,7 +159,10 @@ export function BenefitsComparison() {
         {/* Bottom CTA - Dashboard style button */}
         <div className="text-center mt-12">
           <p className="text-[#787B86] text-sm mb-4">Join thousands already using escrow protection</p>
-          <button className="px-8 py-3 bg-[#2962FF] text-white rounded-lg font-medium text-sm hover:bg-[#1E53E5] transition-colors">
+          <button 
+            onClick={handleSignupClick}
+            className="px-8 py-3 bg-[#2962FF] text-white rounded-lg font-medium text-sm hover:bg-[#1E53E5] transition-colors cursor-pointer"
+          >
             Start Free Today
           </button>
         </div>

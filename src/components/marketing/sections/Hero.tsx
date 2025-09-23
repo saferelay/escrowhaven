@@ -41,7 +41,7 @@ export function Hero() {
             </h1>
             
             <p className="text-base sm:text-lg lg:text-xl text-[#787B86] max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto mb-8 sm:mb-10 lg:mb-12 px-4 sm:px-0">
-            Clients fund upfront into a secure escrow. Work gets done. Money releases instantly—no chargebacks, no 20% platform cuts.
+            No more chasing clients. No more paying for nothing. escrowhaven protects both sides until the job's done,
             </p>
             
             {/* Email signup - stacks on mobile */}
