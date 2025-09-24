@@ -123,7 +123,7 @@ export function HowItWorks() {
             How it works
           </h2>
           <p className="text-lg text-[#787B86] max-w-2xl mx-auto">
-            Create a private payment agreement. Both sides protected until the job's done.
+            Simple escrow that guarantees you get paid — and your client gets peace of mind.
           </p>
         </div>
         
