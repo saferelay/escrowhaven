@@ -1,3 +1,4 @@
+// src/lib/config.ts
 import { getEnvConfig } from './environment';
 
 export interface Config {

@@ -1,3 +1,4 @@
+// src/lib/magic.ts
 import { Magic } from 'magic-sdk';
 import { ethers } from 'ethers';
 

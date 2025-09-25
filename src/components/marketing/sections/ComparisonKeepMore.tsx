@@ -1,4 +1,4 @@
-// src/components/marketing/sections/ComparisonKeepMore.tsx
+// ComparisonKeepMore.tsx
 'use client';
 
 export function ComparisonKeepMore() {
@@ -15,35 +15,34 @@ export function ComparisonKeepMore() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Keep More Card - Clean white with wire frame */}
+          {/* Keep More Card */}
           <div className="bg-white rounded-xl p-8 border border-[#E0E2E7] flex flex-col">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-2xl font-normal text-[#000000]">You keep more</h3>
               <span className="px-3 py-1.5 bg-white border border-[#26A69A] text-[#26A69A] rounded-lg text-sm font-medium">
-                Save 17%
+                Save up to 18%
               </span>
             </div>
 
-            {/* Dashboard-style comparison cards - fixed height container */}
             <div className="flex-1 flex flex-col justify-between">
               <div className="space-y-4">
                 <div className="p-4 rounded-lg border border-[#26A69A] bg-white h-[76px]">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium text-[#000000]">EscrowHaven</span>
-                    <span className="text-sm font-medium text-[#26A69A]">97%</span>
+                    <span className="text-sm font-medium text-[#26A69A]">98.01%</span>
                   </div>
                   <div className="w-full bg-[#F8F9FD] rounded-full h-2">
-                    <div className="bg-[#26A69A] h-2 rounded-full animate-pulse" style={{ width: '97%' }}></div>
+                    <div className="bg-[#26A69A] h-2 rounded-full animate-pulse" style={{ width: '98.01%' }}></div>
                   </div>
                 </div>
 
                 <div className="p-4 rounded-lg border border-[#E0E2E7] bg-white h-[76px]">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-[#787B86]">Upwork</span>
-                    <span className="text-sm text-[#787B86]">80%</span>
+                    <span className="text-sm text-[#787B86]">Upwork (first $500)</span>
+                    <span className="text-sm text-[#787B86]">90%</span>
                   </div>
                   <div className="w-full bg-[#F8F9FD] rounded-full h-2">
-                    <div className="bg-[#E0E2E7] h-2 rounded-full" style={{ width: '80%' }}></div>
+                    <div className="bg-[#E0E2E7] h-2 rounded-full" style={{ width: '90%' }}></div>
                   </div>
                 </div>
 
@@ -58,26 +57,24 @@ export function ComparisonKeepMore() {
                 </div>
               </div>
 
-              {/* Dashboard-style metric card */}
               <div className="mt-8 pt-6 border-t border-[#E0E2E7]">
                 <div className="bg-[#F8F9FD] rounded-lg p-4 text-center h-[88px] flex flex-col justify-center">
-                  <div className="text-3xl font-normal text-[#26A69A]">$1,700</div>
-                  <div className="text-xs text-[#787B86] mt-1">saved on every $10,000</div>
+                  <div className="text-3xl font-normal text-[#26A69A]">$1,801</div>
+                  <div className="text-xs text-[#787B86] mt-1">saved on every $10,000 vs Fiverr</div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Faster Payouts Card - Clean white with wire frame */}
+          {/* Faster Payouts Card */}
           <div className="bg-white rounded-xl p-8 border border-[#E0E2E7] flex flex-col">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-2xl font-normal text-[#000000]">Faster payouts</h3>
               <span className="px-3 py-1.5 bg-white border border-[#2962FF] text-[#2962FF] rounded-lg text-sm font-medium">
-                10x faster
+                Instant
               </span>
             </div>
 
-            {/* Dashboard-style timeline - fixed height container */}
             <div className="flex-1 flex flex-col justify-between">
               <div className="space-y-4">
                 <div className="p-4 rounded-lg border border-[#2962FF] bg-white h-[76px]">
@@ -101,8 +98,8 @@ export function ComparisonKeepMore() {
 
                 <div className="p-4 rounded-lg border border-[#E0E2E7] bg-white h-[76px]">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-[#787B86]">Traditional Banks</span>
-                    <span className="text-sm text-[#787B86]">5-7 days</span>
+                    <span className="text-sm text-[#787B86]">Upwork</span>
+                    <span className="text-sm text-[#787B86]">5-20 days</span>
                   </div>
                   <div className="flex items-center">
                     <div className="w-full">
@@ -121,7 +118,7 @@ export function ComparisonKeepMore() {
                 <div className="p-4 rounded-lg border border-[#E0E2E7] bg-white h-[76px]">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm text-[#787B86]">PayPal</span>
-                    <span className="text-sm text-[#787B86]">2-3 days</span>
+                    <span className="text-sm text-[#787B86]">1-3 days</span>
                   </div>
                   <div className="flex items-center">
                     <div className="w-full">
@@ -138,7 +135,6 @@ export function ComparisonKeepMore() {
                 </div>
               </div>
 
-              {/* Dashboard-style metric card */}
               <div className="mt-8 pt-6 border-t border-[#E0E2E7]">
                 <div className="bg-[#F8F9FD] rounded-lg p-4 text-center h-[88px] flex flex-col justify-center">
                   <div className="text-3xl font-normal text-[#2962FF]">0 days</div>
@@ -149,23 +145,22 @@ export function ComparisonKeepMore() {
           </div>
         </div>
 
-        {/* Visual proof section - dashboard style */}
+        {/* Bottom proof points */}
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Mini dashboard preview cards - fixed heights */}
           <div className="border border-[#E0E2E7] rounded-lg p-6 bg-white h-[156px] flex flex-col">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-[#F8F9FD] flex items-center justify-center flex-shrink-0">
                 <svg className="w-5 h-5 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
               <div className="min-w-0">
                 <p className="text-2xl font-normal text-[#000000]">100%</p>
-                <p className="text-xs text-[#787B86]">Funds secured</p>
+                <p className="text-xs text-[#787B86]">No chargebacks</p>
               </div>
             </div>
             <div className="h-px bg-[#E0E2E7] my-3"></div>
-            <p className="text-xs text-[#787B86]">Verified on-chain</p>
+            <p className="text-xs text-[#787B86]">Funds locked until approved</p>
           </div>
 
           <div className="border border-[#E0E2E7] rounded-lg p-6 bg-white h-[156px] flex flex-col">
@@ -176,12 +171,12 @@ export function ComparisonKeepMore() {
                 </svg>
               </div>
               <div className="min-w-0">
-                <p className="text-2xl font-normal text-[#000000]">Zero</p>
-                <p className="text-xs text-[#787B86]">Platform disputes</p>
+                <p className="text-2xl font-normal text-[#000000]">Direct</p>
+                <p className="text-xs text-[#787B86]">Work anywhere</p>
               </div>
             </div>
             <div className="h-px bg-[#E0E2E7] my-3"></div>
-            <p className="text-xs text-[#787B86]">Instant settlements</p>
+            <p className="text-xs text-[#787B86]">Reddit, email, Discord</p>
           </div>
 
           <div className="border border-[#E0E2E7] rounded-lg p-6 bg-white h-[156px] flex flex-col">

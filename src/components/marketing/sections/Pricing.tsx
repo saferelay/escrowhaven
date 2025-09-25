@@ -1,4 +1,4 @@
-// src/components/marketing/sections/Pricing.tsx
+// Pricing.tsx - Simplified without comparison
 'use client';
 
 export function Pricing() {
@@ -10,13 +10,13 @@ export function Pricing() {
             Simple, transparent pricing
           </h2>
           <p className="text-lg text-[#787B86] max-w-2xl mx-auto">
-            No setup fees. No monthly costs. Pay only when you get paid.
+            No setup fees. No monthly costs. Just 1.99% when you get paid.
           </p>
         </div>
 
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           {/* Main pricing card */}
-          <div className="bg-white rounded-xl border-2 border-[#2962FF] p-8 mb-8">
+          <div className="bg-white rounded-xl border-2 border-[#2962FF] p-8">
             <div className="text-center mb-8">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#F8F9FD] rounded-lg border border-[#E0E2E7] mb-4">
                 <span className="text-xs text-[#787B86] uppercase">One simple fee</span>
@@ -42,7 +42,7 @@ export function Pricing() {
                   <div className="w-5 h-5 rounded-full border border-[#26A69A] flex items-center justify-center mt-0.5 flex-shrink-0">
                     <div className="w-2 h-2 bg-[#26A69A] rounded-full"></div>
                   </div>
-                  <span className="text-sm text-[#000000]">Smart contract security</span>
+                  <span className="text-sm text-[#000000]">No chargebacks</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-5 h-5 rounded-full border border-[#26A69A] flex items-center justify-center mt-0.5 flex-shrink-0">
@@ -66,61 +66,21 @@ export function Pricing() {
                   <div className="w-5 h-5 rounded-full border border-[#26A69A] flex items-center justify-center mt-0.5 flex-shrink-0">
                     <div className="w-2 h-2 bg-[#26A69A] rounded-full"></div>
                   </div>
-                  <span className="text-sm text-[#000000]">API access</span>
+                  <span className="text-sm text-[#000000]">Work directly with anyone</span>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Comparison table */}
-          <div className="bg-white rounded-xl border border-[#E0E2E7] overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#E0E2E7] bg-[#F8F9FD]">
-              <p className="text-sm font-medium text-[#000000]">How we compare</p>
-            </div>
-            <div className="divide-y divide-[#E0E2E7]">
-              <div className="px-6 py-4 grid grid-cols-3 gap-4">
-                <div className="text-sm text-[#787B86]">Platform</div>
-                <div className="text-sm text-[#787B86]">Their fee</div>
-                <div className="text-sm text-[#787B86]">You save</div>
-              </div>
-              <div className="px-6 py-4 grid grid-cols-3 gap-4 hover:bg-[#F8F9FD] transition-colors">
-                <div className="text-sm text-[#000000] font-medium">EscrowHaven</div>
-                <div className="text-sm text-[#2962FF] font-medium">1.99%</div>
-                <div className="text-sm text-[#26A69A] font-medium">—</div>
-              </div>
-              <div className="px-6 py-4 grid grid-cols-3 gap-4 hover:bg-[#F8F9FD] transition-colors">
-                <div className="text-sm text-[#000000]">Upwork</div>
-                <div className="text-sm text-[#787B86]">20%</div>
-                <div className="text-sm text-[#26A69A]">18.01%</div>
-              </div>
-              <div className="px-6 py-4 grid grid-cols-3 gap-4 hover:bg-[#F8F9FD] transition-colors">
-                <div className="text-sm text-[#000000]">Fiverr</div>
-                <div className="text-sm text-[#787B86]">20%</div>
-                <div className="text-sm text-[#26A69A]">18.01%</div>
-              </div>
-              <div className="px-6 py-4 grid grid-cols-3 gap-4 hover:bg-[#F8F9FD] transition-colors">
-                <div className="text-sm text-[#000000]">PayPal G&S</div>
-                <div className="text-sm text-[#787B86]">3.49% + $0.49</div>
-                <div className="text-sm text-[#26A69A]">1.5%+</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Calculator */}
-          <div className="mt-8 bg-white rounded-xl border border-[#E0E2E7] p-6">
-            <p className="text-sm font-medium text-[#000000] mb-4">Quick calculator</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-[#F8F9FD] rounded-lg p-4 border border-[#E0E2E7]">
-                <p className="text-xs text-[#787B86] mb-1">If you charge</p>
-                <p className="text-xl font-normal text-[#000000]">$10,000</p>
-              </div>
-              <div className="bg-[#F8F9FD] rounded-lg p-4 border border-[#E0E2E7]">
-                <p className="text-xs text-[#787B86] mb-1">You keep</p>
-                <p className="text-xl font-normal text-[#2962FF]">$9,801</p>
-              </div>
-              <div className="bg-[#F8F9FD] rounded-lg p-4 border border-[#E0E2E7]">
-                <p className="text-xs text-[#787B86] mb-1">vs Upwork you save</p>
-                <p className="text-xl font-normal text-[#26A69A]">$1,801</p>
+            {/* Simple example */}
+            <div className="mt-6 pt-6 border-t border-[#E0E2E7]">
+              <div className="bg-[#F8F9FD] rounded-lg p-4 text-center">
+                <p className="text-xs text-[#787B86] uppercase mb-2">Example</p>
+                <p className="text-sm text-[#000000]">
+                  On a $1,000 job, you keep <span className="font-medium text-[#26A69A]">$980</span>
+                </p>
+                <p className="text-xs text-[#787B86] mt-1">
+                  vs $800 on Fiverr or $900 on Upwork
+                </p>
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
+import { sendEmail, emailTemplates } from '@/lib/email';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -165,6 +166,19 @@ export async function POST(request: NextRequest) {
       amount: amountUsd,
       factory: FACTORY_ADDRESS
     });
+
+
+    const recipientEmail = initiatorRole === 'payer' ? freelancerEmail : clientEmail;
+    const senderEmail = initiatorRole === 'payer' ? clientEmail : freelancerEmail;
+
+    await sendEmail(emailTemplates.escrowInvitation({
+      recipientEmail,
+      senderEmail,
+      amount: `$${amountUsd}`,
+      description,
+      escrowLink: `${process.env.NEXT_PUBLIC_APP_URL}/${escrow.premium_link || `escrow/${escrow.id}`}`,
+      role: initiatorRole === 'payer' ? 'recipient' : 'payer'
+    }));
     
     return NextResponse.json({
       escrowId: escrow.id,

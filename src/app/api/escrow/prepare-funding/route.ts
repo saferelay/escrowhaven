@@ -1,4 +1,4 @@
-// src/app/api/escrow/prepare-funding/route.ts - TRANSAK ONE PREDICTION MODE
+// src/app/api/escrow/prepare-funding/route.ts 
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
         recipientWallet: escrow.freelancer_wallet_address
       });
     }
+    
     
     // Get Magic wallet addresses
     const [clientWallet, freelancerWallet] = await Promise.all([
