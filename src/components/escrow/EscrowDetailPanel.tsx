@@ -770,7 +770,7 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-medium text-[#64748B]">
-                    ESCROW DETAILS
+                    TRANSACTION DETAILS
                   </span>
                   {escrow && (
                     <div className={clsx(

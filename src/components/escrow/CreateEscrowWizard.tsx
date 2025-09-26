@@ -11,13 +11,13 @@ interface CreateEscrowWizardProps {
   onEscrowCreated?: (escrowId: string) => void;
 }
 
-// Progress indicator - matching EscrowDetailPanel style
+// Progress indicator - 5 steps
 const ProgressIndicator = ({ currentStep }: { currentStep: number }) => {
   const steps = [
-    { id: 1, label: 'Invite' },
+    { id: 1, label: 'Start' },
     { id: 2, label: 'Accept' },
     { id: 3, label: 'Fund' },
-    { id: 4, label: 'Active' },
+    { id: 4, label: 'Work' },
     { id: 5, label: 'Complete' }
   ];
   
@@ -78,14 +78,7 @@ const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
-const CopyIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-  </svg>
-);
-
-// Terms Disclosure - matching EscrowDetailPanel
+// Terms Disclosure - Updated language for transaction/vault model
 const TermsDisclosure = ({ accepted, onAccept }: { accepted: boolean; onAccept: (accepted: boolean) => void }) => {
   const [expanded, setExpanded] = useState(false);
   
@@ -101,7 +94,7 @@ const TermsDisclosure = ({ accepted, onAccept }: { accepted: boolean; onAccept: 
         />
         <div className="flex-1">
           <label htmlFor="accept-terms" className="text-sm text-gray-900 cursor-pointer select-none">
-            I understand and accept the escrowhaven On-Chain Terms
+            I understand this transaction will have a secure vault protected by escrow
           </label>
           
           <button
@@ -112,43 +105,44 @@ const TermsDisclosure = ({ accepted, onAccept }: { accepted: boolean; onAccept: 
             }}
             className="text-xs text-blue-600 hover:text-blue-700 mt-1 flex items-center gap-1"
           >
-            {expanded ? 'Hide' : 'View'} on-chain terms
+            {expanded ? 'Hide' : 'View'} how the vault protects you
             <ChevronDownIcon className={clsx("w-3 h-3 transition-transform", expanded && "rotate-180")} />
           </button>
           
           {expanded && (
             <div className="mt-3 space-y-3 text-xs text-gray-600 bg-gray-50 rounded-lg p-3">
               <div>
-                <p className="font-semibold text-gray-900 mb-1">Smart Contract Enforcement</p>
+                <p className="font-semibold text-gray-900 mb-1">Transaction Vault Security</p>
                 <ul className="space-y-1 list-disc pl-5">
-                  <li>Funds locked in immutable smart contract on Polygon</li>
-                  <li>No admin functions - escrowhaven cannot access funds</li>
-                  <li>Contract address provided after deployment</li>
+                  <li>Each transaction has its own secure vault on Polygon</li>
+                  <li>Funds locked in immutable smart contract</li>
+                  <li>No admin functions - escrowhaven cannot access the vault</li>
+                  <li>Vault address provided after deployment</li>
                 </ul>
               </div>
               
               <div>
-                <p className="font-semibold text-gray-900 mb-1">Release Mechanisms</p>
+                <p className="font-semibold text-gray-900 mb-1">Payment Control</p>
                 <ul className="space-y-1 list-disc pl-5">
-                  <li>Full Release: Sender approves payment to receiver</li>
-                  <li>Settlement: Both parties can propose partial releases</li>
-                  <li>Refund: Receiver can refund full amount to sender</li>
+                  <li>Full Release: Sender approves payment from vault to receiver</li>
+                  <li>Settlement: Both parties can propose partial releases from vault</li>
+                  <li>Refund: Receiver can refund full vault amount to sender</li>
                 </ul>
               </div>
               
               <div>
-                <p className="font-semibold text-gray-900 mb-1">Transparency & Security</p>
+                <p className="font-semibold text-gray-900 mb-1">Complete Transparency</p>
                 <ul className="space-y-1 list-disc pl-5">
-                  <li>All transactions viewable on Polygon blockchain</li>
+                  <li>All vault transactions viewable on Polygon blockchain</li>
                   <li>1.99% platform fee only on successful release</li>
                   <li>Digital signatures ensure authenticity</li>
-                  <li>Non-custodial: you control your funds</li>
+                  <li>Non-custodial: you control your vault</li>
                 </ul>
               </div>
               
               <div className="pt-3 mt-3 border-t border-gray-200">
                 <p className="text-xs text-gray-500">
-                  By using this escrow, you acknowledge that blockchain transactions are irreversible
+                  By using this service, you acknowledge that blockchain transactions are irreversible
                   and escrowhaven acts only as a technology provider, not as a custodian or arbitrator.
                 </p>
               </div>
@@ -223,7 +217,6 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
 
   // Reset form when modal opens
   useEffect(() => {
-    // Only reset when opening, not on every user change
     if (isOpen && !prevIsOpenRef.current && user) {
       setDeploymentStatus('idle');
       setError('');
@@ -261,11 +254,11 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
     return `secure-payment-${uniqueId}`;
   };
 
-  const simulateInvitationCreation = async () => {
+  const simulateTransactionCreation = async () => {
     const steps: DeploymentStepData[] = [
-      { step: 1, status: 'active', message: 'Validating inputs...' },
-      { step: 2, status: 'pending', message: 'Creating escrow invitation...' },
-      { step: 3, status: 'pending', message: 'Generating secure link...' },
+      { step: 1, status: 'active', message: 'Validating transaction details...' },
+      { step: 2, status: 'pending', message: 'Creating secure transaction...' },
+      { step: 3, status: 'pending', message: 'Preparing transaction vault...' },
       { step: 4, status: 'pending', message: 'Sending notification...' }
     ];
     
@@ -295,7 +288,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
     const freelancerEmail = role === 'recipient' ? user?.email : otherPartyEmail;
     
     if (clientEmail === freelancerEmail) {
-      setError('You cannot send an escrow to yourself.');
+      setError('You cannot create a transaction with yourself.');
       return;
     }
   
@@ -304,7 +297,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
     setDeploymentStatus('deploying');
     
     try {
-      await simulateInvitationCreation();
+      await simulateTransactionCreation();
       
       const response = await fetch('/api/escrow/create-invitation', {
         method: 'POST',
@@ -321,7 +314,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to deploy escrow');
+        throw new Error(error.error || 'Failed to create transaction');
       }
       
       const data = await response.json();
@@ -341,8 +334,8 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
       setDeploymentStatus('complete');
       
     } catch (error: any) {
-      console.error('Error creating escrow:', error);
-      setError(error.message || 'Failed to send escrow invitation');
+      console.error('Error creating transaction:', error);
+      setError(error.message || 'Failed to start transaction');
       setDeploymentStatus('idle');
       setDeploymentSteps([]);
     } finally {
@@ -362,15 +355,14 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
 
   if (!isOpen) return null;
 
-  // CRITICAL FIX: Return a single div, not a fragment
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* FIXED HEADER - Matching dashboard column header exactly */}
+      {/* FIXED HEADER */}
       <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
         <span className="text-[11px] font-medium text-[#64748B]">
-          {deploymentStatus === 'idle' ? 'SEND ESCROW INVITATION' : 
-           deploymentStatus === 'deploying' ? 'SENDING INVITATION...' : 
-           'INVITATION SENT'}
+          {deploymentStatus === 'idle' ? 'NEW TRANSACTION' : 
+           deploymentStatus === 'deploying' ? 'CREATING TRANSACTION...' : 
+           'TRANSACTION CREATED'}
         </span>
         <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
           <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -395,9 +387,9 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
                   <span className="text-blue-600 text-sm font-medium">1</span>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">You're sending the invitation</p>
+                  <p className="text-sm font-medium text-gray-900">You're starting the transaction</p>
                   <p className="text-xs text-gray-600 mt-1">
-                    Next, they'll accept, then {role === 'payer' ? 'you' : 'they'} will fund it.
+                    Next, they'll accept terms, then {role === 'payer' ? 'you' : 'they'} will fund the transaction's vault.
                   </p>
                 </div>
               </div>
@@ -419,7 +411,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
                         : 'border-gray-300 text-gray-700 hover:border-gray-400'
                     )}
                   >
-                    Sender
+                    Sender (paying)
                   </button>
                   <button
                     type="button"
@@ -431,7 +423,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
                         : 'border-gray-300 text-gray-700 hover:border-gray-400'
                     )}
                   >
-                    Receiver
+                    Receiver (working)
                   </button>
                 </div>
               </div>
@@ -492,7 +484,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
             {role === 'recipient' && amountUsd && parseFloat(amountUsd) >= 1 && (
               <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Amount</span>
+                  <span className="text-gray-600">Transaction amount</span>
                   <span className="font-mono">${parseFloat(amountUsd || '0').toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -518,21 +510,21 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
               </div>
             )}
 
-            {/* Trust benefits - above CTA as requested */}
+            {/* Trust benefits */}
             <div className="flex items-center justify-between py-3 px-4 border border-gray-200 rounded-lg text-xs bg-white">
+              <span className="flex items-center gap-1.5">
+                <CheckIcon className="w-3.5 h-3.5 text-[#2962FF]" />
+                <span className="text-gray-700">Secure vault</span>
+              </span>
+              <span className="text-gray-300">|</span>
               <span className="flex items-center gap-1.5">
                 <CheckIcon className="w-3.5 h-3.5 text-[#2962FF]" />
                 <span className="text-gray-700">Non-custodial</span>
               </span>
               <span className="text-gray-300">|</span>
               <span className="flex items-center gap-1.5">
-                <CheckIcon className="w-3.5 h-3.5 text-[#2962FF]" />
-                <span className="text-gray-700">Immutable contracts</span>
-              </span>
-              <span className="text-gray-300">|</span>
-              <span className="flex items-center gap-1.5">
                 <ScaleIcon className="w-3.5 h-3.5 text-[#2962FF]" />
-                <span className="text-gray-700">Kleros arbitration</span>
+                <span className="text-gray-700">Fair resolution</span>
               </span>
             </div>
 
@@ -547,9 +539,9 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
                   : "bg-gray-100 text-gray-400 cursor-not-allowed"
               )}
             >
-              {!termsAccepted ? 'Accept terms to continue' : 
-               otherPartyEmail === user?.email ? 'Cannot send to yourself' :
-               'Send Escrow Invitation'}
+              {!termsAccepted ? 'Accept vault protection to continue' : 
+               otherPartyEmail === user?.email ? 'Cannot transact with yourself' :
+               'Create Transaction'}
             </button>
           </div>
         )}
@@ -564,10 +556,10 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
             
             <div className="bg-blue-50 rounded-lg p-4">
               <p className="text-sm text-blue-900">
-                Sending secure escrow invitation...
+                Creating your secure transaction...
               </p>
               <p className="text-xs text-blue-700 mt-1">
-                The other party will need to accept before the contract is deployed
+                The transaction vault will be deployed when funded
               </p>
             </div>
           </div>
@@ -580,7 +572,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CheckIcon className="w-6 h-6 text-green-600" />
               </div>
-              <h3 className="text-base font-medium text-gray-900 mb-1">Invitation Sent</h3>
+              <h3 className="text-base font-medium text-gray-900 mb-1">Transaction Created</h3>
               <p className="text-sm text-gray-600">
                 {otherPartyEmail} has been notified
               </p>
@@ -595,7 +587,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
                     <span className="text-[10px] font-medium">2</span>
                   </div>
                   <p className="text-xs text-gray-600">
-                    {otherPartyEmail} accepts the invitation
+                    {otherPartyEmail} accepts the transaction terms
                   </p>
                 </div>
                 <div className="flex items-start gap-2">
@@ -603,7 +595,23 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
                     <span className="text-[10px] font-medium">3</span>
                   </div>
                   <p className="text-xs text-gray-600">
-                    {role === 'payer' ? 'You' : 'They'} fund the escrow
+                    {role === 'payer' ? 'You' : 'They'} fund the transaction vault
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-[10px] font-medium">4</span>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Work is delivered with funds secured in vault
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-[10px] font-medium">5</span>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Funds released instantly from vault upon approval
                   </p>
                 </div>
               </div>
@@ -611,7 +619,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
 
             {/* Shareable Link */}
             <div className="space-y-2">
-              <label className="block text-xs text-gray-600">Your escrow link</label>
+              <label className="block text-xs text-gray-600">Your transaction link</label>
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <div className="flex gap-2 mb-2">
                   <input
@@ -641,14 +649,15 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
                 }}
                 className="flex-1 py-2 bg-[#2962FF] text-white rounded-lg text-sm font-medium hover:bg-[#1d4ed8]"
               >
-                View Escrow Status
+                View Transaction Status
               </button>
               <button
                 onClick={handleReset}
                 className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
               >
-                Send Another
+                Create Another
               </button>
+              
             </div>
           </div>
         )}

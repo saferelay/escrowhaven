@@ -1,4 +1,4 @@
-// src/components/SettlementActions.tsx - Complete Gasless Version with ALL original features
+// src/components/SettlementActions.tsx - Complete with Transaction/Vault terminology
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +6,6 @@ import { Magic } from 'magic-sdk';
 import { ethers } from 'ethers';
 import { useAuth } from '@/contexts/AuthContext';
 import { DisputePaymentModal } from '@/components/escrow/DisputePaymentModal'; 
-
 
 interface SettlementActionsProps {
   escrow: any;
@@ -33,7 +32,7 @@ const PulsingDot = ({ color = 'blue' }: { color?: string }) => {
 export function SettlementActions({ escrow, userRole, onAction }: SettlementActionsProps) {
   const { user, supabase } = useAuth();
   const [showSettlementModal, setShowSettlementModal] = useState(false);
-  const [showDisputeModal, setShowDisputeModal] = useState(false);  // ADD THIS LINE
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [clientAmount, setClientAmount] = useState('');
   const [freelancerAmount, setFreelancerAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,7 +40,6 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
   const [activeProposal, setActiveProposal] = useState<any>(null);
   const [escrowBalance, setEscrowBalance] = useState<string>('0');
   const [contractExists, setContractExists] = useState<boolean | null>(null);
-
 
   // Check if contract exists and get balance
   useEffect(() => {
@@ -66,23 +64,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
     };
     
     checkDeployment();
-  }, [escrow?.id, escrow?.status, escrow?.contract_deployed, escrow?.funded_amount]);
-
-  const checkContractExists = async () => {
-    try {
-      const provider = new ethers.providers.JsonRpcProvider('https://rpc-amoy.polygon.technology');
-      const code = await provider.getCode(escrow.vault_address);
-      const exists = code !== '0x';
-      setContractExists(exists);
-      
-      if (!exists) {
-        console.warn('No contract deployed at vault address:', escrow.vault_address);
-      }
-    } catch (error) {
-      console.error('Error checking contract:', error);
-      setContractExists(false);
-    }
-  };
+  }, [escrow?.id, escrow?.status, escrow?.contract_deployed, escrow?.funded_amount, escrow?.amount_cents]);
 
   const getMagicInstance = () => {
     if (!process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY) {
@@ -131,14 +113,14 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
   // GASLESS RELEASE - User signs, backend pays gas
   const handleRelease = async () => {
     console.log('Release clicked. Contract exists?', contractExists);
-    console.log('Escrow data:', {
+    console.log('Transaction data:', {
       contract_deployed: escrow.contract_deployed,
       status: escrow.status,
       vault_address: escrow.vault_address
     });
     
     if (!contractExists) {
-      alert('The escrow vault contract has not been deployed yet. Please contact support.');
+      alert("This transaction's vault has not been deployed yet. Please contact support.");
       return;
     }
 
@@ -148,7 +130,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
     }
 
     setLoading(true);
-    setStatus('Connecting to your Magic wallet...');
+    setStatus('Connecting to your secure wallet...');
 
     try {
       const userEmail = escrow.client_email;
@@ -160,7 +142,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
       const nonce = Date.now();
       const message = ethers.utils.solidityKeccak256(
         ['string', 'address', 'uint256'],
-        ['Release escrow', escrow.vault_address, nonce]
+        ['Release transaction', escrow.vault_address, nonce]
       );
       
       setStatus('Please sign the release authorization in your email...');
@@ -168,7 +150,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
       // User signs with Magic wallet - NO GAS NEEDED
       const signature = await signer.signMessage(ethers.utils.arrayify(message));
       
-      setStatus('Processing release...');
+      setStatus('Processing release from vault...');
       
       // Send signature to backend which will pay gas
       const response = await fetch('/api/escrow/gasless-action', {
@@ -190,7 +172,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
       
       const data = await response.json();
       
-      setStatus('Payment released successfully!');
+      setStatus('Payment released from vault successfully!');
       await onAction({ 
         type: 'released', 
         txHash: data.txHash 
@@ -214,7 +196,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
   // GASLESS REFUND - User signs, backend pays gas
   const handleRefund = async () => {
     if (!contractExists) {
-      alert('The escrow vault contract has not been deployed yet. Please contact support.');
+      alert("This transaction's vault has not been deployed yet. Please contact support.");
       return;
     }
 
@@ -224,7 +206,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
     }
 
     setLoading(true);
-    setStatus('Connecting to your Magic wallet...');
+    setStatus('Connecting to your secure wallet...');
 
     try {
       const userEmail = escrow.freelancer_email;
@@ -236,7 +218,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
       const nonce = Date.now();
       const message = ethers.utils.solidityKeccak256(
         ['string', 'address', 'uint256'],
-        ['Refund escrow', escrow.vault_address, nonce]
+        ['Refund transaction', escrow.vault_address, nonce]
       );
       
       setStatus('Please sign the refund authorization in your email...');
@@ -244,7 +226,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
       // User signs - NO GAS NEEDED
       const signature = await signer.signMessage(ethers.utils.arrayify(message));
       
-      setStatus('Processing refund...');
+      setStatus('Processing refund from vault...');
       
       // Backend pays gas
       const response = await fetch('/api/escrow/gasless-action', {
@@ -266,7 +248,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
       
       const data = await response.json();
       
-      setStatus('Refund complete!');
+      setStatus('Refund from vault complete!');
       await onAction({ 
         type: 'refunded', 
         txHash: data.txHash 
@@ -290,7 +272,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
   // GASLESS SETTLEMENT PROPOSAL - User signs, backend pays gas
   const handleProposeSettlement = async () => {
     if (!contractExists) {
-      alert('The escrow vault contract has not been deployed yet. Please contact support.');
+      alert("This transaction's vault has not been deployed yet. Please contact support.");
       return;
     }
 
@@ -299,12 +281,12 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
 
     const total = clientAmt + freelancerAmt;
     if (Math.abs(total - parseFloat(escrowBalance)) > 0.01) {
-      alert(`Settlement amounts must equal escrow balance (${escrowBalance} USDC). Currently: ${total.toFixed(2)} USDC`);
+      alert(`Settlement amounts must equal vault balance (${escrowBalance} USDC). Currently: ${total.toFixed(2)} USDC`);
       return;
     }
 
     setLoading(true);
-    setStatus('Connecting to your Magic wallet...');
+    setStatus('Connecting to your secure wallet...');
 
     try {
       const userEmail = userRole === 'payer' ? escrow.client_email : escrow.freelancer_email;
@@ -371,16 +353,16 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
     }
   };
 
-  // Contract not deployed warning - KEEP ORIGINAL STYLING
+  // Contract not deployed warning - Updated language
   if (contractExists === false) {
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <span className="text-amber-600 text-xl">⚠️</span>
           <div>
-            <p className="text-sm font-medium text-amber-900">Contract Not Deployed</p>
+            <p className="text-sm font-medium text-amber-900">Transaction Vault Not Deployed</p>
             <p className="text-xs text-amber-700 mt-1">
-              The escrow vault contract hasn't been deployed yet. The funds are secured but actions are not available until deployment is complete.
+              This transaction's vault hasn't been deployed yet. The funds are secured but actions are not available until the vault is deployed.
             </p>
           </div>
         </div>
@@ -391,7 +373,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
   return (
     <>
       <div className="space-y-3">
-        {/* Status message with pulsing dot - KEEP ORIGINAL */}
+        {/* Status message with pulsing dot */}
         {status && (
           <div className="flex items-center gap-2 py-2 px-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
             <PulsingDot color="blue" />
@@ -399,7 +381,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
           </div>
         )}
 
-        {/* Action buttons - KEEP ALL ORIGINAL STYLING */}
+        {/* Action buttons */}
         {userRole === 'payer' && (
           <button
             onClick={handleRelease}
@@ -416,7 +398,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Release ${escrowBalance}
+                Release ${escrowBalance} from Vault
               </>
             )}
           </button>
@@ -452,26 +434,25 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
           Propose Partial Settlement
         </button>
 
-          {/* DISPUTE BUTTON */}
-          {escrow.status === 'FUNDED' && !escrow.kleros_dispute_pending && (
+        {/* DISPUTE BUTTON */}
+        {escrow.status === 'FUNDED' && !escrow.kleros_dispute_pending && (
           <button
             onClick={() => setShowDisputeModal(true)}
             disabled={loading}
             className="w-full py-2.5 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 disabled:opacity-50 transition-all text-sm font-medium"
           >
-            Request Kleros Arbitration
+            Request Arbitration
           </button>
         )}
       </div>
 
-
-      {/* Settlement Modal - KEEP ALL ORIGINAL STYLING */}
+      {/* Settlement Modal */}
       {showSettlementModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Propose Settlement</h3>
+                <h3 className="text-lg font-semibold">Propose Vault Settlement</h3>
                 <button
                   onClick={() => setShowSettlementModal(false)}
                   className="p-1 hover:bg-gray-100 rounded"
@@ -486,7 +467,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
             <div className="p-6 space-y-4">
               <div className="text-center pb-3 border-b border-gray-100">
                 <p className="text-2xl font-mono font-semibold">${escrowBalance}</p>
-                <p className="text-xs text-gray-500 mt-1">Total to distribute</p>
+                <p className="text-xs text-gray-500 mt-1">Vault balance to distribute</p>
               </div>
               
               <div>
@@ -579,18 +560,18 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
         </div>
       )}
 
-      {/* ADD DISPUTE MODAL HERE - AFTER SETTLEMENT MODAL */}
+      {/* Dispute Modal */}
       {showDisputeModal && (
-          <DisputePaymentModal
-            escrow={escrow}
-            userEmail={user?.email}
-            onClose={() => setShowDisputeModal(false)}
-            onSuccess={() => {
-              setShowDisputeModal(false);
-              onAction({ type: 'dispute_initiated' });
-            }}
-          />
-        )}
+        <DisputePaymentModal
+          escrow={escrow}
+          userEmail={user?.email}
+          onClose={() => setShowDisputeModal(false)}
+          onSuccess={() => {
+            setShowDisputeModal(false);
+            onAction({ type: 'dispute_initiated' });
+          }}
+        />
+      )}
     </>
   );
 }

@@ -57,7 +57,7 @@ export function Hero() {
                 onClick={handleSignup}
                 className="px-6 sm:px-7 py-3 bg-[#2962FF] text-white rounded-lg text-base font-medium hover:bg-[#1E53E5] transition-colors w-full sm:w-auto"
               >
-                Start an Escrow
+                Start a Transaction
               </button>
               <span className="text-[#787B86] text-sm hidden lg:inline">
                 takes 2 minutes
@@ -87,7 +87,7 @@ export function Hero() {
                 <div className="bg-[#F8F9FD] border-b border-[#E5E7EB] px-4 py-2">
                   <div className="flex items-center justify-between">
                     <button className="px-3 py-1.5 bg-[#2962FF] text-white rounded-md text-xs font-medium">
-                      + New Escrow
+                      + New Transaction
                     </button>
                     <div className="flex gap-2">
                       <span className="px-2 py-1 bg-white border border-[#E0E2E7] rounded text-xs">
@@ -243,7 +243,7 @@ export function Hero() {
                     <div className="w-52 border-r border-[#E5E7EB] bg-white hidden lg:block">
                       <div className="p-2">
                         <button className="w-full px-2 py-1.5 bg-[#2962FF] text-white rounded-md text-xs">
-                          + New Escrow
+                          + New Transaction
                         </button>
                       </div>
                       <nav className="px-2">
@@ -252,7 +252,7 @@ export function Hero() {
                             <svg className="w-3 h-3 text-[#475569]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                             </svg>
-                            All escrows
+                            All Transactions
                           </span>
                           <span className="bg-[#E2E8F0] text-[#475569] rounded-full px-1.5 py-0.5 text-[9px]">16</span>
                         </button>
@@ -310,7 +310,7 @@ export function Hero() {
                       <div className="border-b border-[#E5E7EB] bg-white px-3 lg:px-4 pt-2 pb-2">
                         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                           <div className="rounded-md border border-[#E2E8F0] p-2">
-                            <div className="text-[9px] lg:text-[10px] text-[#64748B]">Active Escrows</div>
+                            <div className="text-[9px] lg:text-[10px] text-[#64748B]">Active Transactions</div>
                             <div className="mt-0.5 text-[14px] lg:text-[16px] font-semibold">$1,950</div>
                             <div className="text-[9px] lg:text-[10px] text-[#2962FF]">3 in progress</div>
                           </div>

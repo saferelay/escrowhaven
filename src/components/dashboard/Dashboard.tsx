@@ -52,27 +52,7 @@ const btn = {
 
 const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
 const isStaging = process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
-const PAGE_SIZE = 20; // Changed from 25 to 20
-
-function CreateEscrowWizardWrapper({ isOpen, onClose, onEscrowCreated }: any) {
-  return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <CreateEscrowWizard isOpen={isOpen} onClose={onClose} onEscrowCreated={onEscrowCreated} />
-      </div>
-    </div>
-  );
-}
-
-function EscrowDetailPanelWrapper({ escrowId, isOpen, onClose, onUpdate }: any) {
-  return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <EscrowDetailPanel escrowId={escrowId} isOpen={isOpen} onClose={onClose} onUpdate={onUpdate} />
-      </div>
-    </div>
-  );
-}
+const PAGE_SIZE = 20;
 
 export function Dashboard({ onNavigate }: DashboardProps) {
   const { user, supabase, loading: authLoading, signOut } = useAuth();
@@ -108,7 +88,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [sortBy, setSortBy] = useState<SortColumn>('updated');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-  // Right panel - with preserved width state
+  // Right panel
   const [rightPanelView, setRightPanelView] = useState<'detail' | 'create' | null>(null);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [rightPanelWidth, setRightPanelWidth] = useState<number | null>(null);
@@ -128,8 +108,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     availableToWithdraw: 0,
     totalWithdrawn: 0,
     activeEscrows: 0,
-    completedCount: 0,  // NEW
-    refundedCount: 0,   // NEW
+    completedCount: 0,
+    refundedCount: 0,
   });
 
   // Other state
@@ -172,7 +152,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       return { label: 'Approve', primary: true };
     }
     
-    // All completed states - no action needed
     if (['RELEASED', 'SETTLED', 'REFUNDED', 'COMPLETED'].includes(escrow.status)) {
       return { label: 'Complete', primary: false };
     }
@@ -247,8 +226,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           availableToWithdraw: 0,
           totalWithdrawn: 0,
           activeEscrows: 0,
-          completedCount: 0,  // ADD THIS
-          refundedCount: 0    // ADD THIS
+          completedCount: 0,
+          refundedCount: 0
         });
         return;
       }
@@ -270,8 +249,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           availableToWithdraw: availableToWithdraw / 100,
           totalWithdrawn: 0,
           activeEscrows: activeCount,
-          completedCount: completedCount,  // Use the variable
-          refundedCount: refundedCount,    // Use the variable
+          completedCount: completedCount,
+          refundedCount: refundedCount,
         });
       } else {
         setMetrics({
@@ -280,8 +259,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           availableToWithdraw: 0,
           totalWithdrawn: 0,
           activeEscrows: 0,
-          completedCount: 0,  // ADD THIS
-          refundedCount: 0    // ADD THIS
+          completedCount: 0,
+          refundedCount: 0
         });
       }
     } catch (err) {
@@ -292,8 +271,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         availableToWithdraw: 0,
         totalWithdrawn: 0,
         activeEscrows: 0,
-        completedCount: 0,  // ADD THIS
-        refundedCount: 0    // ADD THIS
+        completedCount: 0,
+        refundedCount: 0
       });
     }
   }, [supabase, user?.email, isProduction]);
@@ -536,7 +515,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   useEffect(() => setUrlEscrowProcessed(false), [user?.email]);
 
-  // Resize handler with user width preservation
+  // Resize handler
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!isResizing || !gridRef.current) return;
@@ -610,7 +589,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
   }, [searchParams, currentWithdrawalId, supabase, fetchWithdrawals]);
 
-  // Actions with 1/3 width default
+  // Actions
   const openCreate = () => {
     setRightPanelView('create');
     setRightPanelOpen(true);
@@ -741,8 +720,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     return arr;
   }, [filteredEscrows, sortBy, sortOrder, user, needsAction]);
 
-  // Improved renderEscrowRow with left alignment
-  const renderEscrowRow = (e: any) => {
+  // Render transaction row (was renderEscrowRow)
+  const renderTransactionRow = (e: any) => {
     const isReceiver = user?.email === e.freelancer_email;
     const otherParty = isReceiver ? e.client_email : e.freelancer_email;
     const amount = (e.amount_cents / 100).toFixed(2);
@@ -769,7 +748,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           rightPanelView === 'detail' && e.id === selectedEscrowId ? 'bg-[#F7F8FB]' : 'hover:bg-[#F8FAFC]'
         )}
       >
-        {/* Party/Description column */}
         <div className="min-w-0 flex-[3.5]">
           <div className="flex items-center">
             <span className="w-10 flex-shrink-0 text-[11px] text-[#64748B]">
@@ -784,17 +762,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           )}
         </div>
   
-        {/* Status column - LEFT ALIGNED */}
         <div className="hidden lg:block flex-[0.8] flex items-start">
           <span className="inline-flex items-center h-5 px-1.5 py-0.5 text-[11px] text-[#475569] border border-[#E2E8F0] rounded whitespace-nowrap">
             {statusText[e.status] ?? e.status}
           </span>
         </div>
-  
-        {/* Amount - RIGHT ALIGNED */}
+
         <div className="hidden md:block flex-[1.2] text-right font-mono text-[13px]">${amount}</div>
   
-        {/* Action buttons - CENTERED with larger size */}
         <div className="hidden xl:flex flex-[2] justify-center">
           {action?.primary ? (
             <button
@@ -821,7 +796,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           )}
         </div>
   
-        {/* Time - RIGHT ALIGNED */}
         <div className="hidden sm:block flex-[1.5] text-right text-[11px] text-[#94A3B8]">
           {time}
         </div>
@@ -859,7 +833,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   id="search-input"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search…"
+                  placeholder="Search transactions…"
                   className="w-full rounded-md border border-[#E2E8F0] bg-white pl-9 pr-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-[#DBEAFE]"
                 />
                 <span className="pointer-events-none absolute left-2.5 top-1.5 text-[#94A3B8]">
@@ -954,17 +928,17 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           <div className="p-3">
             <button onClick={openCreate} className={btn.primary + ' w-full gap-2'}>
               <Plus size={16} />
-              New Escrow
+              New Transaction
             </button>
           </div>
           <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
             {(
               [
-                { id: 'all', label: 'All escrows', icon: FileText },
-                { id: 'needs', label: 'Need Action', icon: AlertCircle },
+                { id: 'all', label: 'All Transactions', icon: FileText },
+                { id: 'needs', label: 'Action Required', icon: AlertCircle },
                 { id: 'sent', label: 'Sent', icon: Send },
                 { id: 'received', label: 'Received', icon: Download },
-                { id: 'active', label: 'Active', icon: DollarSign },
+                { id: 'active', label: 'In Progress', icon: DollarSign },
                 { id: 'completed', label: 'Completed', icon: CheckCircle },
               ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
             ).map((f) => {
@@ -1002,11 +976,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
         {/* Content */}
         <div className="flex min-w-0 flex-1 flex-col min-h-0 bg-white">
-          {/* Metrics */}
+          {/* Metrics - Updated labels */}
           <div className="border-b border-[#E5E7EB] bg-white px-4 md:px-6 pt-3 pb-3">
             <div className="hidden md:grid grid-cols-3 gap-3">
               <div className="rounded-md border border-[#E2E8F0] p-3">
-                <div className="text-[12px] text-[#64748B]">Active Escrows</div>
+                <div className="text-[12px] text-[#64748B]">Active Transactions</div>
                 <div className="mt-1 text-[20px] font-semibold">
                   ${metrics.protectedInEscrow.toFixed(2)}
                   {!isProduction && metrics.protectedInEscrow > 0 && (
@@ -1051,17 +1025,17 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             </div>
 
-            {/* Mobile metrics with decimals preserved */}
+            {/* Mobile metrics */}
             <div className="md:hidden grid grid-cols-3 gap-2">
               <div className="rounded-md border border-[#E2E8F0] p-2">
-                <div className="text-[10.5px] text-[#64748B]">Protected</div>
+                <div className="text-[10.5px] text-[#64748B]">Active</div>
                 <div className="text-[14px] font-semibold leading-snug">${metrics.protectedInEscrow.toFixed(2)}</div>
                 <div className="text-[10.5px] text-[#2962FF]">{metrics.activeEscrows} active</div>
               </div>
               <div className="rounded-md border border-[#E2E8F0] p-2">
                 <div className="text-[10.5px] text-[#64748B]">Earnings</div>
                 <div className="text-[14px] font-semibold leading-snug">${metrics.totalEarnings.toFixed(2)}</div>
-                <div className="text-[10.5px] text-[#16a34a]">{metrics.completedCount} completed • {metrics.refundedCount} refunded</div>
+                <div className="text-[10.5px] text-[#16a34a]">{metrics.completedCount} done</div>
               </div>
               <div className="rounded-md border border-[#E2E8F0] p-2">
                 <div className="text-[10.5px] text-[#64748B]">Available</div>
@@ -1093,7 +1067,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           >
             {/* List */}
             <div className="min-w-0 min-h-0 flex flex-col">
-              {/* Column headings */}
+              {/* Column headings - UPDATED */}
               <div className="hidden md:flex items-center border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
                 <div className="flex-[3.5] text-[11px] font-medium text-[#64748B]">
                   Party / Description
@@ -1113,31 +1087,31 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 </div>
               </div>
 
-              {/* Mobile list header */}
+              {/* Mobile list header - UPDATED */}
               <div className="md:hidden h-9 border-b border-[#E5E7EB] bg-white px-4 flex items-center text-[12px] text-[#64748B]">
-                Escrows ({displayCount})
+                Transactions ({displayCount})
               </div>
 
               {/* List */}
               <div className="min-h-0 flex-1 overflow-y-auto bg-white">
                 {sortedEscrows.length === 0 && !isLoadingMore ? (
                   <div className="flex h-full flex-col items-center justify-center px-4">
-                    <div className="mb-1 text-[16px]">No escrows found</div>
+                    <div className="mb-1 text-[16px]">No transactions found</div>
                     <div className="mb-4 text-[13px] text-[#64748B] text-center">
                       {activeFolder !== 'all' 
-                        ? `No escrows in "${activeFolder}" folder`
+                        ? `No transactions in "${activeFolder}" folder`
                         : isProduction 
-                          ? 'Create your first escrow to get started' 
-                          : 'Create a test escrow to try it out'}
+                          ? 'Start your first transaction to get going' 
+                          : 'Create a test transaction to try it out'}
                     </div>
                     <button onClick={openCreate} className={btn.primary + ' gap-2'}>
                       <Plus size={16} />
-                      New Escrow
+                      Start Transaction
                     </button>
                   </div>
                 ) : (
                   <div className="md:bg-white">
-                    {sortedEscrows.map((e) => renderEscrowRow(e))}
+                    {sortedEscrows.map((e) => renderTransactionRow(e))}
                     
                     {isLoadingMore && (
                       <div className="flex justify-center py-4">
@@ -1151,7 +1125,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     
                     {!hasMore && sortedEscrows.length > 0 && (
                       <div className="text-center py-4 text-[13px] text-[#64748B]">
-                        All {sortedEscrows.length} escrows loaded
+                        All {sortedEscrows.length} transactions loaded
                       </div>
                     )}
                   </div>
@@ -1170,7 +1144,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   {rightPanelView === 'create' ? (
                     <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
                   ) : rightPanelView === 'detail' && selectedEscrowId ? (
-                    <EscrowDetailPanelWrapper
+                    <EscrowDetailPanel
                       escrowId={selectedEscrowId}
                       isOpen
                       onClose={closePanel}
@@ -1184,7 +1158,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </div>
       </div>
 
-      {/* Mobile nav drawer */}
+      {/* Mobile nav drawer - UPDATED */}
       {mobileNavOpen && (
         <div className="md:hidden fixed inset-0 z-50">
           <div
@@ -1204,17 +1178,17 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             <div className="p-3">
               <button onClick={() => { setMobileNavOpen(false); openCreate(); }} className={btn.primary + ' w-full gap-2'}>
                 <Plus size={16} />
-                New Escrow
+                Start Transaction
               </button>
             </div>
             <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
               {(
                 [
-                  { id: 'all', label: 'All escrows', icon: FileText },
-                  { id: 'needs', label: 'Need Action', icon: AlertCircle },
+                  { id: 'all', label: 'All Transactions', icon: FileText },
+                  { id: 'needs', label: 'Action Required', icon: AlertCircle },
                   { id: 'sent', label: 'Sent', icon: Send },
                   { id: 'received', label: 'Received', icon: Download },
-                  { id: 'active', label: 'Active', icon: DollarSign },
+                  { id: 'active', label: 'In Progress', icon: DollarSign },
                   { id: 'completed', label: 'Completed', icon: CheckCircle },
                 ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
               ).map((f) => {
@@ -1256,7 +1230,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       {rightPanelOpen && isMobile && (
         <div className="fixed inset-0 z-50 bg-white flex flex-col">
           {rightPanelView === 'create' ? (
-            <CreateEscrowWizardWrapper isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
+            <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
           ) : rightPanelView === 'detail' && selectedEscrowId ? (
             <div className="flex-1 min-h-0 overflow-y-auto">
               <EscrowDetailPanel
