@@ -123,6 +123,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     const isPayer = user?.email === escrow.client_email;
     const isInitiator = escrow.initiator_email === user?.email;
   
+    // Handle cancelled/declined first
+    if (['CANCELLED', 'DECLINED'].includes(escrow.status)) {
+      return { label: 'Closed', primary: false };
+    }
+
     if (escrow.status === 'INITIATED') {
       if (isInitiator) {
         return { label: 'Waiting', primary: false };
@@ -727,6 +732,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     const amount = (e.amount_cents / 100).toFixed(2);
     const time = getRelativeTime(e.updated_at || e.created_at);
     const action = needsAction(e);
+    const isInactive = ['CANCELLED', 'DECLINED'].includes(e.status);
   
     const statusText: Record<string, string> = {
       INITIATED: 'New',
@@ -737,6 +743,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       COMPLETED: 'Complete',
       DECLINED: 'Declined',
       REFUNDED: 'Refunded',
+      CANCELLED: 'Cancelled',
     };
   
     return (
@@ -745,7 +752,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         onClick={() => openDetail(e.id)}
         className={clsx(
           'group flex cursor-pointer items-start border-b border-[#E5E7EB] px-4 py-2.5 transition min-h-[52px]',
-          rightPanelView === 'detail' && e.id === selectedEscrowId ? 'bg-[#F7F8FB]' : 'hover:bg-[#F8FAFC]'
+          rightPanelView === 'detail' && e.id === selectedEscrowId ? 'bg-[#F7F8FB]' : 'hover:bg-[#F8FAFC]',
+          isInactive && 'opacity-60' // ADD THIS LINE
         )}
       >
         <div className="min-w-0 flex-[3.5]">
@@ -763,7 +771,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </div>
   
         <div className="hidden lg:block flex-[0.8] flex items-start">
-          <span className="inline-flex items-center h-5 px-1.5 py-0.5 text-[11px] text-[#475569] border border-[#E2E8F0] rounded whitespace-nowrap">
+        <span className={clsx(
+          "inline-flex items-center h-5 px-1.5 py-0.5 text-[11px] rounded whitespace-nowrap",
+          e.status === 'CANCELLED' || e.status === 'DECLINED' 
+            ? "border border-gray-200 text-gray-400 bg-gray-50"
+            : "border border-[#E2E8F0] text-[#475569]"
+        )}>
             {statusText[e.status] ?? e.status}
           </span>
         </div>

@@ -910,11 +910,13 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
               {/* Actions section */}
               <div className="space-y-3">
                 {/* Cancel dialog for initiator */}
-                {showCancelDialog && (
+                {showCancelDialog && (escrow.status === 'INITIATED' || escrow.status === 'ACCEPTED') && (
                   <div className="border border-red-200 bg-red-50 rounded-lg p-4">
                     <p className="text-sm font-medium text-gray-900 mb-3">Cancel this escrow?</p>
                     <p className="text-xs text-gray-600 mb-4">
-                      This will cancel the invitation. No funds have been added yet.
+                      {escrow.status === 'INITIATED' 
+                        ? "This will cancel the invitation. No funds have been added yet."
+                        : "Both parties have agreed to terms, but no funds have been added. Are you sure you want to cancel?"}
                     </p>
                     <div className="flex gap-3">
                       <button
@@ -925,11 +927,10 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                               .from('escrows')
                               .update({
                                 status: 'CANCELLED',
-                                cancelled_at: new Date().toISOString(),
-                                cancelled_by: user?.email,
-                                cancelled_reason: 'Cancelled by initiator'
+                                cancelled_at: new Date().toISOString()
                               })
-                              .eq('id', escrowId);
+                              .eq('id', escrowId)
+                              .in('status', ['INITIATED', 'ACCEPTED']); // Safety check
                             
                             if (onUpdate) onUpdate();
                             onClose();
@@ -1095,8 +1096,35 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                       {processing ? 'Preparing...' : `Fund Escrow $${(escrow.amount_cents / 100).toFixed(2)}`}
                     </button>
                     <PaymentIcons />
+                    
+                    {/* ADD THIS CANCEL BUTTON FOR PAYER */}
+                    <button
+                      onClick={() => setShowCancelDialog(true)}
+                      className="w-full mt-2 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Cancel Transaction
+                    </button>
                   </>
+                )}  
+
+                {/* Cancel option for recipient waiting for funding */}
+                {escrow.status === 'ACCEPTED' && role === 'recipient' && (
+                  <div className="space-y-3">
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <p className="text-sm text-gray-700">
+                        Waiting for {escrow.client_email} to fund the transaction.
+                      </p>
+                    </div>
+                    
+                    <button
+                      onClick={() => setShowCancelDialog(true)}
+                      className="w-full py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Cancel Transaction
+                    </button>
+                  </div>
                 )}
+
 
                 {/* Settlement actions for funded escrows */}
                 {escrow.status === 'FUNDED' && role && (
@@ -1148,6 +1176,7 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                     />
                   </>
                 )}
+
 
                 {/* Declined status */}
                 {escrow.status === 'DECLINED' && (
