@@ -30,30 +30,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        {/* Logo */}
+        {/* Logo - Text only following design system */}
         <div className="flex justify-center">
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-[#2563EB] rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-semibold text-gray-900">escrowhaven</span>
-          </div>
+          <button 
+            onClick={() => router.push('/')}
+            className="text-2xl font-normal tracking-tight"
+          >
+            <span className="text-black">escrowhaven</span>
+            <span className="text-[#2962FF]">.io</span>
+          </button>
         </div>
         
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-8 text-center text-3xl font-normal text-black">
           Welcome back
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-3 text-center text-sm text-[#787B86]">
           Or{' '}
           <button
             onClick={() => router.push('/signup')}
-            className="font-medium text-[#2563EB] hover:text-[#1d4ed8]"
+            className="font-medium text-[#2962FF] hover:text-[#1E53E5]"
           >
             create a new account
           </button>
@@ -61,38 +58,36 @@ export default function LoginPage() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white py-8 px-4 border border-[#E0E2E7] rounded-xl sm:px-10">
           {!isSuccess ? (
             <form className="space-y-6" onSubmit={handleLogin}>
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="email" className="block text-sm font-medium text-black mb-2">
                   Email address
                 </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#2563EB] focus:border-[#2563EB] sm:text-sm"
-                    placeholder="you@example.com"
-                  />
-                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg px-4 py-3 text-black placeholder-[#B2B5BE] focus:bg-white focus:border-[#2962FF] focus:outline-none focus:ring-3 focus:ring-[#2962FF]/10 transition-all text-sm"
+                  placeholder="you@example.com"
+                />
               </div>
 
               {error && (
-                <div className="rounded-md bg-red-50 p-4">
+                <div className="rounded-lg bg-[#EF5350]/10 border border-[#EF5350]/20 p-4">
                   <div className="flex">
                     <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <svg className="h-5 w-5 text-[#EF5350]" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                       </svg>
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-red-800">{error}</p>
+                      <p className="text-sm text-[#EF5350]">{error}</p>
                     </div>
                   </div>
                 </div>
@@ -102,7 +97,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isLoading || !email}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2563EB] hover:bg-[#1d4ed8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2563EB] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 px-8 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium text-base focus:outline-none focus:ring-3 focus:ring-[#2962FF]/20 transform hover:translate-y-[-1px] hover:shadow-lg active:translate-y-0"
                 >
                   {isLoading ? 'Sending magic link...' : 'Continue with email'}
                 </button>
@@ -110,21 +105,21 @@ export default function LoginPage() {
             </form>
           ) : (
             <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-[#26A69A]/10 border-2 border-[#26A69A]">
+                <svg className="h-6 w-6 text-[#26A69A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="mt-4 text-lg font-medium text-gray-900">Check your email</h3>
-              <p className="mt-2 text-sm text-gray-600">
-                We sent a magic link to <strong>{email}</strong>
+              <h3 className="mt-4 text-lg font-medium text-black">Check your email</h3>
+              <p className="mt-2 text-sm text-[#787B86]">
+                We sent a magic link to <strong className="text-black">{email}</strong>
               </p>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-[#787B86]">
                 Click the link in the email to log in.
               </p>
               <button
                 onClick={() => router.push('/')}
-                className="mt-4 text-sm text-[#2563EB] hover:text-[#1d4ed8]"
+                className="mt-6 text-sm text-[#2962FF] hover:text-[#1E53E5] font-medium"
               >
                 Go back to home
               </button>
