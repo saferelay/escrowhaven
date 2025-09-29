@@ -5,6 +5,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SessionRefreshProvider } from "../providers/SessionRefreshProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from "@vercel/analytics/next" 
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -28,6 +29,7 @@ export default function RootLayout({
           <SessionRefreshProvider>
             {children}
             <SpeedInsights />  
+            <Analytics />
           </SessionRefreshProvider>
         </AuthProvider>
       </body>
