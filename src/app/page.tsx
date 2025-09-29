@@ -1,3 +1,4 @@
+// src/app/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,6 +7,7 @@ import { Dashboard } from '@/components/dashboard/Dashboard';
 import { TransparencyPage } from '@/components/transparency/TransparencyPage';
 import MarketingPage from '@/components/marketing/MarketingPage';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from 'next/navigation';
 
 type ViewType = 'marketing' | 'dashboard' | 'transparency' | 'escrow' | 'login' | 'help';
 
@@ -13,15 +15,30 @@ export default function Page() {
   const { user, loading } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>('marketing');
   const supabase = createClientComponentClient();
+  const router = useRouter();
   
   useEffect(() => {
     const checkAuthAndSetView = async () => {
       const hash = window.location.hash.slice(1);
       const { data: { session } } = await supabase.auth.getSession();
       
+      // Track page view with query params for Vercel Analytics
+      const isAuthenticated = !!(session || user);
+      const viewType = isAuthenticated ? 'dashboard' : 'landing';
+      
+      // Add tracking query param without affecting routing
+      const currentPath = window.location.pathname;
+      const currentSearch = window.location.search;
+      
+      if (!currentSearch.includes('view=')) {
+        const newUrl = `${currentPath}?view=${viewType}${hash ? `#${hash}` : ''}`;
+        router.replace(newUrl, { scroll: false });
+      }
+      
+      // Set the actual view
       if (hash && ['dashboard', 'transparency', 'login', 'help'].includes(hash)) {
         setCurrentView(hash as ViewType);
-      } else if (session || user) {
+      } else if (isAuthenticated) {
         setCurrentView('dashboard');
       } else {
         setCurrentView('marketing');
@@ -31,11 +48,19 @@ export default function Page() {
     if (!loading) {
       checkAuthAndSetView();
     }
-  }, [user, loading, supabase]);
+  }, [user, loading, supabase, router]);
 
   const navigateTo = (view: string) => {
     setCurrentView(view as ViewType);
-    window.history.pushState({}, '', view === 'marketing' ? '/' : `#${view}`);
+    
+    // Maintain the tracking param
+    const isAuthenticated = !!user;
+    const viewParam = isAuthenticated ? 'dashboard' : 'landing';
+    const newUrl = view === 'marketing' 
+      ? `/?view=${viewParam}` 
+      : `/?view=${viewParam}#${view}`;
+    
+    window.history.pushState({}, '', newUrl);
   };
 
   if (loading) {
