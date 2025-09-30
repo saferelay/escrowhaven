@@ -1,9 +1,9 @@
-// Pricing.tsx - Simplified without comparison
+// src/components/marketing/sections/Pricing.tsx
 'use client';
 
 export function Pricing() {
   return (
-    <section className="py-16 md:py-24 bg-white">
+    <section id="pricing" className="py-16 md:py-24 bg-white"> 
       <div className="max-w-screen-xl mx-auto px-6 md:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-normal text-[#000000] mb-4">

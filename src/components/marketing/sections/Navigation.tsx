@@ -1,4 +1,4 @@
-// src/components/marketing/sections/Navigation.tsx - FIXED LINKS
+// src/components/marketing/sections/Navigation.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -38,6 +38,14 @@ export function Navigation() {
     }
   };
 
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
+    e.preventDefault();
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-200 ${
       isScrolled 
@@ -46,24 +54,43 @@ export function Navigation() {
     }`}>
       <div className="w-full px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo - simple text */}
-          <div className="flex items-center">
-            <button 
-              onClick={() => router.push('/')}
-              className="hover:opacity-80 transition-opacity"
-            >
-              <span className="text-lg font-semibold text-black">escrowhaven.io</span>
-            </button>
-          </div>
+{/* Logo with more weight */}
+<div className="flex items-center">
+  <button 
+    onClick={() => router.push('/')}
+    className="hover:opacity-80 transition-opacity"
+  >
+    <span className="text-xl md:text-2xl font-medium tracking-tight text-black">
+      escrowhaven<span className="text-[#2962FF]">.io</span>
+    </span>
+  </button>
+</div>
           
-          {/* Centered menu - FIXED ABOUT LINK */}
+          {/* Centered menu with smooth scrolling */}
           <div className="hidden lg:flex items-center space-x-6 absolute left-1/2 transform -translate-x-1/2">
-            <a href="#how-it-works" className="text-sm text-[#787B86] hover:text-black transition-colors">How It Works</a>
-            <a href="/about" className="text-sm text-[#787B86] hover:text-black transition-colors">About</a>
-            <a href="#pricing" className="text-sm text-[#787B86] hover:text-black transition-colors">Pricing</a>
+            <a 
+              href="#how-it-works"
+              onClick={(e) => scrollToSection(e, 'how-it-works')}
+              className="text-sm text-[#787B86] hover:text-black transition-colors"
+            >
+              How It Works
+            </a>
+            <a 
+              href="/about" 
+              className="text-sm text-[#787B86] hover:text-black transition-colors"
+            >
+              About
+            </a>
+            <a 
+              href="#pricing"
+              onClick={(e) => scrollToSection(e, 'pricing')}
+              className="text-sm text-[#787B86] hover:text-black transition-colors"
+            >
+              Pricing
+            </a>
           </div>
           
-          {/* Right side - changes based on auth state */}
+          {/* Right side - auth state dependent */}
           <div className="flex items-center gap-4">
             {loading ? (
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#E0E2E7] border-t-[#2962FF]"></div>

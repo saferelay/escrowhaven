@@ -34,35 +34,35 @@ export function Hero() {
         <div>
           {/* Hero content with responsive padding */}
           <div className="text-center mb-8 sm:mb-10 lg:mb-12 px-4 sm:px-6">
-            <h1 className="text-[2.5rem] sm:text-5xl lg:text-6xl xl:text-7xl font-normal text-black mb-4 sm:mb-6 lg:mb-8 tracking-tight leading-[1.1]">
-              Trusted Work.
-              <br />
-              Trusted Pay.
-            </h1>
-            
-            <p className="text-base sm:text-lg lg:text-xl text-[#787B86] max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto mb-8 sm:mb-10 lg:mb-12 px-4 sm:px-0">
-            No more chasing clients. No more paying for undelivered work. escrowhaven protects both sides until the job's done.
-            </p>
-            
-            {/* Email signup - stacks on mobile */}
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-3 px-4 sm:px-0">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="px-4 sm:px-5 py-3 bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg text-base w-full sm:w-72 focus:outline-none focus:border-[#2962FF] transition-colors"
-              />
-              <button 
-                onClick={handleSignup}
-                className="px-6 sm:px-7 py-3 bg-[#2962FF] text-white rounded-lg text-base font-medium hover:bg-[#1E53E5] transition-colors w-full sm:w-auto"
-              >
-                Start a Transaction
-              </button>
-              <span className="text-[#787B86] text-sm hidden lg:inline">
-                takes 2 minutes
-              </span>
-            </div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-normal text-black mb-6 sm:mb-8 tracking-tight leading-[1.1]">
+  Protect Your Freelance Payment.
+  <br />
+  Before you Start.
+</h1>
+
+<p className="text-base sm:text-lg lg:text-xl text-[#787B86] max-w-xl lg:max-w-2xl mx-auto mb-8 sm:mb-10 lg:mb-12 px-4 sm:px-0">
+  No more chasing clients. No more paying for undelivered work. escrowhaven protects both sides until the job's done.
+</p>
+
+{/* Email signup - slightly bigger for better mobile UX */}
+<div className="flex flex-col sm:flex-row justify-center items-center gap-3 px-4 sm:px-0">
+  <input
+    type="email"
+    value={email}
+    onChange={(e) => setEmail(e.target.value)}
+    placeholder="Enter your email"
+    className="px-4 sm:px-5 py-3 bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg text-base w-full sm:w-72 focus:outline-none focus:border-[#2962FF] focus:ring-3 focus:ring-[#2962FF]/10 transition-all"
+  />
+  <button 
+    onClick={handleSignup}
+    className="px-6 sm:px-8 py-3 bg-[#2962FF] text-white rounded-lg text-base font-medium hover:bg-[#1E53E5] transition-all w-full sm:w-auto transform hover:translate-y-[-1px] hover:shadow-lg active:translate-y-0"
+  >
+    Start a Transaction
+  </button>
+  <span className="text-[#787B86] text-sm hidden lg:inline">
+    takes 2 minutes
+  </span>
+</div>
             <p className="text-[#787B86] text-sm mt-3 lg:hidden">
               takes 2 minutes
             </p>

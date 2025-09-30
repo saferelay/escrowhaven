@@ -55,14 +55,14 @@ export default function SignupPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo - Text only following design system */}
         <div className="flex justify-center">
-          <button 
-            onClick={() => router.push('/')}
-            className="text-2xl font-normal tracking-tight"
-          >
-            <span className="text-black">escrowhaven</span>
-            <span className="text-[#2962FF]">.io</span>
-          </button>
-        </div>
+            <button 
+              onClick={() => router.push('/')}
+              className="text-xl md:text-2xl font-medium tracking-tight hover:opacity-80 transition-opacity"
+            >
+              <span className="text-black">escrowhaven</span>
+              <span className="text-[#2962FF]">.io</span>
+            </button>
+          </div>
         
         <h2 className="mt-8 text-center text-3xl font-normal text-black">
           Create your account

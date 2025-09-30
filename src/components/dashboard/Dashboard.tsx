@@ -834,11 +834,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       {/* Header */}
       <header className="h-14 w-full border-b border-[#E5E7EB] bg-white">
         <div className="hidden md:grid h-full w-full" style={{ gridTemplateColumns: '15rem 1fr' }}>
-          <div className="flex items-center px-6">
-            <button onClick={() => onNavigate('marketing')} className="flex items-center">
-              <span className="text-[18px] font-medium tracking-[-0.01em] text-[#0F172A]">escrowhaven.io</span>
-            </button>
-          </div>
+        <div className="flex items-center px-6">
+          <button onClick={() => onNavigate('marketing')} className="hover:opacity-80 transition-opacity">
+            <span className="text-xl md:text-2xl font-medium tracking-tight text-black">
+              escrowhaven<span className="text-[#2962FF]">.io</span>
+            </span>
+          </button>
+        </div>
           <div className="flex items-center justify-between pr-6">
             <div className="flex items-center gap-2 pl-6">
               <div className="relative w-[320px]">
@@ -899,8 +901,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             >
               <MenuIcon size={20} />
             </button>
-            <button onClick={() => onNavigate('marketing')} className="flex items-center">
-              <span className="text-[16px] font-medium tracking-[-0.01em] text-[#0F172A]">escrowhaven.io</span>
+            <button onClick={() => onNavigate('marketing')} className="hover:opacity-80 transition-opacity">
+              <span className="text-xl font-medium tracking-tight text-black">
+                escrowhaven<span className="text-[#2962FF]">.io</span>
+              </span>
             </button>
           </div>
           <div className="flex items-center gap-2">
@@ -1181,9 +1185,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           />
           <div className="absolute left-0 top-0 h-full w-[82vw] max-w-[300px] bg-white shadow-xl flex flex-col">
             <div className="h-14 flex items-center justify-between px-4 border-b border-[#E5E7EB]">
-              <div className="flex items-center">
-                <span className="text-[16px] font-medium">escrowhaven.io</span>
-              </div>
+            <div className="flex items-center">
+              <span className="text-xl font-medium tracking-tight text-black">
+                escrowhaven<span className="text-[#2962FF]">.io</span>
+              </span>
+            </div>
               <button className="p-2 rounded-md hover:bg-[#F3F4F6]" onClick={() => setMobileNavOpen(false)} aria-label="Close menu">
                 <CloseIcon size={18} />
               </button>

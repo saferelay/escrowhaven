@@ -36,7 +36,7 @@ export default function LoginPage() {
         <div className="flex justify-center">
           <button 
             onClick={() => router.push('/')}
-            className="text-2xl font-normal tracking-tight"
+            className="text-xl md:text-2xl font-medium tracking-tight hover:opacity-80 transition-opacity"
           >
             <span className="text-black">escrowhaven</span>
             <span className="text-[#2962FF]">.io</span>
