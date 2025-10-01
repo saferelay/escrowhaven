@@ -101,6 +101,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // Feedback
+  const [showFeedbackForEscrow, setShowFeedbackForEscrow] = useState<string | null>(null);
+  const [selectedScore, setSelectedScore] = useState<number | null>(null);
+
   // Metrics
   const [metrics, setMetrics] = useState({
     protectedInEscrow: 0,
@@ -404,6 +408,31 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
   }, [authLoading, user?.email, supabase, activeFolder, fetchEscrows, fetchWithdrawals, isInitialLoad]);
 
+  // Check for feedback needed
+  useEffect(() => {
+    const checkForFeedback = async () => {
+      if (!user?.email || !supabase) return;
+      
+      const { data: completedEscrows } = await supabase
+        .from('escrows')
+        .select('id')
+        .or(`client_email.eq.${user.email},freelancer_email.eq.${user.email}`)
+        .eq('status', 'RELEASED')
+        .is('feedback_given', null)
+        .limit(1);
+      
+      if (completedEscrows?.length > 0) {
+        setShowFeedbackForEscrow(completedEscrows[0].id);
+      }
+    };
+    
+    const timer = setTimeout(() => {
+      checkForFeedback();
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [user?.email, supabase]);
+  
   // Reset when user changes
   useEffect(() => {
     if (user?.email) {
@@ -875,6 +904,24 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <button onClick={() => onNavigate('transparency')} className={btn.outlineSmall}>
                 Transparency
               </button>
+              <button 
+                onClick={() => {
+                  const message = prompt('Found a bug or have feedback?');
+                  if (message) {
+                    supabase.from('feedback').insert({
+                      user_email: user?.email,
+                      feedback: message,
+                      type: 'manual_feedback',
+                      url: window.location.href
+                    }).then(() => {
+                      alert('Thanks for the feedback!');
+                    });
+                  }
+                }}
+                className={btn.outlineSmall}
+              >
+                Feedback
+              </button>
               <button onClick={() => onNavigate('help')} className={btn.outlineSmall}>
                 Help
               </button>
@@ -1247,6 +1294,107 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               />
             </div>
           ) : null}
+        </div>
+      )}
+
+      {/* NPS Feedback Modal */}
+      {showFeedbackForEscrow && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-3">Quick question</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              How likely are you to recommend escrowhaven to a friend or colleague?
+            </p>
+            
+            <div className="flex justify-between mb-2 gap-1">
+              {[...Array(11)].map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSelectedScore(i)}
+                  className={clsx(
+                    "w-9 h-9 rounded text-sm font-medium transition-all",
+                    selectedScore === i 
+                      ? "bg-[#2962FF] text-white" 
+                      : "bg-gray-100 hover:bg-gray-200"
+                  )}
+                >
+                  {i}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mb-4">
+              <span>Not likely</span>
+              <span>Very likely</span>
+            </div>
+            
+            {selectedScore !== null && (
+              <textarea
+                className="w-full p-3 border border-gray-200 rounded-lg text-sm mb-4"
+                rows={2}
+                placeholder={
+                  selectedScore <= 6 
+                    ? "What would need to change for you to recommend us?"
+                    : selectedScore <= 8
+                    ? "What could we improve?"
+                    : "What do you love about escrowhaven?"
+                }
+                id="feedback-text"
+              />
+            )}
+            
+            <div className="flex gap-3">
+              <button
+                onClick={async () => {
+                  if (selectedScore !== null) {
+                    const feedbackText = (document.getElementById('feedback-text') as HTMLTextAreaElement)?.value;
+                    await supabase.from('feedback').insert({
+                      user_email: user?.email,
+                      nps_score: selectedScore,
+                      feedback: feedbackText || null,
+                      type: 'nps',
+                      escrow_id: showFeedbackForEscrow
+                    });
+                    
+                    await supabase
+                      .from('escrows')
+                      .update({ feedback_given: true })
+                      .eq('id', showFeedbackForEscrow);
+                    
+                    setShowFeedbackForEscrow(null);
+                    setSelectedScore(null);
+                    
+                    if (selectedScore >= 9) {
+                      alert('Thanks! Glad you love escrowhaven!');
+                    } else {
+                      alert('Thanks for the honest feedback!');
+                    }
+                  }
+                }}
+                disabled={selectedScore === null}
+                className={clsx(
+                  "flex-1 py-2 rounded-lg transition-colors",
+                  selectedScore !== null 
+                    ? "bg-[#2962FF] text-white hover:bg-[#1E53E5]" 
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                )}
+              >
+                Submit
+              </button>
+              <button
+                onClick={async () => {
+                  await supabase
+                    .from('escrows')
+                    .update({ feedback_given: true })
+                    .eq('id', showFeedbackForEscrow);
+                  setShowFeedbackForEscrow(null);
+                  setSelectedScore(null);
+                }}
+                className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Skip
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
