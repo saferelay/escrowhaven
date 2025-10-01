@@ -4,22 +4,22 @@
 export function Testimonial() {
   const testimonials = [
     {
-      quote: "Finally sent a payment link my client didn't question. Funds locked in minutes.",
+      quote: "Client disappeared after I delivered the logo files. With escrowhaven, the money was already locked. Got paid in full.",
       name: "Ana G.",
       role: "Brand Designer",
-      avatar: "AG"
+      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces"
     },
     {
-      quote: "Escrow saved a $25K project when the client tried to ghost. Worth every penny.",
+      quote: "No more 'I'll pay when it's done' anxiety. Client funded escrow upfront, I coded in peace. Game changer.",
       name: "Marcus Chen",
-      role: "Full-Stack Dev",
-      avatar: "MC"
+      role: "Full-Stack Developer",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces"
     },
     {
-      quote: "No more chasing payments or eating chargebacks. This should be industry standard.",
+      quote: "Lost $3k to chargebacks last year. Now every client goes through escrowhaven. Sleep better at night.",
       name: "Sarah Williams",
-      role: "Content Strategist",
-      avatar: "SW"
+      role: "Content Writer",
+      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=faces"
     }
   ];
 
@@ -28,10 +28,10 @@ export function Testimonial() {
       <div className="max-w-screen-xl mx-auto px-6 md:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-normal text-[#000000] mb-4">
-            Real people, real protection
+            Freelancers who stopped chasing payments
           </h2>
           <p className="text-lg text-[#787B86] max-w-2xl mx-auto">
-            Join clients and freelancers who trust EscrowHaven to secure their payments
+            Join freelancers who get paid without the stress
           </p>
         </div>
 
@@ -42,9 +42,11 @@ export function Testimonial() {
               className="bg-white rounded-xl p-8 border border-[#E0E2E7]"
             >
               <div className="flex items-center mb-6">
-                <div className="w-12 h-12 rounded-full border border-[#E0E2E7] bg-[#F8F9FD] flex items-center justify-center text-[#787B86] font-medium text-sm">
-                  {testimonial.avatar}
-                </div>
+                <img 
+                  src={testimonial.avatar}
+                  alt={testimonial.name}
+                  className="w-12 h-12 rounded-full border border-[#E0E2E7] object-cover"
+                />
                 <div className="ml-4">
                   <div className="font-medium text-[#000000] text-sm">{testimonial.name}</div>
                   <div className="text-xs text-[#787B86]">{testimonial.role}</div>
@@ -74,20 +76,20 @@ export function Testimonial() {
         {/* Social proof stats - Dashboard style */}
         <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 pt-12 border-t border-[#E0E2E7]">
           <div className="bg-white p-4 rounded-lg border border-[#E0E2E7]">
-            <div className="text-2xl font-normal text-[#26A69A]">100%</div>
-            <div className="text-xs text-[#787B86] mt-1">Secure</div>
+            <div className="text-2xl font-normal text-[#26A69A]">$0</div>
+            <div className="text-xs text-[#787B86] mt-1">Lost to ghosts</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg border border-[#E0E2E7]">
+            <div className="text-2xl font-normal text-[#000000]">100%</div>
+            <div className="text-xs text-[#787B86] mt-1">Payment guaranteed</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg border border-[#E0E2E7]">
+            <div className="text-2xl font-normal text-[#000000]">1.99%</div>
+            <div className="text-xs text-[#787B86] mt-1">Only fee</div>
           </div>
           <div className="bg-white p-4 rounded-lg border border-[#E0E2E7]">
             <div className="text-2xl font-normal text-[#000000]">Instant</div>
-            <div className="text-xs text-[#787B86] mt-1">Settlements</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg border border-[#E0E2E7]">
-            <div className="text-2xl font-normal text-[#000000]">0%</div>
-            <div className="text-xs text-[#787B86] mt-1">Hidden Fees</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg border border-[#E0E2E7]">
-            <div className="text-2xl font-normal text-[#000000]">24/7</div>
-            <div className="text-xs text-[#787B86] mt-1">Support</div>
+            <div className="text-xs text-[#787B86] mt-1">When approved</div>
           </div>
         </div>
       </div>
