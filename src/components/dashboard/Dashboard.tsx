@@ -1027,17 +1027,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   )}
                 </div>
                 <div className="mt-1">
-                  <button
-                    onClick={handleWithdraw}
-                    disabled={metrics.availableToWithdraw === 0}
-                    className={clsx(
-                      btn.linkBlue,
-                      'text-[12px]',
-                      metrics.availableToWithdraw === 0 && 'text-[#94A3B8] hover:no-underline cursor-default'
-                    )}
-                  >
-                    Withdraw <span aria-hidden>→</span>
-                  </button>
+                <button
+                  onClick={() => alert('Withdrawals launching next week! Withdraw to your bank account then.')}
+                  className="text-[12px] text-[#787B86] cursor-not-allowed"
+                >
+                  Withdraw (Coming Soon)
+                </button>
                 </div>
               </div>
             </div>
@@ -1057,17 +1052,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <div className="rounded-md border border-[#E2E8F0] p-2">
                 <div className="text-[10.5px] text-[#64748B]">Available</div>
                 <div className="text-[14px] font-semibold leading-snug">${metrics.availableToWithdraw.toFixed(2)}</div>
-                <button
-                  onClick={handleWithdraw}
-                  disabled={metrics.availableToWithdraw === 0}
-                  className={clsx(
-                    btn.linkBlue,
-                    'text-[11px] leading-none mt-0.5',
-                    metrics.availableToWithdraw === 0 && 'text-[#94A3B8] hover:no-underline cursor-default'
-                  )}
-                >
-                  Withdraw →
-                </button>
+                <span className="text-[11px] text-[#787B86]">
+                  Coming soon
+                </span>
               </div>
             </div>
           </div>

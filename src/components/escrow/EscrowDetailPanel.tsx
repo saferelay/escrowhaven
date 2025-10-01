@@ -1089,11 +1089,11 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                     </div>
                     
                     <button
-                      onClick={handleFund}
-                      disabled={processing}
-                      className="w-full py-2.5 bg-[#2962FF] text-white rounded-lg hover:bg-[#1d4ed8] disabled:opacity-50 transition-all text-sm font-medium"
+                      onClick={() => alert('Payment processing launches next week! This escrow will be ready to fund then.')}
+                      disabled={true}
+                      className="w-full py-2.5 bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed text-sm font-medium"
                     >
-                      {processing ? 'Preparing...' : `Fund Escrow $${(escrow.amount_cents / 100).toFixed(2)}`}
+                      Fund Escrow (Coming Soon)
                     </button>
                     <PaymentIcons />
                     
