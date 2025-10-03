@@ -13,6 +13,7 @@ export default function MoonPayActivationPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
+
   useEffect(() => {
     // Simple protection - require a secret parameter
     const key = searchParams.get('key');
