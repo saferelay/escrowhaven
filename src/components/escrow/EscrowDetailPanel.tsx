@@ -725,7 +725,7 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
     try {
       const { salt } = await getOrCreateSalt(escrow.id, supabase);
       
-      // Get wallets
+      // Get wallets - EXACTLY THE SAME AS YOUR TRANSAK CODE
       const { data: walletData } = await supabase
         .from('user_wallets')
         .select('wallet_address')
@@ -752,7 +752,7 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         return;
       }
   
-      // Get vault address from factory contract
+      // Get vault address from factory contract - SAME AS TRANSAK CODE
       const response = await fetch('/api/vault/address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -771,19 +771,58 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       
       console.log('Vault address for funding:', vaultAddress);
   
-      // Create Transak widget
-      const { createTransakWidget } = await import('@/lib/transak');
-      const widgetUrl = createTransakWidget({
+      // Create MoonPay widget - REPLACES TRANSAK
+      const { createMoonPayWidget } = await import('@/lib/moonpay');
+      const widget = await createMoonPayWidget({
         email: user?.email || escrow.client_email,
         escrowId: escrow.id,
         amount: escrow.amount_cents / 100,
-        vaultAddress, // This is the address where Transak will send USDC
+        vaultAddress, // This is the address where MoonPay will send USDC
         isTestMode: escrow.is_test_mode || false
       });
       
-      // Open Transak modal
-      setTransakUrl(widgetUrl);
-      setShowTransakModal(true);
+      // Show MoonPay widget
+      widget.show();
+      
+      // Set up polling to check for transaction completion
+      // (Since MoonPay SDK doesn't have reliable event listeners)
+      const checkInterval = setInterval(async () => {
+        try {
+          // Check vault balance
+          const balanceResponse = await fetch('/api/vault/balance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vaultAddress })
+          });
+          
+          if (balanceResponse.ok) {
+            const { balance } = await balanceResponse.json();
+            const requiredAmount = escrow.amount_cents / 100;
+            
+            if (balance >= requiredAmount) {
+              clearInterval(checkInterval);
+              
+              // Update escrow status
+              await supabase
+                .from('escrows')
+                .update({ 
+                  status: 'FUNDED',
+                  funded_at: new Date().toISOString()
+                })
+                .eq('id', escrow.id);
+              
+              if (onUpdate) onUpdate();
+              alert('Payment received! The transaction has been funded.');
+            }
+          }
+        } catch (error) {
+          console.error('Balance check error:', error);
+        }
+      }, 10000); // Check every 10 seconds
+      
+      // Stop checking after 30 minutes
+      setTimeout(() => clearInterval(checkInterval), 30 * 60 * 1000);
+      
     } catch (error: any) {
       console.error('Funding error:', error);
       alert(`Failed to initiate payment: ${error.message || 'Unknown error'}`);
@@ -1305,50 +1344,6 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         </div>
       )}
 
-      {/* Transak Payment Modal */}
-      {showTransakModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-[520px] w-full shadow-2xl">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-medium">
-                    Fund Escrow: ${(escrow.amount_cents / 100).toFixed(2)}
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Pay with card or bank transfer
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowTransakModal(false);
-                    setTransakUrl('');
-                  }}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div className="px-6 py-3 border-b border-gray-200 bg-blue-50">
-              <div className="flex items-center gap-2">
-                <ShieldIcon className="w-4 h-4 text-blue-600" />
-                <p className="text-xs text-gray-700">
-                  USDC will be sent directly to your secure escrow vault
-                </p>
-              </div>
-            </div>
-            <iframe
-              src={transakUrl}
-              className="w-full"
-              style={{ height: '600px', border: 'none' }}
-              allow="camera;microphone;payment"
-            />
-          </div>
-        </div>
-      )}
 
             {/* SUCCESS MODAL</> */}
             {showSuccessModal && (escrow.status === 'RELEASED' || escrow.status === 'SETTLED') && (

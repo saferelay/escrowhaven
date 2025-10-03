@@ -739,7 +739,7 @@ useEffect(() => {
           amount_cents: Math.floor(metrics.availableToWithdraw * 100),
           wallet_address: walletData.wallet_address,
           status: 'PENDING',
-          provider: 'onramp',
+          provider: 'moonpay', // Changed from 'onramp' to 'moonpay'
         })
         .select()
         .single();
@@ -1467,7 +1467,7 @@ useEffect(() => {
         }}
         availableAmount={metrics.availableToWithdraw}
         userEmail={user?.email || ''}
-        walletAddress={''}
+        walletAddress={''} // Will be fetched in the modal if needed
         withdrawalId={currentWithdrawalId || ''}
       />
     </div>

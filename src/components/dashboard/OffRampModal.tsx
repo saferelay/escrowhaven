@@ -1,5 +1,6 @@
 // src/components/dashboard/OffRampModal.tsx
 import { useEffect, useState } from 'react';
+import { loadMoonPay } from '@moonpay/moonpay-js';
 
 interface OffRampModalProps {
   isOpen: boolean;
@@ -18,86 +19,105 @@ export function OffRampModal({
   walletAddress,
   withdrawalId 
 }: OffRampModalProps) {
-  const [offRampUrl, setOffRampUrl] = useState('');
   const [loading, setLoading] = useState(true);
+  const [moonPayWidget, setMoonPayWidget] = useState<any>(null);
 
   useEffect(() => {
-    if (isOpen && availableAmount > 0) {
-      // Build the Onramp off-ramp URL with proper parameters
-      const params = new URLSearchParams({
-        appId: process.env.NEXT_PUBLIC_ONRAMP_APP_ID || '1687307',
-        walletAddress: walletAddress,
-        coinCode: 'usdc',
-        network: 'matic20',
-        coinAmount: availableAmount.toFixed(6),
-        merchantRecognitionId: withdrawalId,
-        fiatType: '1', // 1 = INR, 2 = TRY, etc. Check which currencies Onramp supports
-        redirectUrl: `${window.location.origin}/dashboard?withdrawal=complete`,
-      });
-      
-      
-      // Use the SELL endpoint for off-ramp
-      setOffRampUrl(`https://onramp.money/main/sell/?${params.toString()}`);
-      setLoading(false);
+    let widget: any = null;
+
+    const initMoonPaySell = async () => {
+      if (isOpen && availableAmount > 0) {
+        try {
+          setLoading(true);
+          const moonPay = await loadMoonPay();
+          
+          const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
+          
+          widget = moonPay({
+            flow: 'sell',
+            environment: isProduction ? 'production' : 'sandbox',
+            variant: 'overlay',
+            params: {
+              apiKey: isProduction 
+                ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
+                : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
+              baseCurrencyCode: 'usdc_polygon',
+              baseCurrencyAmount: availableAmount.toString(),
+              quoteCurrencyCode: 'usd',
+              email: userEmail,
+              externalTransactionId: withdrawalId,
+              redirectURL: `${window.location.origin}/dashboard?withdrawal=complete&orderId=${withdrawalId}&status=success`,
+              theme: 'light',
+              colorCode: '#2962FF'
+            }
+          });
+          
+          setMoonPayWidget(widget);
+          setLoading(false);
+          
+          // Show the widget
+          widget.show();
+          
+        } catch (error) {
+          console.error('MoonPay initialization error:', error);
+          setLoading(false);
+          alert('Failed to initialize MoonPay. Please try again.');
+          onClose();
+        }
+      }
+    };
+
+    if (isOpen) {
+      initMoonPaySell();
     }
-  }, [isOpen, availableAmount, walletAddress, withdrawalId]);
+
+    // Cleanup
+    return () => {
+      if (widget) {
+        try {
+          widget.close();
+        } catch (e) {
+          console.error('Error closing widget:', e);
+        }
+      }
+    };
+  }, [isOpen, availableAmount, userEmail, withdrawalId, onClose]);
+
+  // Handle close
+  const handleClose = () => {
+    if (moonPayWidget) {
+      try {
+        moonPayWidget.close();
+      } catch (e) {
+        console.error('Error closing widget:', e);
+      }
+    }
+    onClose();
+  };
 
   if (!isOpen) return null;
 
+  // MoonPay handles its own overlay UI, so we only show loading state
+  if (!loading && moonPayWidget) {
+    // MoonPay widget is active, return null to not interfere
+    return null;
+  }
+
+  // Loading state
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl max-w-[520px] w-full flex flex-col shadow-2xl" style={{ height: 'auto', maxHeight: '90vh' }}>
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-medium text-gray-900">Withdraw ${availableAmount.toFixed(2)}</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Convert USDC to your bank account
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-all"
-            >
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        
-        {/* Info section */}
-        <div className="px-6 py-3 bg-green-50 border-b border-green-100">
-          <div className="flex items-center gap-2">
-            <span className="text-green-600">💰</span>
-            <p className="text-sm text-green-900">
-              Withdrawing {availableAmount.toFixed(2)} USDC to your bank
-            </p>
-          </div>
-        </div>
-        
-        {/* Onramp iframe */}
-        <div className="relative flex-1 min-h-0 overflow-hidden">
-          {loading || !offRampUrl ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="text-center">
-                <div className="w-12 h-12 border-3 border-gray-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-sm text-gray-600">Loading withdrawal form...</p>
-              </div>
-            </div>
-          ) : (
-            <iframe
-              src={offRampUrl}
-              className="w-full"
-              style={{ 
-                border: 'none',
-                height: '600px',
-                display: 'block'
-              }}
-              allow="camera;microphone;payment"
-            />
-          )}
+      <div className="bg-white rounded-xl max-w-[400px] w-full shadow-2xl p-6">
+        <div className="text-center">
+          <div className="w-12 h-12 border-3 border-gray-200 border-t-[#2962FF] rounded-full animate-spin mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Preparing Withdrawal
+          </h3>
+          <p className="text-sm text-gray-600 mb-1">
+            Withdrawing ${availableAmount.toFixed(2)} USDC
+          </p>
+          <p className="text-xs text-gray-400">
+            Loading MoonPay secure checkout...
+          </p>
         </div>
       </div>
     </div>
