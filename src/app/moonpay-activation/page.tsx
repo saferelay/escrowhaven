@@ -102,6 +102,67 @@ export default function MoonPayActivationPage() {
           {status === 'loading' ? 'Loading...' : 'Start Test Transaction'}
         </button>
       </div>
+
+      
+      {/* Temporary MoonPay Activation - Remove after completing test */}
+{searchParams.get('moonpay') === 'activate2024' && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+      <h2 className="text-xl font-bold mb-4">MoonPay Account Activation</h2>
+      
+      <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-4">
+        <p className="text-sm font-semibold mb-2">Test Card:</p>
+        <code className="block bg-white p-2 rounded text-sm">
+          4000 0209 5159 5032<br/>
+          Exp: 12/25 • CVV: 123
+        </code>
+        <p className="text-xs mt-2 text-yellow-700">
+          Purchase $100 ETH (sandbox only, no real charges)
+        </p>
+      </div>
+      
+      <button
+        onClick={async () => {
+          try {
+            const { loadMoonPay } = await import('@moonpay/moonpay-js');
+            const moonPay = await loadMoonPay();
+            const widget = moonPay({
+              flow: 'buy',
+              environment: 'sandbox',
+              variant: 'overlay',
+              params: {
+                apiKey: 'pk_test_1Ggn4ZC8XVyBJhHROwNJbAMqKHpJuCv',
+                theme: 'light',
+                baseCurrencyCode: 'usd',
+                baseCurrencyAmount: '100',
+                defaultCurrencyCode: 'eth',
+                colorCode: '#2962FF'
+              }
+            });
+            widget.show();
+          } catch (error) {
+            console.error('MoonPay test error:', error);
+            alert('Failed to load test widget. Check console for details.');
+          }
+        }}
+        className="w-full bg-[#2962FF] text-white py-3 rounded-lg hover:bg-[#1E53E5] transition font-medium"
+      >
+        Start Test Transaction
+      </button>
+      
+      <button
+        onClick={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('moonpay');
+          window.history.replaceState({}, '', url);
+        }}
+        className="w-full mt-2 py-2 text-gray-500 text-sm hover:text-gray-700"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
     </div>
   );
 }
