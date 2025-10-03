@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import TransactionSuccessModal from '@/components/escrow/TransactionSuccessModal';
 import { SettlementActions } from '@/components/SettlementActions';
 import clsx from 'clsx';
 import { getOrCreateSalt } from '@/lib/onramp';
@@ -193,12 +194,14 @@ const BlockchainTimeline = ({
   escrow, 
   role, 
   userEmail,
-  setShowTermsModal 
+  setShowTermsModal,
+  setShowSuccessModal 
 }: { 
   escrow: any; 
   role: 'payer' | 'recipient' | null;
   userEmail?: string;
-  setShowTermsModal: (show: boolean) => void 
+  setShowTermsModal: (show: boolean) => void;
+  setShowSuccessModal: (show: boolean) => void; 
 }) => {
   const getExplorerUrl = (type: 'tx' | 'address', hash: string) => {
     const base = escrow.network === 'polygon-amoy' || escrow.is_test_mode 
@@ -231,7 +234,7 @@ const BlockchainTimeline = ({
         isPulsing: false,
         rightContent: (
           <button 
-            onClick={() => setShowTermsModal(true)}
+          onClick={() => setShowTermsModal(true)}
             className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
           >
             View Terms
@@ -316,16 +319,29 @@ const BlockchainTimeline = ({
         status: 'complete' as const,
         subtitle: 'Funds distributed according to settlement agreement',
         isPulsing: false,
-        rightContent: escrow.release_tx_hash && (
-          <a 
-            href={getExplorerUrl('tx', escrow.release_tx_hash)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-          >
-            View transaction
-            <ArrowUpRightIcon className="w-3 h-3" />
-          </a>
+        rightContent: (
+          <div className="flex flex-col items-end gap-2">
+            {escrow.release_tx_hash && (
+              <a 
+                href={getExplorerUrl('tx', escrow.release_tx_hash)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              >
+                View transaction
+                <ArrowUpRightIcon className="w-3 h-3" />
+              </a>
+            )}
+            <button
+              onClick={() => setShowSuccessModal(true)}  // FIXED: Changed from setShowTermsModal
+              className="text-xs text-[#2962FF] hover:text-[#1E53E5] flex items-center gap-1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9.032 4.024A9.663 9.663 0 0112 21c-2.29 0-4.388-.794-6.032-2.116m12.064 0A9.664 9.664 0 0021 12c0-2.29-.794-4.388-2.116-6.032m0 12.064A9.664 9.664 0 0112 3c-2.29 0-4.388.794-6.032 2.116" />
+              </svg>
+              Share success
+            </button>
+          </div>
         )
       });
     } else if (escrow.status === 'REFUNDED') {
@@ -494,6 +510,7 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showTransakModal, setShowTransakModal] = useState(false);
   const [transakUrl, setTransakUrl] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -617,6 +634,20 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       supabase.removeChannel(channel);
     };
   }, [isOpen, escrowId, user, supabase, onUpdate]);
+
+  useEffect(() => {
+    if ((escrow?.status === 'RELEASED' || escrow?.status === 'SETTLED')) {
+      const completedAt = escrow.released_at || escrow.settled_at;
+      // Show for past 30 days
+      const completedRecently = completedAt && 
+        new Date(completedAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000);
+      
+      if (completedRecently) {
+        setShowSuccessModal(true);
+      }
+    }
+  }, [escrow?.status, escrow?.id, escrow?.released_at, escrow?.settled_at]);
+
 
   const handleAccept = async () => {
     if (!termsAccepted) {
@@ -903,7 +934,8 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                   escrow={escrow} 
                   role={role} 
                   userEmail={user?.email}
-                  setShowTermsModal={setShowTermsModal} 
+                  setShowTermsModal={setShowTermsModal}
+                  setShowSuccessModal={setShowSuccessModal} 
                 />
               </div>
 
@@ -1194,9 +1226,33 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                     )}
                   </div>
                 )}
+
+                  {/* Share Success Button - Shows for completed transactions */}
+                  {(escrow.status === 'RELEASED' || escrow.status === 'SETTLED') && (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <button
+                        onClick={() => setShowSuccessModal(true)}
+                        className="w-full py-3 bg-gradient-to-r from-[#2962FF] to-[#1E53E5] text-white rounded-lg hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 group"
+                      >
+                        <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="font-medium">Take Your Victory Lap</span>
+                        <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                      </button>
+                      
+                      <p className="text-xs text-center text-gray-500 mt-2">
+                        Share verified proof of this successful transaction
+                      </p>
+                    </div>
+                  )}
+
               </div>
             </div>
           )}
+
         </div>
       </div>
 
@@ -1292,6 +1348,15 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
             />
           </div>
         </div>
+      )}
+
+            {/* SUCCESS MODAL</> */}
+            {showSuccessModal && (escrow.status === 'RELEASED' || escrow.status === 'SETTLED') && (
+        <TransactionSuccessModal
+          escrow={escrow}
+          role={role}
+          onClose={() => setShowSuccessModal(false)}
+        />
       )}
     </>
   );
