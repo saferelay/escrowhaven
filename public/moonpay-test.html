@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MoonPay Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="font-family: system-ui; padding: 20px; max-width: 400px; margin: 50px auto;">
+    <h2>MoonPay Activation</h2>
+    <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <strong>Test Card:</strong><br>
+        4000 0209 5159 5032<br>
+        Exp: 12/25 • CVV: 123<br>
+        <small>Purchase $100 ETH (test only)</small>
+    </div>
+    
+    <button onclick="startTest()" style="background: #2962FF; color: white; padding: 12px 24px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%;">
+        Start Test Transaction
+    </button>
+    
+    <script src="https://unpkg.com/@moonpay/moonpay-js@latest/dist/moonpay-js.umd.min.js"></script>
+    <script>
+        async function startTest() {
+            try {
+                const moonPay = await window.MoonPayWebSdk.loadMoonPay();
+                const widget = moonPay({
+                    flow: 'buy',
+                    environment: 'sandbox',
+                    variant: 'overlay',
+                    params: {
+                        apiKey: 'pk_test_1Ggn4ZC8XVyBJhHROwNJbAMqKHpJuCv',
+                        baseCurrencyCode: 'usd',
+                        baseCurrencyAmount: '100',
+                        defaultCurrencyCode: 'eth'
+                    }
+                });
+                widget.show();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
