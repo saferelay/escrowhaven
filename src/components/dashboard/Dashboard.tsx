@@ -121,6 +121,22 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [showOffRampModal, setShowOffRampModal] = useState(false);
   const [currentWithdrawalId, setCurrentWithdrawalId] = useState<string | null>(null);
 
+  // Add after the state declaration
+  const fetchPromises = useRef<Map<string, Promise<any>>>(new Map());
+
+  // Helper to deduplicate concurrent requests
+  const dedupeFetch = useCallback(async (key: string, fetchFn: () => Promise<any>) => {
+    const existing = fetchPromises.current.get(key);
+    if (existing) return existing;
+    
+    const promise = fetchFn().finally(() => {
+      fetchPromises.current.delete(key);
+    });
+    
+    fetchPromises.current.set(key, promise);
+    return promise;
+  }, []);
+
   // Helper function
   const needsAction = (escrow: any) => {
     const isReceiver = user?.email === escrow.freelancer_email;
@@ -172,15 +188,40 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const fetchFolderCounts = useCallback(async () => {
     if (!supabase || !user?.email) return;
     
-    try {
-      const { data, error } = await supabase
-        .rpc('get_folder_counts_cached', {
-          user_email: user.email,
-          env: isProduction ? 'production' : 'development'
-        });
-      
-      if (error) {
-        console.error('Error fetching folder counts:', error?.message || error?.code || 'Unknown error');
+    return dedupeFetch('folder-counts', async () => {
+      try {
+        const { data, error } = await supabase
+          .rpc('get_folder_counts_cached', {
+            user_email: user.email,
+            env: isProduction ? 'production' : 'development'
+          });
+        
+        if (error) {
+          console.error('Error fetching folder counts:', error?.message || error?.code || 'Unknown error');
+          setFolderCounts({
+            all: 0,
+            needs: 0,
+            sent: 0,
+            received: 0,
+            active: 0,
+            completed: 0,
+          });
+          return;
+        }
+        
+        if (data && data.length > 0) {
+          const counts = data[0];
+          setFolderCounts({
+            all: Number(counts.all_count || 0),
+            needs: Number(counts.needs_count || 0),
+            sent: Number(counts.sent_count || 0),
+            received: Number(counts.received_count || 0),
+            active: Number(counts.active_count || 0),
+            completed: Number(counts.completed_count || 0),
+          });
+        }
+      } catch (err: any) {
+        console.error('Error in fetchFolderCounts:', err?.message || 'Failed to fetch folder counts');
         setFolderCounts({
           all: 0,
           needs: 0,
@@ -189,32 +230,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           active: 0,
           completed: 0,
         });
-        return;
       }
-      
-      if (data && data.length > 0) {
-        const counts = data[0];
-        setFolderCounts({
-          all: Number(counts.all_count || 0),
-          needs: Number(counts.needs_count || 0),
-          sent: Number(counts.sent_count || 0),
-          received: Number(counts.received_count || 0),
-          active: Number(counts.active_count || 0),
-          completed: Number(counts.completed_count || 0),
-        });
-      }
-    } catch (err: any) {
-      console.error('Error in fetchFolderCounts:', err?.message || 'Failed to fetch folder counts');
-      setFolderCounts({
-        all: 0,
-        needs: 0,
-        sent: 0,
-        received: 0,
-        active: 0,
-        completed: 0,
-      });
-    }
-  }, [supabase, user?.email, isProduction]);
+    });  // <- This closes the dedupeFetch call
+  }, [supabase, user?.email, isProduction, dedupeFetch]);  // <- This closes useCallback
 
   // Fetch metrics
   const fetchMetrics = useCallback(async () => {
@@ -290,13 +308,18 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const fetchEscrows = useCallback(async (reset = false, folder: Folder = activeFolder) => {
     if (!supabase || !user?.email) return;
     
-    if (!reset && (loadingRef.current || !hasMore)) return;
+    // CRITICAL: Prevent concurrent fetches
+    if (loadingRef.current) return;
+    if (!reset && !hasMore) return;
     
     loadingRef.current = true;
     setIsLoadingMore(true);
     
     try {
       const pageToLoad = reset ? 0 : currentPage;
+      
+      // Add a minimum delay to prevent rapid-fire requests
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       const { data: escrowsResult, error } = await supabase
         .rpc('get_folder_items_cached', {
@@ -309,6 +332,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       
       if (error) {
         console.error('Escrows fetch error:', error);
+        setHasMore(false); // Stop trying if there's an error
         return;
       }
       
@@ -321,6 +345,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           setEscrows(prev => {
             const existingIds = new Set(prev.map(e => e.id));
             const newEscrows = escrowsResult.filter(e => !existingIds.has(e.id));
+            if (newEscrows.length === 0) {
+              setHasMore(false); // No new items, stop fetching
+            }
             return [...prev, ...newEscrows];
           });
           setCurrentPage(prev => prev + 1);
@@ -337,11 +364,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       }
     } catch (err: any) {
       console.error('Dashboard fetch error:', err);
+      setHasMore(false); // Stop trying on error
     } finally {
-      setTimeout(() => {
-        setIsLoadingMore(false);
-        loadingRef.current = false;
-      }, 100);
+      // Ensure loading states are cleared
+      loadingRef.current = false;
+      setIsLoadingMore(false);
     }
   }, [supabase, user?.email, isProduction, currentPage, hasMore, activeFolder, isInitialLoad, fetchMetrics, fetchFolderCounts]);
 
@@ -403,10 +430,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   // Initial load
   useEffect(() => {
     if (!authLoading && user?.email && supabase && isInitialLoad) {
-      fetchEscrows(true, activeFolder);
-      fetchWithdrawals();
+      // Only fetch once on initial load
+      const initFetch = async () => {
+        await fetchEscrows(true, activeFolder);
+        await fetchWithdrawals();
+      };
+      initFetch();
     }
-  }, [authLoading, user?.email, supabase, activeFolder, fetchEscrows, fetchWithdrawals, isInitialLoad]);
+  }, [authLoading, user?.email, supabase, isInitialLoad]); // Remove functions from dependencies
 
   // Check for feedback needed
   useEffect(() => {
@@ -445,34 +476,46 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   }, [user?.email]);
 
   // Intersection Observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && hasMore && !loadingRef.current && !isLoadingMore) {
-          fetchEscrows(false, activeFolder);
-        }
-      },
-      { 
-        threshold: 0.1,
-        rootMargin: '100px'
+useEffect(() => {
+  let timeoutId: NodeJS.Timeout;
+  
+  const observer = new IntersectionObserver(
+    entries => {
+      if (entries[0].isIntersecting && hasMore && !loadingRef.current && !isLoadingMore) {
+        // Debounce the fetch call
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          if (!loadingRef.current && hasMore) {
+            fetchEscrows(false, activeFolder);
+          }
+        }, 500); // Wait 500ms before fetching
       }
-    );
-    
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
+    },
+    { 
+      threshold: 0.1,
+      rootMargin: '100px'
     }
-    
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [hasMore, isLoadingMore, fetchEscrows, activeFolder]);
+  );
+  
+  const currentTarget = observerTarget.current;
+  if (currentTarget && hasMore && !isLoadingMore) {
+    observer.observe(currentTarget);
+  }
+  
+  return () => {
+    clearTimeout(timeoutId);
+    if (currentTarget) {
+      observer.unobserve(currentTarget);
+    }
+  };
+}, [hasMore, isLoadingMore, activeFolder]); // Remove fetchEscrows from dependencies
 
   // Real-time subscription
   useEffect(() => {
     if (!supabase || !user?.email) return;
+    
+    let updateTimeout: NodeJS.Timeout;
+    let metricsTimeout: NodeJS.Timeout;
     
     const channel = supabase
       .channel(`dashboard-${user.email}`)
@@ -486,6 +529,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         (payload) => {
           const escrow = payload.new;
           if (escrow.client_email === user.email || escrow.freelancer_email === user.email) {
+            // Update the specific escrow immediately
             setEscrows(prev => {
               const index = prev.findIndex(e => e.id === escrow.id);
               if (index >= 0) {
@@ -495,8 +539,18 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               }
               return prev;
             });
-            fetchFolderCounts();
-            fetchMetrics();
+            
+            // Throttle the metrics updates
+            clearTimeout(updateTimeout);
+            clearTimeout(metricsTimeout);
+            
+            updateTimeout = setTimeout(() => {
+              fetchFolderCounts();
+            }, 1000);
+            
+            metricsTimeout = setTimeout(() => {
+              fetchMetrics();
+            }, 2000);
           }
         }
       )
@@ -514,17 +568,24 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               setEscrows(prev => [escrow, ...prev]);
               setTotalEscrowCount(prev => prev + 1);
             }
-            fetchFolderCounts();
-            fetchMetrics();
+            
+            // Throttle updates
+            clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(() => {
+              fetchFolderCounts();
+              fetchMetrics();
+            }, 1000);
           }
         }
       )
       .subscribe();
     
     return () => {
+      clearTimeout(updateTimeout);
+      clearTimeout(metricsTimeout);
       supabase.removeChannel(channel);
     };
-  }, [supabase, user?.email, fetchFolderCounts, fetchMetrics, activeFolder]);
+  }, [supabase, user?.email, activeFolder]); // Remove fetch functions from dependencies
 
   // Mobile detection
   useEffect(() => {
