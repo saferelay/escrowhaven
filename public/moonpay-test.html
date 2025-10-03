@@ -17,12 +17,23 @@
         Start Test Transaction
     </button>
     
-    <script src="https://unpkg.com/@moonpay/moonpay-js@latest/dist/moonpay-js.umd.min.js"></script>
+    <div id="status" style="margin-top: 20px;"></div>
+    
+    <!-- Load MoonPay SDK properly -->
+    <script src="https://static.moonpay.com/web-sdk/v1/moonpay-web-sdk.min.js"></script>
     <script>
         async function startTest() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = 'Loading MoonPay...';
+            
             try {
-                const moonPay = await window.MoonPayWebSdk.loadMoonPay();
-                const widget = moonPay({
+                // Check if SDK loaded
+                if (typeof window.MoonPayWebSdk === 'undefined') {
+                    throw new Error('MoonPay SDK not loaded. Please refresh and try again.');
+                }
+                
+                // Initialize MoonPay
+                const moonPay = await window.MoonPayWebSdk.init({
                     flow: 'buy',
                     environment: 'sandbox',
                     variant: 'overlay',
@@ -30,14 +41,38 @@
                         apiKey: 'pk_test_1Ggn4ZC8XVyBJhHROwNJbAMqKHpJuCv',
                         baseCurrencyCode: 'usd',
                         baseCurrencyAmount: '100',
-                        defaultCurrencyCode: 'eth'
+                        defaultCurrencyCode: 'eth',
+                        theme: 'light'
                     }
                 });
-                widget.show();
+                
+                // Show the widget
+                moonPay.show();
+                statusDiv.innerHTML = '✓ Widget opened! Complete the test purchase.';
+                
             } catch (error) {
-                alert('Error: ' + error.message);
+                console.error('Error:', error);
+                statusDiv.innerHTML = 'Error: ' + error.message;
             }
         }
+        
+        // Check SDK loading on page load
+        window.addEventListener('load', function() {
+            const statusDiv = document.getElementById('status');
+            if (typeof window.MoonPayWebSdk !== 'undefined') {
+                statusDiv.innerHTML = 'Ready to start test transaction';
+            } else {
+                statusDiv.innerHTML = 'MoonPay SDK loading... Please wait a moment.';
+                // Try loading again
+                setTimeout(function() {
+                    if (typeof window.MoonPayWebSdk !== 'undefined') {
+                        statusDiv.innerHTML = 'Ready to start test transaction';
+                    } else {
+                        statusDiv.innerHTML = 'Error loading MoonPay. Please refresh the page.';
+                    }
+                }, 2000);
+            }
+        });
     </script>
 </body>
 </html>
