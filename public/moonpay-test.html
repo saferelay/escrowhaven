@@ -17,23 +17,29 @@
         Start Test Transaction
     </button>
     
-    <div id="status" style="margin-top: 20px;"></div>
+    <button onclick="openInNewTab()" style="background: #16a34a; color: white; padding: 12px 24px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 10px;">
+        Open in New Tab (If overlay fails)
+    </button>
     
-    <!-- Load MoonPay SDK properly -->
+    <div id="status" style="margin-top: 20px; padding: 10px; border-radius: 4px;"></div>
+    
     <script src="https://static.moonpay.com/web-sdk/v1/moonpay-web-sdk.min.js"></script>
     <script>
-        async function startTest() {
+        // Check SDK loaded
+        window.addEventListener('load', function() {
             const statusDiv = document.getElementById('status');
-            statusDiv.innerHTML = 'Loading MoonPay...';
+            if (window.MoonPayWebSdk) {
+                statusDiv.style.background = '#dcfce7';
+                statusDiv.innerHTML = '✓ SDK loaded successfully';
+            }
+        });
+        
+        function startTest() {
+            const statusDiv = document.getElementById('status');
             
             try {
-                // Check if SDK loaded
-                if (typeof window.MoonPayWebSdk === 'undefined') {
-                    throw new Error('MoonPay SDK not loaded. Please refresh and try again.');
-                }
-                
-                // Initialize MoonPay
-                const moonPay = await window.MoonPayWebSdk.init({
+                // Use the init method as shown in console
+                const widget = window.MoonPayWebSdk.init({
                     flow: 'buy',
                     environment: 'sandbox',
                     variant: 'overlay',
@@ -41,38 +47,29 @@
                         apiKey: 'pk_test_1Ggn4ZC8XVyBJhHROwNJbAMqKHpJuCv',
                         baseCurrencyCode: 'usd',
                         baseCurrencyAmount: '100',
-                        defaultCurrencyCode: 'eth',
-                        theme: 'light'
+                        defaultCurrencyCode: 'eth'
                     }
                 });
                 
-                // Show the widget
-                moonPay.show();
-                statusDiv.innerHTML = '✓ Widget opened! Complete the test purchase.';
+                widget.show();
+                statusDiv.style.background = '#dbeafe';
+                statusDiv.innerHTML = 'Widget opened! Complete the test transaction.';
                 
             } catch (error) {
                 console.error('Error:', error);
-                statusDiv.innerHTML = 'Error: ' + error.message;
+                statusDiv.style.background = '#fee2e2';
+                statusDiv.innerHTML = 'Error: ' + error.message + '<br>Try the "Open in New Tab" button instead.';
             }
         }
         
-        // Check SDK loading on page load
-        window.addEventListener('load', function() {
+        function openInNewTab() {
+            // Fallback: Open directly in new tab to bypass any CSP issues
+            window.open('https://buy-sandbox.moonpay.com/?apiKey=pk_test_1Ggn4ZC8XVyBJhHROwNJbAMqKHpJuCv&defaultCurrencyCode=eth&baseCurrencyAmount=100&baseCurrencyCode=usd', '_blank');
+            
             const statusDiv = document.getElementById('status');
-            if (typeof window.MoonPayWebSdk !== 'undefined') {
-                statusDiv.innerHTML = 'Ready to start test transaction';
-            } else {
-                statusDiv.innerHTML = 'MoonPay SDK loading... Please wait a moment.';
-                // Try loading again
-                setTimeout(function() {
-                    if (typeof window.MoonPayWebSdk !== 'undefined') {
-                        statusDiv.innerHTML = 'Ready to start test transaction';
-                    } else {
-                        statusDiv.innerHTML = 'Error loading MoonPay. Please refresh the page.';
-                    }
-                }, 2000);
-            }
-        });
+            statusDiv.style.background = '#dbeafe';
+            statusDiv.innerHTML = 'Opened in new tab. Complete the test transaction there.';
+        }
     </script>
 </body>
 </html>
