@@ -1,106 +1,166 @@
 // src/lib/onramp.ts
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { ethers } from 'ethers';
 
 export interface OnrampConfig {
   email: string;
-  targetUsdcAmount: number;
+  targetUsdcAmount: number;       // in USDC (e.g., 125.50)
   escrowId: string;
-  factoryAddress: string;
-  clientAddress: string;
-  freelancerAddress: string;
-  salt: string;
+  factoryAddress: string;         // your EscrowHavenFactory
+  clientAddress: string;          // payer wallet
+  freelancerAddress: string;      // recipient wallet
+  salt: string;                   // bytes32 string (0x...)
+  isTestMode: boolean;
+  chainCode?: 'polygon' | 'polygon-amoy' | 'base';
+}
+
+export interface OnrampDirectConfig {
+  email: string;
+  targetUsdcAmount: number;       // e.g., 125.50
+  escrowId: string;
+  vaultAddress: string;           // PRECOMPUTED CREATE2 address
   isTestMode: boolean;
 }
 
-// Generate calldata for your EscrowHavenFactory
+/** Generate calldata for EscrowHavenFactory.deployVault(bytes32,address,address,uint256) */
 export function generateCalldata(
-    salt: string,
-    clientAddress: string,
-    freelancerAddress: string,
-    usdcAmount: number
-  ): string {
-    const factoryInterface = new ethers.utils.Interface([
-      "function deployVault(bytes32,address,address,uint256) returns (address,address)"  
-    ]);
-    
-    return factoryInterface.encodeFunctionData('deployVault', [
-      salt,
-      clientAddress,
-      freelancerAddress,
-      ethers.utils.parseUnits(usdcAmount.toFixed(6), 6)
-    ]);
-  }
+  salt: string,
+  clientAddress: string,
+  freelancerAddress: string,
+  usdcAmount: number
+): string {
+  const iface = new ethers.utils.Interface([
+    'function deployVault(bytes32,address,address,uint256) returns (address,address)'
+  ]);
 
-// Generate deterministic salt
-export function generateSalt(escrowId: string, timestamp?: number): string {
-  const fixedTimestamp = timestamp || Date.now();
-  return ethers.utils.id(`${escrowId}-${fixedTimestamp}`);
+  // Avoid float drift: format the decimal amount as a string with up to 6 dp
+  const amountStr = usdcAmount.toFixed(6);
+  const amount = ethers.utils.parseUnits(amountStr, 6);
+
+  return iface.encodeFunctionData('deployVault', [
+    salt,
+    clientAddress,
+    freelancerAddress,
+    amount
+  ]);
 }
 
-// Store salt in database to ensure consistency
+/** Deterministic salt (store once, then reuse). */
+export function generateSalt(escrowId: string, timestamp?: number): string {
+  const fixedTimestamp = timestamp ?? Date.now();
+  return ethers.utils.id(`${escrowId}-${fixedTimestamp}`); // 0x… bytes32
+}
+
+/** Get or create a stable salt (handles concurrent calls more safely). */
 export async function getOrCreateSalt(
   escrowId: string,
-  supabase: any
+  supabase: SupabaseClient
 ): Promise<{ salt: string; isNew: boolean }> {
-  // Check if salt already exists
-  const { data: escrow } = await supabase
+  // 1) Try read - using 'salt' column
+  const { data: existing, error: readErr } = await supabase
     .from('escrows')
-    .select('deployment_salt')
+    .select('salt')
     .eq('id', escrowId)
     .single();
-  
-  if (escrow?.deployment_salt) {
-    return { salt: escrow.deployment_salt, isNew: false };
+
+  if (existing?.salt) {
+    return { salt: existing.salt, isNew: false };
   }
-  
-  // Generate and store new salt
+
+  // 2) Generate candidate
   const newSalt = generateSalt(escrowId);
-  
-  await supabase
+
+  // 3) Try to persist (guard so we don't clobber existing salt)
+  const { error: writeErr } = await supabase
     .from('escrows')
-    .update({ deployment_salt: newSalt })
-    .eq('id', escrowId);
-  
-  return { salt: newSalt, isNew: true };
+    .update({ salt: newSalt })
+    .eq('id', escrowId)
+    .is('salt', null);
+
+  // 4) Read-back in case of race
+  const { data: after } = await supabase
+    .from('escrows')
+    .select('salt')
+    .eq('id', escrowId)
+    .single();
+
+  if (after?.salt) {
+    const isNew = after.salt.toLowerCase() === newSalt.toLowerCase();
+    return { salt: after.salt, isNew };
+  }
+
+  throw new Error('Failed to create or fetch salt');
 }
 
-// Create Onramp widget URL// 
+/**
+ * Build the Onramp.money widget URL for contract-call flow.
+ * NOTE:
+ * - `walletAddress` = your factory (the "to" contract)
+ * - `calldata` = encoded deployVault(...) call
+ * - Colors must be hex without '#'
+ */
 export function createOnrampWidget(config: OnrampConfig): string {
-    const baseUrl = 'https://onramp.money/app/';
-    const appId = process.env.NEXT_PUBLIC_ONRAMP_APP_ID || '1687307';
-    
-    const calldata = generateCalldata(
-      config.salt,
-      config.clientAddress,
-      config.freelancerAddress,
-      config.targetUsdcAmount
-    );
-    
-    const params = new URLSearchParams({
-      appId: appId,
-      walletAddress: config.factoryAddress,
-      coinCode: 'USDC',
-      
-      // Use coinAmount as per Onramp dev team
-      coinAmount: config.targetUsdcAmount.toFixed(6), // Changed from cryptoAmount
-      
-      // Lock the amount
-      isAmountEditable: 'false',
-      isFiatCurrencyEditable: 'true',
-      isCoinCodeEditable: 'false',
-      
-      // Smart contract execution
-      calldata: calldata,
-      
-      // User and order data
-      userEmail: config.email,
-      partnerOrderId: config.escrowId,
-      
-      // UI customization
-      primaryColor: '2563EB',
-      secondaryColor: '1d4ed8',
-      isDarkMode: 'false',
-    });
-    
-    return `${baseUrl}?${params.toString()}`;
-  }
+  const baseUrl = config.isTestMode
+    ? 'https://sandbox.onramp.money/app/'
+    : 'https://onramp.money/app/';
+
+  const appId = process.env.NEXT_PUBLIC_ONRAMP_APP_ID || '1687307';
+
+  const calldata = generateCalldata(
+    config.salt,
+    config.clientAddress,
+    config.freelancerAddress,
+    config.targetUsdcAmount
+  );
+
+  const params = new URLSearchParams({
+    appId,
+    walletAddress: config.factoryAddress,
+    coinCode: 'USDC',
+    coinAmount: config.targetUsdcAmount.toFixed(6),
+    isAmountEditable: 'false',
+    isFiatCurrencyEditable: 'true',
+    isCoinCodeEditable: 'false',
+    calldata,
+    userEmail: config.email,
+    partnerOrderId: config.escrowId,
+    primaryColor: '2563EB',
+    secondaryColor: '1d4ed8',
+    isDarkMode: 'false'
+  });
+
+  return `${baseUrl}?${params.toString()}`;
+}
+
+/**
+ * Build the Onramp.money widget URL to fund a specific wallet (the CREATE2 vault address).
+ * This is the direct-deposit flow (no calldata / no factory call).
+ */
+export function createOnrampDirectWidget(config: OnrampDirectConfig): string {
+  const baseUrl = config.isTestMode
+    ? 'https://sandbox.onramp.money/app/'
+    : 'https://onramp.money/app/';
+
+  const appId = process.env.NEXT_PUBLIC_ONRAMP_APP_ID || '1687307';
+
+  const params = new URLSearchParams({
+    appId,
+    // IMPORTANT: onramp sends USDC to this address directly
+    walletAddress: config.vaultAddress,
+    coinCode: 'USDC',
+    coinAmount: config.targetUsdcAmount.toFixed(6),
+    // lock the amount & token for UX clarity
+    isAmountEditable: 'false',
+    isFiatCurrencyEditable: 'true',
+    isCoinCodeEditable: 'false',
+    // user / order info
+    userEmail: config.email,
+    partnerOrderId: config.escrowId,
+    // theming (hex without '#')
+    primaryColor: '2563EB',
+    secondaryColor: '1d4ed8',
+    isDarkMode: 'false'
+  });
+
+  return `${baseUrl}?${params.toString()}`;
+}

@@ -739,7 +739,7 @@ useEffect(() => {
           amount_cents: Math.floor(metrics.availableToWithdraw * 100),
           wallet_address: walletData.wallet_address,
           status: 'PENDING',
-          provider: 'moonpay', // Changed from 'onramp' to 'moonpay'
+          provider: 'onramp', // Change either 'onramp' or 'moonpay'
         })
         .select()
         .single();
@@ -1135,13 +1135,51 @@ useEffect(() => {
                   )}
                 </div>
                 <div className="mt-1">
-                <button
-                  onClick={() => alert('Withdrawals launching next week! Withdraw to your bank account then.')}
-                  className="text-[12px] text-[#787B86] cursor-not-allowed"
-                >
-                  Withdraw (Coming Soon)
-                </button>
-                </div>
+  <button
+    onClick={async () => {
+      if (metrics.availableToWithdraw <= 0) {
+        alert('Nothing available to withdraw yet.');
+        return;
+      }
+
+      // fetch wallet
+      const { data: walletData, error: wErr } = await supabase
+        .from('user_wallets')
+        .select('wallet_address')
+        .eq('email', user?.email)
+        .single();
+      if (wErr || !walletData?.wallet_address) {
+        alert('Wallet not found. Please connect your wallet first.');
+        return;
+      }
+
+      // create withdrawal record
+      const { data: withdrawal, error } = await supabase
+        .from('withdrawals')
+        .insert({
+          user_email: user?.email,
+          amount_cents: Math.floor(metrics.availableToWithdraw * 100),
+          wallet_address: walletData.wallet_address,
+          status: 'PENDING',
+          provider: 'onramp', // we’re using onramp.money
+        })
+        .select()
+        .single();
+
+      if (error || !withdrawal?.id) {
+        alert('Failed to initiate withdrawal.');
+        return;
+      }
+
+      setCurrentWithdrawalId(String(withdrawal.id));
+      setShowOffRampModal(true);  // <-- open the modal
+    }}
+    className="text-[12px] text-[#2962FF] hover:underline"
+  >
+    Withdraw to bank
+  </button>
+</div>
+
               </div>
             </div>
 

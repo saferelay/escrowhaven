@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import TransactionSuccessModal from '@/components/escrow/TransactionSuccessModal';
 import { SettlementActions } from '@/components/SettlementActions';
 import clsx from 'clsx';
-import { getOrCreateSalt } from '@/lib/onramp';
+import { createOnrampDirectWidget, getOrCreateSalt } from '@/lib/onramp';
 
 // Icon components
 const FileTextIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -508,9 +508,9 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   const [declineReason, setDeclineReason] = useState('');
   const [copied, setCopied] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [showTransakModal, setShowTransakModal] = useState(false);
-  const [transakUrl, setTransakUrl] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showOnrampModal, setShowOnrampModal] = useState(false);
+  const [onrampUrl, setOnrampUrl] = useState<string>('');
   
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -648,6 +648,25 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
     }
   }, [escrow?.status, escrow?.id, escrow?.released_at, escrow?.settled_at]);
 
+    // Prevent background scroll when Onramp modal is open
+  useEffect(() => {
+    if (!showOnrampModal) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [showOnrampModal]);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!showOnrampModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowOnrampModal(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showOnrampModal]);
+
+
 
   const handleAccept = async () => {
     if (!termsAccepted) {
@@ -723,9 +742,10 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   const handleFund = async () => {
     setProcessing(true);
     try {
+      // Get or create salt for this escrow
       const { salt } = await getOrCreateSalt(escrow.id, supabase);
       
-      // Get wallets - EXACTLY THE SAME AS YOUR TRANSAK CODE
+      // Get client wallet (current user)
       const { data: walletData } = await supabase
         .from('user_wallets')
         .select('wallet_address')
@@ -733,6 +753,8 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         .single();
       
       const clientWallet = walletData?.wallet_address;
+      
+      // Get freelancer wallet
       let freelancerWallet = escrow.freelancer_wallet_address || 
                             escrow.recipient_wallet_address;
   
@@ -746,63 +768,83 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         freelancerWallet = freelancerWalletData?.wallet_address;
       }
       
+      // Validate both wallets exist
       if (!clientWallet || !freelancerWallet) {
         alert(`Missing wallet address: ${!clientWallet ? 'Your' : "Recipient's"} wallet needs to be connected first`);
         setProcessing(false);
         return;
       }
   
-      // Get vault address from factory contract - SAME AS TRANSAK CODE
-      const response = await fetch('/api/vault/address', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          salt,
-          clientAddress: clientWallet,
-          freelancerAddress: freelancerWallet
-        })
-      });
+      // Check if vault address already exists in database
+      let vaultAddress = escrow.vault_address;
+      
+      // If not in database, compute it via API
+      if (!vaultAddress) {
+        console.log('Computing vault address...');
+        
+        const response = await fetch('/api/vault/address', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            salt,
+            clientAddress: clientWallet,
+            freelancerAddress: freelancerWallet,
+            factoryAddress: escrow.factory_address,
+            rpcUrl: 'https://rpc-amoy.polygon.technology'
+          })
+        });
   
-      if (!response.ok) {
-        throw new Error('Failed to get vault address');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || 'Failed to get vault address');
+        }
+  
+        const { vaultAddress: computedVault } = await response.json();
+        vaultAddress = computedVault;
+  
+        console.log('Computed vault address:', vaultAddress);
+  
+        // Persist vault address to database
+        await supabase
+          .from('escrows')
+          .update({ vault_address: vaultAddress })
+          .eq('id', escrow.id);
+      } else {
+        console.log('Using existing vault address:', vaultAddress);
       }
   
-      const { vaultAddress } = await response.json();
-      
-      console.log('Vault address for funding:', vaultAddress);
-  
-      // Create MoonPay widget - REPLACES TRANSAK
-      const { createMoonPayWidget } = await import('@/lib/moonpay');
-      const widget = await createMoonPayWidget({
+      // Build Onramp direct widget URL (sends USDC directly to vault)
+      const url = createOnrampDirectWidget({
         email: user?.email || escrow.client_email,
+        targetUsdcAmount: escrow.amount_cents / 100,
         escrowId: escrow.id,
-        amount: escrow.amount_cents / 100,
-        vaultAddress, // This is the address where MoonPay will send USDC
-        isTestMode: escrow.is_test_mode || false
+        vaultAddress,
+        isTestMode: !!escrow.is_test_mode
       });
-      
-      // Show MoonPay widget
-      widget.show();
-      
-      // Set up polling to check for transaction completion
-      // (Since MoonPay SDK doesn't have reliable event listeners)
+  
+      // Open Onramp modal
+      setOnrampUrl(url);
+      setShowOnrampModal(true);
+  
+      // Start polling vault balance to detect when funded
       const checkInterval = setInterval(async () => {
         try {
-          // Check vault balance
           const balanceResponse = await fetch('/api/vault/balance', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ vaultAddress })
           });
-          
+  
           if (balanceResponse.ok) {
             const { balance } = await balanceResponse.json();
             const requiredAmount = escrow.amount_cents / 100;
-            
+  
+            console.log(`Vault balance: ${balance} USDC (need ${requiredAmount})`);
+  
             if (balance >= requiredAmount) {
               clearInterval(checkInterval);
-              
-              // Update escrow status
+  
+              // Update escrow status to FUNDED
               await supabase
                 .from('escrows')
                 .update({ 
@@ -810,8 +852,13 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                   funded_at: new Date().toISOString()
                 })
                 .eq('id', escrow.id);
-              
+  
               if (onUpdate) onUpdate();
+  
+              // Close modal
+              setShowOnrampModal(false);
+              setOnrampUrl('');
+  
               alert('Payment received! The transaction has been funded.');
             }
           }
@@ -819,16 +866,20 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
           console.error('Balance check error:', error);
         }
       }, 10000); // Check every 10 seconds
-      
+  
       // Stop checking after 30 minutes
-      setTimeout(() => clearInterval(checkInterval), 30 * 60 * 1000);
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        console.log('Stopped polling vault balance after 30 minutes');
+      }, 30 * 60 * 1000);
       
     } catch (error: any) {
       console.error('Funding error:', error);
       alert(`Failed to initiate payment: ${error.message || 'Unknown error'}`);
-    } finally {
       setProcessing(false);
     }
+    // Note: setProcessing(false) is NOT called here on success
+    // because the modal stays open while user completes payment
   };
 
   if (!isOpen) return null;
@@ -1160,12 +1211,13 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                     </div>
                     
                     <button
-                      onClick={() => alert('Payment processing launches next week! This escrow will be ready to fund then.')}
-                      disabled={true}
-                      className="w-full py-2.5 bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed text-sm font-medium"
+                      onClick={handleFund}
+                      disabled={processing}
+                      className="w-full py-2.5 rounded-lg transition-all text-sm font-medium bg-[#2962FF] text-white hover:bg-[#1d4ed8] disabled:opacity-50"
                     >
-                      Fund Escrow (Coming Soon)
+                      {processing ? 'Starting payment…' : 'Fund Escrow'}
                     </button>
+
                     <PaymentIcons />
                     
                     {/* ADD THIS CANCEL BUTTON FOR PAYER */}
@@ -1344,6 +1396,55 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         </div>
       )}
 
+      {/* Onramp Modal (iframe embed) */}
+      {showOnrampModal && !!onrampUrl && (
+        <div className="fixed inset-0 z-[60]">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => {
+              // Optional: confirm with the user if you want to avoid accidental close
+              setShowOnrampModal(false);
+              setOnrampUrl('');
+            }}
+          />
+          {/* Dialog */}
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="relative w-full max-w-md md:max-w-lg lg:max-w-xl h-[80vh] bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-[#F8FAFC]">
+                <span className="text-sm font-medium text-gray-700">Add funds securely</span>
+                <button
+                  onClick={() => {
+                    setShowOnrampModal(false);
+                    setOnrampUrl('');
+                  }}
+                  className="p-1.5 hover:bg-gray-100 rounded"
+                  aria-label="Close"
+                >
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="w-full h-full">
+                <iframe
+                  title="Onramp"
+                  src={onrampUrl}
+                  className="w-full h-full"
+                  loading="eager"
+                  allow="payment *; clipboard-write; accelerometer; autoplay; gyroscope"
+                  sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      
 
             {/* SUCCESS MODAL</> */}
             {showSuccessModal && (escrow.status === 'RELEASED' || escrow.status === 'SETTLED') && (
@@ -1353,6 +1454,7 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
           onClose={() => setShowSuccessModal(false)}
         />
       )}
+      
     </>
   );
 }

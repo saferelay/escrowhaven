@@ -13,7 +13,7 @@ interface AuthContextType {
   error: string | null;
   signIn: (email: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-  supabase: SupabaseClient<any, "public", any>; // Fixed type to match createClientComponentClient
+  supabase: SupabaseClient<any, "public", any>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -33,8 +33,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   
-  // Create client without options (auth-helpers-nextjs handles this differently)
   const supabase = createClientComponentClient();
+
+  // Auto-create Magic wallet for users
+  const ensureWalletExists = async (userEmail: string) => {
+    try {
+      // Check if wallet already exists
+      const { data: existingWallet } = await supabase
+        .from('user_wallets')
+        .select('wallet_address')
+        .eq('email', userEmail.toLowerCase())
+        .single();
+
+      if (existingWallet?.wallet_address) {
+        console.log('Wallet exists for', userEmail);
+        return;
+      }
+
+      // No wallet found - create one via Magic
+      console.log('Creating Magic wallet for:', userEmail);
+      const { connectMagicWallet } = await import('@/lib/magic');
+      const result = await connectMagicWallet(userEmail);
+      
+      // Save to database
+      const response = await fetch('/api/user/save-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          wallet: result.wallet,
+          issuer: result.issuer,
+          provider: 'magic'
+        })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        if (!data.message?.includes('already')) {
+          throw new Error('Failed to save wallet');
+        }
+      }
+
+      console.log('Wallet created and saved:', result.wallet);
+    } catch (err) {
+      console.error('Failed to create wallet:', err);
+      // Don't block login if wallet creation fails
+    }
+  };
 
   useEffect(() => {
     const checkSession = async () => {
@@ -51,6 +96,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(currentSession);
           setUser(currentSession.user);
           setError(null);
+          
+          // Ensure wallet exists for this user
+          if (currentSession.user.email) {
+            await ensureWalletExists(currentSession.user.email);
+          }
         }
       } catch (err) {
         console.log('Session check failed:', err);
@@ -62,7 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     checkSession();
 
-    // Listen for auth changes with better error handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log('Auth event:', event);
@@ -76,6 +125,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
           setError(null);
+          
+          // Auto-create wallet when user signs in
+          if (currentSession?.user.email) {
+            await ensureWalletExists(currentSession.user.email);
+          }
         } else if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
@@ -90,7 +144,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Set up periodic session refresh to prevent expiration
     const refreshInterval = setInterval(async () => {
       if (session) {
         try {
@@ -99,7 +152,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (refreshError) {
             console.error('Failed to refresh session:', refreshError);
-            // Only sign out if it's an actual auth error, not a network error
             if (refreshError.message?.includes('refresh_token') || 
                 refreshError.message?.includes('invalid')) {
               await signOut();
@@ -110,18 +162,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (err) {
           console.error('Refresh error:', err);
-          // Don't sign out on network errors
         }
       }
-    }, 10 * 60 * 1000); // Refresh every 10 minutes
+    }, 10 * 60 * 1000);
 
     return () => {
       subscription.unsubscribe();
       clearInterval(refreshInterval);
     };
-  }, [supabase, router, session]); // Added session to dependencies
+  }, [supabase, router, session]);
 
-  // Add the signIn function for magic link
   const signIn = async (email: string) => {
     try {
       setError(null);
