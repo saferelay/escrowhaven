@@ -189,7 +189,7 @@ const DeploymentStep = ({ step, status, message }: DeploymentStepData) => {
 };
 
 export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateEscrowWizardProps) {
-  const { user, supabase } = useAuth();
+  const { user, supabase, ensureWallet } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [deploymentStatus, setDeploymentStatus] = useState<'idle' | 'deploying' | 'complete'>('idle');
@@ -281,6 +281,19 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
   const handleCreate = async () => {
     if (!isFormValid() || !user?.email) {
       setError('Please fill in all required fields');
+      return;
+    }
+
+    //  Ensure wallet exists before creating escrow
+    const { ensureWallet } = useAuth();
+    try {
+      const wallet = await ensureWallet();
+      if (!wallet) {
+        setError('Failed to connect wallet. Please try again.');
+        return;
+      }
+    } catch (err: any) {
+      setError('Wallet connection required to create escrow');
       return;
     }
   
@@ -657,7 +670,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
               >
                 Create Another
               </button>
-              
+
             </div>
           </div>
         )}

@@ -498,7 +498,7 @@ interface EscrowDetailPanelProps {
 }
 
 export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: EscrowDetailPanelProps) {
-  const { user, supabase } = useAuth();
+  const { user, supabase, ensureWallet } = useAuth();
   const [escrow, setEscrow] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -675,6 +675,24 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
     }
 
     setProcessing(true);
+
+    // Ensure wallet exists before accepting
+    const { ensureWallet } = useAuth();
+    try {
+      const wallet = await ensureWallet();
+      if (!wallet) {
+        alert('Failed to connect wallet. Please try again.');
+        setProcessing(false);
+        return;
+      }
+    } catch (err: any) {
+      alert('Wallet connection required to accept escrow');
+      setProcessing(false);
+      return;
+    }
+
+
+
     try {
       const updateData: any = {
         status: 'ACCEPTED',

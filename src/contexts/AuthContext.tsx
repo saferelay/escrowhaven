@@ -13,6 +13,7 @@ interface AuthContextType {
   error: string | null;
   signIn: (email: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  ensureWallet: () => Promise<string | null>;
   supabase: SupabaseClient<any, "public", any>;
 }
 
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   error: null,
   signIn: async () => ({ error: null }),
   signOut: async () => {},
+  ensureWallet: async () => null,
   supabase: null as any,
 });
 
@@ -34,6 +36,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   
   const supabase = createClientComponentClient();
+
+  // Call this when user needs a wallet (creating/accepting escrow)
+  const ensureWallet = async (): Promise<string | null> => {
+    if (!user?.email) return null;
+
+    try {
+      // Check if wallet exists
+      const { data: existingWallet } = await supabase
+        .from('user_wallets')
+        .select('wallet_address')
+        .eq('email', user.email.toLowerCase())
+        .single();
+
+      if (existingWallet?.wallet_address) {
+        return existingWallet.wallet_address;
+      }
+
+      // No wallet - create via Magic (this shows popup)
+      console.log('Creating Magic wallet for:', user.email);
+      const { connectMagicWallet } = await import('@/lib/magic');
+      const result = await connectMagicWallet(user.email);
+      
+      // Save to database
+      await fetch('/api/user/save-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          wallet: result.wallet,
+          issuer: result.issuer,
+          provider: 'magic'
+        })
+      });
+
+      return result.wallet;
+    } catch (err) {
+      console.error('Wallet creation failed:', err);
+      throw err;
+    }
+  };
 
   useEffect(() => {
     const checkSession = async () => {
@@ -66,7 +108,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Auth event:', event);
         
         if (event === 'TOKEN_REFRESHED') {
-          console.log('Token refreshed successfully');
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
           setError(null);
@@ -150,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, error, signIn, signOut, supabase }}>
+    <AuthContext.Provider value={{ user, session, loading, error, signIn, signOut, ensureWallet, supabase }}>
       {children}
     </AuthContext.Provider>
   );
