@@ -1,3 +1,4 @@
+// src/app/api/public/stats/route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -6,73 +7,42 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Your mainnet factory address
-const MAINNET_FACTORY = '0xb6Ac0936f512e1c79C8514A417d127D034Cb2045';
-
 export async function GET() {
   try {
-    // Only get mainnet escrows (ones with the production factory address)
-    const { data: stats, error } = await supabase
+    const { data: escrows, error } = await supabase
       .from('escrows')
-      .select('*')
-      .eq('factory_address', MAINNET_FACTORY);
+      .select('amount_cents, status')
+      .eq('is_test_mode', false);
 
     if (error) throw error;
 
-    const escrows = stats || [];
-    
-    const totalEscrows = escrows.length;
-    const activeEscrows = escrows.filter(e => 
-      ['FUNDED', 'ACCEPTED'].includes(e.status)
-    ).length;
-    const completedEscrows = escrows.filter(e => 
-      ['RELEASED', 'COMPLETED', 'SETTLED'].includes(e.status)
-    ).length;
-    const refundedEscrows = escrows.filter(e => 
-      e.status === 'REFUNDED'
-    ).length;
+    // Only count COMPLETED transactions in volume
+    const completedStatuses = ['RELEASED', 'SETTLED', 'COMPLETED', 'REFUNDED'];
+    const completedEscrows = escrows?.filter(e => completedStatuses.includes(e.status)) || [];
 
-    // Calculate total volume in cents, then convert to dollars
-    const totalVolume = escrows.reduce((sum, e) => 
-      sum + (e.amount_cents || 0), 0
-    );
+    const stats = {
+      totalEscrows: escrows?.length || 0,
+      totalVolume: completedEscrows.reduce((sum, e) => sum + (e.amount_cents / 100), 0), // Only completed
+      totalFeesEarned: completedEscrows.reduce((sum, e) => sum + (e.amount_cents * 0.0199 / 100), 0), // Only completed
+      averageEscrowSize: completedEscrows.length ? (completedEscrows.reduce((sum, e) => sum + (e.amount_cents / 100), 0) / completedEscrows.length) : 0,
+      activeEscrows: escrows?.filter(e => e.status === 'FUNDED').length || 0,
+      completedEscrows: completedEscrows.length,
+      refundedEscrows: escrows?.filter(e => e.status === 'REFUNDED').length || 0,
+      successRate: escrows?.length ? Math.round((completedEscrows.length / escrows.length) * 100) : 0
+    };
 
-    // Calculate fees from completed escrows (1.99% fee)
-    const totalFeesEarned = escrows.filter(e => 
-      ['RELEASED', 'COMPLETED', 'SETTLED'].includes(e.status)
-    ).reduce((sum, e) => 
-      sum + ((e.amount_cents || 0) * 0.0199), 0
-    );
-
-    const averageEscrowSize = totalEscrows > 0 
-      ? Math.round(totalVolume / totalEscrows / 100)
-      : 0;
-
-    const successRate = totalEscrows > 0
-      ? Math.round((completedEscrows / totalEscrows) * 100 * 10) / 10
-      : 100; // Show 100% if all completed
-
-    return NextResponse.json({
-      totalEscrows,
-      totalVolume: Math.round(totalVolume / 100), // Convert cents to dollars
-      totalFeesEarned: Math.round(totalFeesEarned / 100),
-      averageEscrowSize,
-      successRate,
-      activeEscrows,
-      completedEscrows,
-      refundedEscrows
-    });
+    return NextResponse.json(stats);
   } catch (error) {
-    console.error('Stats API error:', error);
+    console.error('Error fetching stats:', error);
     return NextResponse.json({
       totalEscrows: 0,
       totalVolume: 0,
       totalFeesEarned: 0,
       averageEscrowSize: 0,
-      successRate: 0,
       activeEscrows: 0,
       completedEscrows: 0,
-      refundedEscrows: 0
-    });
+      refundedEscrows: 0,
+      successRate: 0
+    }, { status: 200 });
   }
 }
