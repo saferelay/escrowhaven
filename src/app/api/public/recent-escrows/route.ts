@@ -7,15 +7,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
-
 export async function GET() {
   try {
     const { data: escrows, error } = await supabase
       .from('escrows')
       .select('id, amount_cents, status, created_at, vault_address, network, is_test_mode')
-      .in('status', ['FUNDED', 'RELEASED', 'SETTLED', 'REFUNDED', 'COMPLETED']) // Only show active or completed
-      .eq('is_test_mode', !isProduction)
+      .in('status', ['FUNDED', 'RELEASED', 'SETTLED', 'REFUNDED', 'COMPLETED'])
+      .eq('is_test_mode', false) // ONLY production escrows
       .order('created_at', { ascending: false })
       .limit(10);
 
@@ -26,7 +24,7 @@ export async function GET() {
       amount: escrow.amount_cents / 100,
       status: escrow.status,
       created: escrow.created_at,
-      network: escrow.network || (escrow.is_test_mode ? 'polygon-amoy' : 'polygon'),
+      network: 'polygon', // Always polygon for production
       fullAddress: escrow.vault_address
     }));
 
