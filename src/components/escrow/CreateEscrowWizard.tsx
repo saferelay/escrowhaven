@@ -283,11 +283,10 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
       setError('Please fill in all required fields');
       return;
     }
-
-    //  Ensure wallet exists before creating escrow
-    const { ensureWallet } = useAuth();
+  
+    // Ensure wallet exists before creating escrow
     try {
-      const wallet = await ensureWallet();
+      const wallet = await ensureWallet();  // ← Just use it directly, no const { ensureWallet } = useAuth()
       if (!wallet) {
         setError('Failed to connect wallet. Please try again.');
         return;
