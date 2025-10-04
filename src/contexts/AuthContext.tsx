@@ -35,55 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const supabase = createClientComponentClient();
 
-  // Non-blocking wallet creation - runs in background
-  const ensureWalletExists = (userEmail: string) => {
-    // Don't await - let it run in background
-    setTimeout(async () => {
-      try {
-        // Check if wallet already exists
-        const { data: existingWallet } = await supabase
-          .from('user_wallets')
-          .select('wallet_address')
-          .eq('email', userEmail.toLowerCase())
-          .single();
-
-        if (existingWallet?.wallet_address) {
-          console.log('Wallet exists for', userEmail);
-          return;
-        }
-
-        // No wallet found - create one via Magic
-        console.log('Creating Magic wallet for:', userEmail);
-        const { connectMagicWallet } = await import('@/lib/magic');
-        const result = await connectMagicWallet(userEmail);
-        
-        // Save to database
-        const response = await fetch('/api/user/save-wallet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: userEmail,
-            wallet: result.wallet,
-            issuer: result.issuer,
-            provider: 'magic'
-          })
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          if (!data.message?.includes('already')) {
-            throw new Error('Failed to save wallet');
-          }
-        }
-
-        console.log('Wallet created and saved:', result.wallet);
-      } catch (err) {
-        console.error('Failed to create wallet:', err);
-        // Don't block user experience if wallet creation fails
-      }
-    }, 0);
-  };
-
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -99,11 +50,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(currentSession);
           setUser(currentSession.user);
           setError(null);
-          
-          // Trigger wallet creation in background (non-blocking)
-          if (currentSession.user.email) {
-            ensureWalletExists(currentSession.user.email);
-          }
         }
       } catch (err) {
         console.log('Session check failed:', err);
@@ -128,11 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
           setError(null);
-          
-          // Trigger wallet creation in background (non-blocking)
-          if (currentSession?.user.email) {
-            ensureWalletExists(currentSession.user.email);
-          }
         } else if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
