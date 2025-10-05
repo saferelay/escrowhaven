@@ -502,6 +502,7 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   const [escrow, setEscrow] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(''); 
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showDeclineForm, setShowDeclineForm] = useState(false);
@@ -695,52 +696,74 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
     }
   
     setProcessing(true);
+    setError(''); // Clear any previous errors
   
-    // Ensure wallet exists before accepting - use the one from useAuth at top
     try {
-      const wallet = await ensureWallet();
-      if (!wallet) {
-        alert('Failed to connect wallet. Please try again.');
-        setProcessing(false);
-        return;
+      // Step 1: Check for existing wallet
+      const { data: existingWallet } = await supabase
+        .from('user_wallets')
+        .select('wallet_address')
+        .eq('email', user?.email)
+        .maybeSingle();
+  
+      let walletAddress = existingWallet?.wallet_address;
+  
+      // Step 2: Create wallet if needed
+      if (!walletAddress) {
+        console.log('No wallet found - creating one');
+        
+        try {
+          walletAddress = await ensureWallet();
+          
+          if (!walletAddress) {
+            throw new Error('Wallet creation returned null');
+          }
+          
+          console.log('Wallet created successfully:', walletAddress);
+        } catch (err: any) {
+          console.error('Wallet creation error:', err);
+          
+          // User-friendly error message
+          const errorMsg = err.message?.includes('not configured')
+            ? 'Wallet service is not configured. Please contact support.'
+            : err.message?.includes('User denied')
+            ? 'You cancelled the wallet creation. Please try again when ready.'
+            : `Wallet creation failed: ${err.message || 'Please try again'}`;
+          
+          alert(errorMsg);
+          setProcessing(false);
+          return;
+        }
+      } else {
+        console.log('Using existing wallet:', walletAddress);
       }
-    } catch (err: any) {
-      console.error('Wallet creation error:', err);
-      alert('Wallet connection required to accept escrow');
-      setProcessing(false);
-      return;
-    }
   
-    try {
+      // Step 3: Update escrow with wallet address
       const updateData: any = {
         status: 'ACCEPTED',
         accepted_at: new Date().toISOString()
       };
       
-      // Get the wallet address that was just created/ensured
-      const { data: walletData } = await supabase
-        .from('user_wallets')
-        .select('wallet_address')
-        .eq('email', user?.email)
-        .single();
-      
-      if (walletData?.wallet_address) {
-        // Update both wallet fields if user is the recipient
-        if (role === 'recipient') {
-          updateData.recipient_wallet_address = walletData.wallet_address;
-          updateData.freelancer_wallet_address = walletData.wallet_address;
-        } else if (role === 'payer') {
-          updateData.client_wallet_address = walletData.wallet_address;
-        }
+      // Set wallet for correct role
+      if (role === 'recipient') {
+        updateData.recipient_wallet_address = walletAddress;
+        updateData.freelancer_wallet_address = walletAddress;
+      } else if (role === 'payer') {
+        updateData.client_wallet_address = walletAddress;
       }
   
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('escrows')
         .update(updateData)
         .eq('id', escrowId);
   
-      if (error) throw error;
+      if (updateError) {
+        throw new Error(`Failed to accept escrow: ${updateError.message}`);
+      }
+  
+      console.log('Escrow accepted successfully');
       if (onUpdate) onUpdate();
+      
     } catch (error: any) {
       console.error('Accept failed:', error);
       alert(`Failed to accept: ${error.message || 'Unknown error'}`);
@@ -748,6 +771,9 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       setProcessing(false);
     }
   };
+
+
+
   const handleDecline = async () => {
     if (!declineReason.trim()) {
       alert('Please provide a reason for declining');

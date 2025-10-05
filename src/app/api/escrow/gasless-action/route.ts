@@ -194,19 +194,33 @@ export async function POST(request: NextRequest) {
         console.log('Database updated successfully:', updateResult);
         try {
           if (action === 'release') {
+            const escrowLink = `${process.env.NEXT_PUBLIC_APP_URL}/escrow/${escrowId}`;
+            
             // To recipient
             await sendEmail(emailTemplates.paymentReleased({
               recipientEmail: escrow.freelancer_email,
+              senderEmail: escrow.client_email,
               amount: `$${(escrow.amount_cents / 100).toFixed(2)}`,
               netAmount: `$${((escrow.amount_cents * 0.9801) / 100).toFixed(2)}`,
-              senderEmail: escrow.client_email
+              escrowLink
             }));
             
             // To sender
             await sendEmail(emailTemplates.paymentSent({
-              senderEmail: escrow.client_email,
               recipientEmail: escrow.freelancer_email,
-              amount: `$${(escrow.amount_cents / 100).toFixed(2)}`
+              senderEmail: escrow.client_email,
+              amount: `$${(escrow.amount_cents / 100).toFixed(2)}`,
+              escrowLink
+            }));
+            
+          } else if (action === 'refund') {
+            const escrowLink = `${process.env.NEXT_PUBLIC_APP_URL}/escrow/${escrowId}`;
+            
+            await sendEmail(emailTemplates.escrowRefunded({
+              email: escrow.client_email,
+              amount: `$${(escrow.amount_cents / 100).toFixed(2)}`,
+              isInitiator: true,
+              escrowLink
             }));
           } else if (action === 'refund') {
             await sendEmail(emailTemplates.escrowRefunded({

@@ -67,6 +67,101 @@ const emailWrapper = (content: string) => `
 `;
 
 export const emailTemplates = {
+  paymentReleased: ({ 
+    recipientEmail, 
+    senderEmail, 
+    amount,
+    netAmount,
+    escrowLink
+  }: { 
+    recipientEmail: string; 
+    senderEmail: string; 
+    amount: string;
+    netAmount?: string;
+    escrowLink?: string;
+  }) => ({
+    to: recipientEmail,
+    subject: `Payment Released: ${amount}`,
+    html: emailWrapper(`
+      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
+        <p style="font-size: 14px; color: #10B981; margin: 0 0 8px 0;">✓ Payment Released</p>
+        <p style="font-size: 28px; font-weight: 600; color: #111827; margin: 0 0 8px 0;">${amount}</p>
+        <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px 0;">from ${senderEmail}</p>
+        ${netAmount ? `<p style="font-size: 14px; color: #059669; margin: 0 0 24px 0;"><strong>You'll receive: ${netAmount}</strong></p>` : ''}
+        ${escrowLink ? `<a href="${escrowLink}" style="display: block; text-align: center; background: #10B981; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">View Transaction</a>` : ''}
+      </div>
+    `)
+  }),
+
+  paymentSent: ({ 
+    recipientEmail, 
+    senderEmail, 
+    amount,
+    escrowLink
+  }: { 
+    recipientEmail: string; 
+    senderEmail: string; 
+    amount: string;
+    escrowLink?: string;
+  }) => ({
+    to: senderEmail,
+    subject: `Payment Sent: ${amount}`,
+    html: emailWrapper(`
+      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
+        <p style="font-size: 14px; color: #2563EB; margin: 0 0 8px 0;">✓ Payment Sent</p>
+        <p style="font-size: 28px; font-weight: 600; color: #111827; margin: 0 0 8px 0;">${amount}</p>
+        <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px 0;">to ${recipientEmail}</p>
+        ${escrowLink ? `<a href="${escrowLink}" style="display: block; text-align: center; background: #2563EB; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">View Transaction</a>` : ''}
+      </div>
+    `)
+  }),
+
+  escrowRefunded: ({ 
+    email,
+    amount,
+    isInitiator,
+    escrowLink
+  }: { 
+    email: string;
+    amount: string;
+    isInitiator?: boolean;
+    escrowLink?: string;
+  }) => ({
+    to: email,
+    subject: `Escrow Refunded: ${amount}`,
+    html: emailWrapper(`
+      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
+        <p style="font-size: 14px; color: #F59E0B; margin: 0 0 8px 0;">Escrow Refunded</p>
+        <p style="font-size: 28px; font-weight: 600; color: #111827; margin: 0 0 8px 0;">${amount}</p>
+        <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px 0;">has been refunded to your wallet</p>
+        ${escrowLink ? `<a href="${escrowLink}" style="display: block; text-align: center; background: #F59E0B; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">View Transaction</a>` : ''}
+      </div>
+    `)
+  }),
+
+  escrowFunded: ({ 
+    email,
+    amount,
+    escrowId,
+    role
+  }: { 
+    email: string;
+    amount: string;
+    escrowId: string;
+    role?: 'payer' | 'recipient';
+  }) => ({
+    to: email,
+    subject: `Escrow Funded: ${amount}`,
+    html: emailWrapper(`
+      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
+        <p style="font-size: 14px; color: #2563EB; margin: 0 0 8px 0;">✓ Escrow Funded</p>
+        <p style="font-size: 28px; font-weight: 600; color: #111827; margin: 0 0 8px 0;">${amount}</p>
+        <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px 0;">secured in vault</p>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/escrow/${escrowId}" style="display: block; text-align: center; background: #2563EB; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">View Escrow</a>
+      </div>
+    `)
+  }),
+
   escrowInvitation: ({ 
     recipientEmail, 
     senderEmail, 
@@ -91,21 +186,13 @@ export const emailTemplates = {
         <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px 0;">
           ${role === 'payer' ? 'to receive from' : 'to send to'} ${senderEmail}
         </p>
-        
         ${description ? `
           <div style="background: #f9fafb; border-radius: 4px; padding: 12px; margin-bottom: 24px;">
             <p style="font-size: 13px; color: #6b7280; margin: 0;">${description}</p>
           </div>
         ` : ''}
-        
-        <a href="${escrowLink}" 
-           style="display: block; text-align: center; background: #111827; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">
-          View Invitation
-        </a>
-        
-        <p style="font-size: 12px; color: #9ca3af; margin: 16px 0 0 0; text-align: center;">
-          You'll need to accept the terms to proceed
-        </p>
+        <a href="${escrowLink}" style="display: block; text-align: center; background: #111827; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">View Invitation</a>
+        <p style="font-size: 12px; color: #9ca3af; margin: 16px 0 0 0; text-align: center;">You'll need to accept the terms to proceed</p>
       </div>
     `)
   })

@@ -1,6 +1,5 @@
 // src/lib/magic.ts
 import { Magic } from 'magic-sdk';
-import { ethers } from 'ethers';
 
 let magic: Magic | null = null;
 
@@ -8,19 +7,19 @@ let magic: Magic | null = null;
 if (typeof window !== 'undefined') {
   const key = process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY;
   
-  if (key && !key.includes('YOUR_MAGIC_KEY')) {
+  if (!key || key.includes('YOUR_MAGIC_KEY')) {
+    console.error('CRITICAL: NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY not configured');
+  } else {
     magic = new Magic(key, {
-      network: 'mainnet' // or your preferred network
+      network: 'mainnet'
     });
   }
 }
 
 export async function connectMagicWallet(email: string): Promise<{ wallet: string; issuer: string }> {
+  // CRITICAL: No mock fallback - fail fast if Magic not configured
   if (!magic) {
-    // Use mock if no Magic instance
-    console.log('Using mock wallet - no Magic instance');
-    const { connectMagicWallet: mockConnect } = await import('./magic-mock');
-    return mockConnect(email);
+    throw new Error('Magic wallet not configured. Please set NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY');
   }
 
   try {
@@ -28,54 +27,47 @@ export async function connectMagicWallet(email: string): Promise<{ wallet: strin
     const isLoggedIn = await magic.user.isLoggedIn();
     
     if (isLoggedIn) {
-      // Get current user info
       const userInfo = await magic.user.getInfo();
       console.log('Currently logged in as:', userInfo.email);
       
-      // IMPORTANT: Only logout if switching to a DIFFERENT email
+      // Same user - return existing wallet
       if (userInfo.email && userInfo.email.toLowerCase() === email.toLowerCase()) {
-        // Same user - return existing wallet (THIS IS THE FIX!)
-        console.log('Same user, returning existing wallet:', userInfo.publicAddress);
+        console.log('Returning existing wallet:', userInfo.publicAddress);
         return {
           wallet: userInfo.publicAddress!,
           issuer: userInfo.issuer || email
         };
       } else {
-        // Different user - logout and login with new email
-        console.log('Different user, logging out and switching to:', email);
+        // Different user - logout first
+        console.log('Logging out previous user');
         await magic.user.logout();
       }
     }
     
-    // Login with the email - this will create/retrieve their unique wallet
-    console.log('Logging in with Magic for:', email);
+    // Login with Magic Link - this shows popup to user
+    console.log('Starting Magic login for:', email);
     await magic.auth.loginWithMagicLink({ 
       email,
       showUI: true 
     });
-    console.log('Magic login successful');
     
-    // Get user info - this will be unique to this email
+    // Get user info
     const userInfo = await magic.user.getInfo();
-    console.log('User info:', userInfo);
-    
-    // Magic generates a unique wallet for each email
     const wallet = userInfo.publicAddress;
     
     if (!wallet) {
-      throw new Error('No wallet address found');
+      throw new Error('Magic did not return wallet address');
     }
     
-    // Verify this wallet is unique to this email
-    console.log(`Wallet for ${email}: ${wallet}`);
+    console.log(`Wallet created for ${email}: ${wallet}`);
     
     return {
       wallet: wallet,
       issuer: userInfo.issuer || email
     };
-  } catch (error) {
-    console.error('Magic wallet connection error:', error);
-    throw error;
+  } catch (error: any) {
+    console.error('Magic wallet error:', error);
+    throw new Error(`Wallet creation failed: ${error.message || 'Unknown error'}`);
   }
 }
 

@@ -39,27 +39,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Call this when user needs a wallet (creating/accepting escrow)
   const ensureWallet = async (): Promise<string | null> => {
-    if (!user?.email) return null;
-
+    if (!user?.email) {
+      throw new Error('User not authenticated');
+    }
+  
     try {
       // Check if wallet exists
-      const { data: existingWallet } = await supabase
+      const { data: existingWallet, error: fetchError } = await supabase
         .from('user_wallets')
         .select('wallet_address')
         .eq('email', user.email.toLowerCase())
-        .single();
-
+        .maybeSingle();
+  
+      if (fetchError) {
+        console.error('Database error checking wallet:', fetchError);
+        throw new Error('Failed to check existing wallet');
+      }
+  
       if (existingWallet?.wallet_address) {
+        console.log('Found existing wallet:', existingWallet.wallet_address);
         return existingWallet.wallet_address;
       }
-
-      // No wallet - create via Magic (this shows popup)
-      console.log('Creating Magic wallet for:', user.email);
+  
+      // No wallet exists - create via Magic
+      console.log('No wallet found. Creating Magic wallet for:', user.email);
+      
       const { connectMagicWallet } = await import('@/lib/magic');
       const result = await connectMagicWallet(user.email);
       
+      console.log('Magic wallet created:', result.wallet);
+      
       // Save to database
-      await fetch('/api/user/save-wallet', {
+      const saveResponse = await fetch('/api/user/save-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -69,11 +80,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           provider: 'magic'
         })
       });
-
+  
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json();
+        throw new Error(`Failed to save wallet: ${errorData.error || 'Unknown error'}`);
+      }
+  
+      console.log('Wallet saved to database successfully');
       return result.wallet;
-    } catch (err) {
+      
+    } catch (err: any) {
       console.error('Wallet creation failed:', err);
-      throw err;
+      // Re-throw with clear message
+      throw new Error(err.message || 'Wallet creation failed');
     }
   };
 
