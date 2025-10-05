@@ -42,14 +42,10 @@ export async function POST(request: NextRequest) {
     const clientWallet = clientWalletResult?.data?.wallet_address;
     const freelancerWallet = freelancerWalletResult?.data?.wallet_address;
     
-    // Don't use fallback addresses - require actual wallets
-    if (!clientWallet || !freelancerWallet) {
+    // Only require client wallet at creation
+    if (!clientWallet) {
       return NextResponse.json({ 
-        error: 'Both parties must have wallet addresses set up',
-        details: {
-          clientHasWallet: !!clientWallet,
-          freelancerHasWallet: !!freelancerWallet
-        }
+        error: 'Sender must connect their wallet first'
       }, { status: 400 });
     }
     
@@ -131,7 +127,7 @@ export async function POST(request: NextRequest) {
         
         // Wallet addresses - store them!
         client_wallet_address: clientWallet,
-        freelancer_wallet_address: freelancerWallet,
+        freelancer_wallet_address: freelancerWallet || null,
         
         // Factory used
         factory_address: FACTORY_ADDRESS,

@@ -636,17 +636,37 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   }, [isOpen, escrowId, user, supabase, onUpdate]);
 
   useEffect(() => {
-    if ((escrow?.status === 'RELEASED' || escrow?.status === 'SETTLED')) {
-      const completedAt = escrow.released_at || escrow.settled_at;
-      // Show for past 30 days
-      const completedRecently = completedAt && 
-        new Date(completedAt).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000);
+    if (!escrow || !user?.email) return;
+    
+    const shouldShow = 
+      (escrow.status === 'RELEASED' || escrow.status === 'SETTLED') &&
+      (escrow.released_at || escrow.settled_at) &&
+      new Date(escrow.released_at || escrow.settled_at).getTime() > Date.now() - (30 * 24 * 60 * 60 * 1000);
+    
+    if (shouldShow) {
+      const isClient = user.email === escrow.client_email;
+      const hasSeenModal = isClient 
+        ? escrow.success_modal_shown_to_client 
+        : escrow.success_modal_shown_to_freelancer;
       
-      if (completedRecently) {
+      if (!hasSeenModal) {
         setShowSuccessModal(true);
+        
+        // Mark as shown in database
+        const updateField = isClient 
+          ? 'success_modal_shown_to_client' 
+          : 'success_modal_shown_to_freelancer';
+        
+        supabase
+          .from('escrows')
+          .update({ [updateField]: true })
+          .eq('id', escrow.id)
+          .then(({ error }) => {
+            if (error) console.error('Failed to mark modal as shown:', error);
+          });
       }
     }
-  }, [escrow?.status, escrow?.id, escrow?.released_at, escrow?.settled_at]);
+  }, [escrow?.status, escrow?.id, escrow?.released_at, escrow?.settled_at, user?.email, supabase]);
 
     // Prevent background scroll when Onramp modal is open
   useEffect(() => {
@@ -985,56 +1005,53 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                 </div>
               </div>
 
-              {/* Show shareable link for initiator waiting */}
-              {isInitiator && escrow.status === 'INITIATED' && (
-                <>
-                  <div className="border-2 border-blue-200 bg-blue-50 rounded-lg p-4 mb-6">
-                    <div className="flex items-start gap-3">
-                      <LinkIcon className="w-5 h-5 text-blue-600 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 mb-2">Share this escrow link</p>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={`${window.location.origin}/${escrow.premium_link || `escrow/${escrow.id}`}`}
-                            readOnly
-                            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded text-sm font-mono text-gray-700"
-                            onClick={(e) => e.currentTarget.select()}
-                          />
-                          <button
-                            onClick={async () => {
-                              const link = `${window.location.origin}/${escrow.premium_link || `escrow/${escrow.id}`}`;
-                              await navigator.clipboard.writeText(link);
-                              setCopied(true);
-                              setTimeout(() => setCopied(false), 2000);
-                            }}
-                            className={clsx(
-                              "px-4 py-2 rounded text-sm font-medium transition-all border",
-                              copied 
-                                ? "bg-green-600 text-white border-green-600" 
-                                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-                            )}
-                          >
-                            {copied ? 'Copied!' : 'Copy'}
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-2">
-                          They can use this link to view and accept the escrow
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+{/* Show shareable link for initiator waiting */}
+{isInitiator && escrow.status === 'INITIATED' && (
+  <>
+    <div className="border border-gray-200 rounded-lg p-4 mb-6">
+      <p className="text-sm font-medium text-gray-900 mb-3">Share this transaction link</p>
+      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            value={`${window.location.origin}/${escrow.premium_link || `escrow/${escrow.id}`}`}
+            readOnly
+            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded text-sm font-mono text-gray-700"
+            onClick={(e) => e.currentTarget.select()}
+          />
+          <button
+            onClick={async () => {
+              const link = `${window.location.origin}/${escrow.premium_link || `escrow/${escrow.id}`}`;
+              await navigator.clipboard.writeText(link);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className={clsx(
+              "px-4 py-2 rounded text-sm font-medium transition-all",
+              copied 
+                ? "bg-green-600 text-white" 
+                : "bg-[#2962FF] text-white hover:bg-[#1E53E5]"
+            )}
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+        <p className="text-xs text-gray-600 mt-2">
+          They can use this link to view and accept the transaction
+        </p>
+      </div>
+    </div>
 
-                  <div className="flex justify-end mb-6">
-                    <button
-                      onClick={() => setShowCancelDialog(true)}
-                      className="text-sm text-gray-600 hover:text-red-600 transition-colors"
-                    >
-                      Cancel this escrow
-                    </button>
-                  </div>
-                </>
-              )}
+    <div className="flex justify-end mb-6">
+      <button
+        onClick={() => setShowCancelDialog(true)}
+        className="text-sm text-gray-600 hover:text-red-600 transition-colors"
+      >
+        Cancel this transaction
+      </button>
+    </div>
+  </>
+)}
 
               {/* Timeline */}
               <div className="my-6">
@@ -1365,54 +1382,61 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         </div>
       </div>
 
-      {/* Terms Modal */}
-      {showTermsModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">escrowhaven On-Chain Terms</h3>
-              <button
-                onClick={() => setShowTermsModal(false)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="prose prose-sm max-w-none">
-                <h4 className="font-semibold">Smart Contract Enforcement</h4>
-                <ul className="space-y-2 list-disc pl-5">
-                  <li>Funds locked in immutable smart contract on Polygon</li>
-                  <li>No admin functions - escrowhaven cannot access funds</li>
-                  <li>Contract address provided after deployment</li>
-                </ul>
-                
-                <h4 className="font-semibold mt-4">Release Mechanisms</h4>
-                <ul className="space-y-2 list-disc pl-5">
-                  <li>Full Release: Sender approves payment to receiver</li>
-                  <li>Settlement: Both parties can propose partial releases</li>
-                  <li>Refund: Receiver can refund full amount to sender</li>
-                </ul>
-                
-                <h4 className="font-semibold mt-4">Transparency & Security</h4>
-                <ul className="space-y-2 list-disc pl-5">
-                  <li>All transactions viewable on Polygon blockchain</li>
-                  <li>1.99% platform fee only on successful release</li>
-                  <li>Digital signatures ensure authenticity</li>
-                  <li>Non-custodial: you control your funds</li>
-                </ul>
-                
-                <p className="text-xs text-gray-500 mt-6 pt-4 border-t">
-                  By using this escrow, you acknowledge that blockchain transactions are irreversible
-                  and escrowhaven acts only as a technology provider, not as a custodian or arbitrator.
-                </p>
-              </div>
-            </div>
-          </div>
+{/* Terms Modal */}
+{showTermsModal && (
+  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+      <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Transaction Vault Protection</h3>
+        <button
+          onClick={() => setShowTermsModal(false)}
+          className="p-1 hover:bg-gray-100 rounded"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div className="p-6 space-y-4 text-sm text-gray-600">
+        <div>
+          <p className="font-semibold text-gray-900 mb-2">Transaction Vault Security</p>
+          <ul className="space-y-1.5 list-disc pl-5">
+            <li>Each transaction has its own secure vault on Polygon</li>
+            <li>Funds locked in immutable smart contract</li>
+            <li>No admin functions - escrowhaven cannot access the vault</li>
+            <li>Vault address provided after deployment</li>
+          </ul>
         </div>
-      )}
+        
+        <div>
+          <p className="font-semibold text-gray-900 mb-2">Payment Control</p>
+          <ul className="space-y-1.5 list-disc pl-5">
+            <li>Full Release: Sender approves payment from vault to receiver</li>
+            <li>Settlement: Both parties can propose partial releases from vault</li>
+            <li>Refund: Receiver can refund full vault amount to sender</li>
+          </ul>
+        </div>
+        
+        <div>
+          <p className="font-semibold text-gray-900 mb-2">Complete Transparency</p>
+          <ul className="space-y-1.5 list-disc pl-5">
+            <li>All vault transactions viewable on Polygon blockchain</li>
+            <li>1.99% platform fee only on successful release</li>
+            <li>Digital signatures ensure authenticity</li>
+            <li>Non-custodial: you control your vault</li>
+          </ul>
+        </div>
+        
+        <div className="pt-3 mt-3 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            By using this service, you acknowledge that blockchain transactions are irreversible
+            and escrowhaven acts only as a technology provider, not as a custodian or arbitrator.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Onramp Modal (iframe embed) */}
       {showOnrampModal && !!onrampUrl && (
