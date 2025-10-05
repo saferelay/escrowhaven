@@ -696,10 +696,10 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
     }
   
     setProcessing(true);
-    setError(''); // Clear any previous errors
+    setError('');
   
     try {
-      // Step 1: Check for existing wallet
+      // Step 1: Ensure wallet exists
       const { data: existingWallet } = await supabase
         .from('user_wallets')
         .select('wallet_address')
@@ -708,7 +708,6 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   
       let walletAddress = existingWallet?.wallet_address;
   
-      // Step 2: Create wallet if needed
       if (!walletAddress) {
         console.log('No wallet found - creating one');
         
@@ -719,18 +718,10 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
             throw new Error('Wallet creation returned null');
           }
           
-          console.log('Wallet created successfully:', walletAddress);
+          console.log('Wallet created:', walletAddress);
         } catch (err: any) {
           console.error('Wallet creation error:', err);
-          
-          // User-friendly error message
-          const errorMsg = err.message?.includes('not configured')
-            ? 'Wallet service is not configured. Please contact support.'
-            : err.message?.includes('User denied')
-            ? 'You cancelled the wallet creation. Please try again when ready.'
-            : `Wallet creation failed: ${err.message || 'Please try again'}`;
-          
-          alert(errorMsg);
+          alert(`Wallet creation failed: ${err.message || 'Please try again'}`);
           setProcessing(false);
           return;
         }
@@ -738,18 +729,77 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         console.log('Using existing wallet:', walletAddress);
       }
   
-      // Step 3: Update escrow with wallet address
+      // Step 2: Get other party's wallet address
+      const otherPartyEmail = role === 'payer' ? escrow.freelancer_email : escrow.client_email;
+      const { data: otherWallet } = await supabase
+        .from('user_wallets')
+        .select('wallet_address')
+        .eq('email', otherPartyEmail)
+        .maybeSingle();
+  
+      const otherWalletAddress = otherWallet?.wallet_address;
+  
+      // Step 3: If both wallets exist, pre-compute vault address
+      let vaultAddress = null;
+      let splitterAddress = null;
+  
+      if (otherWalletAddress) {
+        console.log('Both wallets exist - pre-computing vault address');
+        
+        const clientWallet = role === 'payer' ? walletAddress : otherWalletAddress;
+        const freelancerWallet = role === 'recipient' ? walletAddress : otherWalletAddress;
+        
+        try {
+          const response = await fetch('/api/vault/address', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              salt: escrow.salt,
+              clientAddress: clientWallet,
+              freelancerAddress: freelancerWallet,
+              factoryAddress: escrow.factory_address || process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS,
+              rpcUrl: 'https://rpc-amoy.polygon.technology'
+            })
+          });
+  
+          if (response.ok) {
+            const data = await response.json();
+            vaultAddress = data.vaultAddress;
+            splitterAddress = data.splitterAddress;
+            console.log('Vault pre-computed:', vaultAddress);
+          }
+        } catch (err) {
+          console.warn('Vault pre-computation failed (non-critical):', err);
+        }
+      }
+  
+      // Step 4: Update escrow with wallet addresses and vault
       const updateData: any = {
         status: 'ACCEPTED',
         accepted_at: new Date().toISOString()
       };
       
-      // Set wallet for correct role
+      // Set wallet addresses for both parties
       if (role === 'recipient') {
         updateData.recipient_wallet_address = walletAddress;
         updateData.freelancer_wallet_address = walletAddress;
+        if (otherWalletAddress) {
+          updateData.client_wallet_address = otherWalletAddress;
+        }
       } else if (role === 'payer') {
         updateData.client_wallet_address = walletAddress;
+        if (otherWalletAddress) {
+          updateData.recipient_wallet_address = otherWalletAddress;
+          updateData.freelancer_wallet_address = otherWalletAddress;
+        }
+      }
+  
+      // Add vault addresses if computed
+      if (vaultAddress) {
+        updateData.vault_address = vaultAddress;
+      }
+      if (splitterAddress) {
+        updateData.splitter_address = splitterAddress;
       }
   
       const { error: updateError } = await supabase
