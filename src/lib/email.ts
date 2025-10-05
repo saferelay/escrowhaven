@@ -32,12 +32,12 @@ export async function sendEmail(options: EmailOptions) {
     `;
   }
 
-  console.log('📧 Sending email to:', options.to);
+  console.log('�� Sending email to:', options.to);
   console.log('📧 Subject:', options.subject);
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'escrowhaven.io <onboarding@resend.dev>',
+      from: 'escrowhaven <notifications@escrowhaven.io>',
       to: options.to,
       subject: options.subject,
       html: options.html,
@@ -56,256 +56,143 @@ export async function sendEmail(options: EmailOptions) {
   }
 }
 
-// Minimal email wrapper for consistency
-const emailWrapper = (content: string) => `
-  <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 40px auto;">
-    <div style="text-align: center; margin-bottom: 32px;">
-      <h2 style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">escrowhaven.io</h2>
-    </div>
-    ${content}
-    <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #f3f4f6;">
-      <p style="color: #9ca3af; font-size: 11px; margin: 0;">
-        Secured by smart contracts on Polygon
-      </p>
-    </div>
-  </div>
-`;
-
 export const emailTemplates = {
-  // When someone creates an escrow invitation
-  escrowInvitation: ({ 
-    recipientEmail, 
-    senderEmail, 
-    amount, 
-    description, 
-    escrowLink,
-    role 
-  }: { 
-    recipientEmail: string; 
-    senderEmail: string; 
-    amount: string; 
-    description?: string; 
-    escrowLink: string;
-    role: 'payer' | 'recipient';
-  }) => ({
-    to: recipientEmail,
-    subject: `${senderEmail} sent you an escrow invitation`,
-    html: emailWrapper(`
-      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
-        <p style="font-size: 14px; color: #6b7280; margin: 0 0 8px 0;">Escrow invitation</p>
-        <p style="font-size: 28px; font-weight: 600; color: #111827; margin: 0 0 8px 0;">${amount}</p>
-        <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px 0;">
-          ${role === 'payer' ? 'to receive from' : 'to send to'} ${senderEmail}
-        </p>
-        
-        ${description ? `
-          <div style="background: #f9fafb; border-radius: 4px; padding: 12px; margin-bottom: 24px;">
-            <p style="font-size: 13px; color: #6b7280; margin: 0;">${description}</p>
-          </div>
-        ` : ''}
-        
-        <a href="${escrowLink}" 
-           style="display: block; text-align: center; background: #111827; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">
-          View Invitation
-        </a>
-        
-        <p style="font-size: 12px; color: #9ca3af; margin: 16px 0 0 0; text-align: center;">
-          You'll need to accept the terms to proceed
-        </p>
-      </div>
-    `)
-  }),
-
-  // When escrow is accepted (terms agreed)
-  escrowAccepted: ({ 
-    email, 
-    acceptedBy, 
-    amount,
-    escrowId,
-    isInitiator 
-  }: { 
-    email: string;
-    acceptedBy: string;
-    amount: string;
-    escrowId: string;
-    isInitiator: boolean;
-  }) => ({
+  magicLink: ({ email, magicLink }: { email: string; magicLink: string }) => ({
     to: email,
-    subject: isInitiator ? 'Terms accepted - ready to fund' : 'Escrow terms accepted',
-    html: emailWrapper(`
-      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
-        <p style="font-size: 14px; color: #111827; margin: 0 0 12px 0; font-weight: 500;">
-          ✓ Terms accepted
-        </p>
-        <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px 0;">
-          ${isInitiator ? `${acceptedBy} has accepted the escrow terms` : 'Both parties have agreed to the terms'}
-        </p>
-        
-        <div style="background: #f9fafb; border-radius: 4px; padding: 16px; margin-bottom: 24px;">
-          <p style="font-size: 13px; color: #6b7280; margin: 0 0 4px 0;">Amount</p>
-          <p style="font-size: 18px; color: #111827; font-weight: 600; margin: 0;">${amount}</p>
+    subject: 'Your escrowhaven Magic Link',
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #2563EB; padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">Sign in to escrowhaven</h1>
         </div>
-        
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/escrow/${escrowId}" 
-           style="display: block; text-align: center; background: #111827; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">
-          ${isInitiator ? 'Fund Escrow' : 'View Escrow'}
-        </a>
-      </div>
-    `)
-  }),
-
-  // When escrow is funded and contract deployed
-  escrowFunded: ({ 
-    email, 
-    amount, 
-    escrowId,
-    role 
-  }: {
-    email: string;
-    amount: string;
-    escrowId: string;
-    role: 'payer' | 'recipient';
-  }) => ({
-    to: email,
-    subject: 'Escrow funded',
-    html: emailWrapper(`
-      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
-        <p style="font-size: 14px; color: #111827; margin: 0 0 12px 0; font-weight: 500;">
-          Escrow is active
-        </p>
-        <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px 0;">
-          ${amount} secured on blockchain
-        </p>
-        
-        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; padding: 16px; margin-bottom: 24px;">
-          <p style="font-size: 13px; color: #166534; margin: 0;">
-            ${role === 'payer' 
-              ? 'Funds are protected until you approve release' 
-              : 'Funds will be released upon approval'}
+        <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+          <p style="color: #374151; font-size: 16px; margin-bottom: 24px;">
+            Click the button below to sign in to your escrowhaven account. This link will expire in 1 hour.
+          </p>
+          <div style="text-align: center; margin-bottom: 24px;">
+            <a href="${magicLink}" style="display: inline-block; background: #2563EB; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              Sign In
+            </a>
+          </div>
+          <p style="color: #6b7280; font-size: 14px;">
+            If you didn't request this link, you can safely ignore this email.
           </p>
         </div>
-        
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/escrow/${escrowId}" 
-           style="display: block; text-align: center; background: #111827; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">
-          Manage Escrow
-        </a>
       </div>
-    `)
+    `
   }),
 
-  // When payment is released
-  paymentReleased: ({ 
-    recipientEmail, 
-    amount,
-    netAmount,
-    senderEmail 
-  }: {
+  escrowCreated: ({ recipientEmail, payerEmail, amount, escrowId }: {
     recipientEmail: string;
+    payerEmail: string;
     amount: string;
-    netAmount: string;
-    senderEmail: string;
-  }) => ({
-    to: recipientEmail,
-    subject: 'Payment received',
-    html: emailWrapper(`
-      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
-        <p style="font-size: 14px; color: #111827; margin: 0 0 12px 0; font-weight: 500;">
-          Payment received
-        </p>
-        
-        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; padding: 16px; margin-bottom: 16px;">
-          <p style="font-size: 24px; color: #166534; font-weight: 600; margin: 0;">${netAmount}</p>
-          <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">sent to your wallet</p>
-        </div>
-        
-        <p style="font-size: 13px; color: #6b7280; margin: 0;">
-          From: ${senderEmail}
-        </p>
-      </div>
-    `)
-  }),
-
-  // Payment confirmation for sender
-  paymentSent: ({ 
-    senderEmail, 
-    recipientEmail, 
-    amount 
-  }: {
-    senderEmail: string;
-    recipientEmail: string;
-    amount: string;
-  }) => ({
-    to: senderEmail,
-    subject: 'Payment sent',
-    html: emailWrapper(`
-      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
-        <p style="font-size: 14px; color: #111827; margin: 0 0 12px 0; font-weight: 500;">
-          Payment complete
-        </p>
-        <p style="font-size: 14px; color: #6b7280; margin: 0;">
-          ${amount} sent to ${recipientEmail}
-        </p>
-      </div>
-    `)
-  }),
-
-  // When escrow is refunded
-  escrowRefunded: ({ 
-    email, 
-    amount,
-    isInitiator 
-  }: { 
-    email: string; 
-    amount: string;
-    isInitiator: boolean;
-  }) => ({
-    to: email,
-    subject: 'Escrow refunded',
-    html: emailWrapper(`
-      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
-        <p style="font-size: 14px; color: #111827; margin: 0 0 12px 0; font-weight: 500;">
-          Refund complete
-        </p>
-        <p style="font-size: 14px; color: #6b7280; margin: 0;">
-          ${amount} ${isInitiator ? 'returned to your wallet' : 'refunded to sender'}
-        </p>
-      </div>
-    `)
-  }),
-
-  // Settlement proposed
-  settlementProposed: ({ 
-    email, 
-    proposedBy,
-    yourAmount,
-    escrowId 
-  }: {
-    email: string;
-    proposedBy: string;
-    yourAmount: string;
     escrowId: string;
   }) => ({
-    to: email,
-    subject: 'Settlement proposed',
-    html: emailWrapper(`
-      <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px;">
-        <p style="font-size: 14px; color: #111827; margin: 0 0 12px 0; font-weight: 500;">
-          Settlement proposal
-        </p>
-        <p style="font-size: 14px; color: #6b7280; margin: 0 0 16px 0;">
-          ${proposedBy} proposed a settlement
-        </p>
-        
-        <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 4px; padding: 12px; margin-bottom: 24px;">
-          <p style="font-size: 13px; color: #92400e; margin: 0 0 4px 0;">Your portion:</p>
-          <p style="font-size: 18px; color: #92400e; font-weight: 600; margin: 0;">${yourAmount}</p>
+    to: recipientEmail,
+    subject: `You've been paid ${amount} via escrowhaven!`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #2563EB; padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">You've been paid!</h1>
         </div>
-        
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/escrow/${escrowId}" 
-           style="display: block; text-align: center; background: #111827; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">
-          Review Settlement
-        </a>
+        <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+          <p style="color: #374151; font-size: 16px; margin-bottom: 24px;">
+            Great news! <strong>${payerEmail}</strong> has sent you a payment of <strong style="color: #059669;">${amount}</strong> through escrowhaven.
+          </p>
+          <div style="background: #F0FDF4; border: 2px solid #BBF7D0; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+            <div style="font-size: 14px; color: #065F46; margin-bottom: 8px;">Payment Amount</div>
+            <div style="font-size: 36px; font-weight: 700; color: #065F46;">${amount}</div>
+          </div>
+          <p style="color: #374151; font-size: 16px; margin-bottom: 24px;">
+            The funds are securely held in escrow. Once the payer funds the escrow and both parties approve, the payment will be released to you.
+          </p>
+          <div style="text-align: center; margin-bottom: 24px;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/escrow/${escrowId}" style="display: inline-block; background: #10B981; color: white; padding: 16px 48px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              View Escrow Details
+            </a>
+          </div>
+          <p style="color: #6b7280; font-size: 14px;">
+            Questions? Reply to this email or visit our help center.
+          </p>
+        </div>
       </div>
-    `)
+    `
+  }),
+
+  escrowFunded: ({ email, escrowId, amount }: {
+    email: string;
+    escrowId: string;
+    amount: string;
+  }) => ({
+    to: email,
+    subject: 'Escrow Funded - Ready for Approval',
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #10B981; padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">Escrow Funded Successfully</h1>
+        </div>
+        <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+          <p style="color: #374151; font-size: 16px; margin-bottom: 24px;">
+            The escrow for ${amount} has been funded and is ready for approval.
+          </p>
+          <p style="color: #374151; font-size: 16px; margin-bottom: 24px;">
+            Both parties need to approve the release of funds. Once approved, the payment will be automatically sent to the recipient.
+          </p>
+          <div style="text-align: center;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/escrow/${escrowId}" style="display: inline-block; background: #2563EB; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              Review & Approve
+            </a>
+          </div>
+        </div>
+      </div>
+    `
+  }),
+
+  paymentReleased: ({ recipientEmail, amount, transactionId }: {
+    recipientEmail: string;
+    amount: string;
+    transactionId: string;
+  }) => ({
+    to: recipientEmail,
+    subject: 'Payment Released! 🎉',
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #10B981; padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
+          <h1 style="color: white; margin: 0; font-size: 24px;">Payment Released!</h1>
+        </div>
+        <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+          <p style="color: #374151; font-size: 16px; margin-bottom: 24px;">
+            Great news! Your payment has been released and is on its way to your account.
+          </p>
+          <div style="background: #F0FDF4; border: 2px solid #BBF7D0; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+            <table style="width: 100%;">
+              <tr>
+                <td style="padding: 8px 0; color: #065F46;">Amount Released:</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 700; font-size: 20px; color: #065F46;">${amount}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #065F46;">Transaction ID:</td>
+                <td style="padding: 8px 0; text-align: right; font-family: monospace; font-size: 12px;">
+                  ${transactionId}
+                </td>
+              </tr>
+            </table>
+          </div>
+          <p style="color: #374151; font-size: 14px; margin-bottom: 16px;">
+            The funds have been sent to your registered payment method. Processing time depends on your bank or payment provider.
+          </p>
+          <div style="text-align: center; padding: 24px; background: #F8FAFC; border-radius: 8px;">
+            <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600;">How was your experience?</p>
+            <p style="margin: 0; color: #6b7280; font-size: 14px;">
+              We'd love to hear your feedback to improve escrowhaven.
+            </p>
+          </div>
+          <p style="color: #6b7280; font-size: 14px; margin-top: 24px; text-align: center;">
+            Thank you for using escrowhaven! We hope to see you again soon.
+          </p>
+        </div>
+      </div>
+    `
   })
 };
