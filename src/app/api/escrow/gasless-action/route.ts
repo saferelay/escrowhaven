@@ -2,13 +2,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
-import { sendEmail, emailTemplates } from '@/lib/email'; // Add at top
-
+import { sendEmail, emailTemplates } from '@/lib/email';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+// Helper function to check and fund wallet with MATIC if needed
+async function fundWalletIfNeeded(
+  provider: ethers.providers.Provider,
+  signer: ethers.Wallet,
+  recipientAddress: string,
+  reason: string
+) {
+  try {
+    const balance = await provider.getBalance(recipientAddress);
+    const balanceMatic = parseFloat(ethers.utils.formatEther(balance));
+    
+    console.log(`${reason} wallet balance: ${balanceMatic} MATIC`);
+    
+    // Only fund if they have less than 0.005 MATIC (~5 withdrawals worth)
+    if (balanceMatic < 0.005) {
+      const fundAmount = ethers.utils.parseEther('0.001');
+      console.log(`Funding ${recipientAddress} with 0.001 MATIC for ${reason.toLowerCase()}...`);
+      
+      const maticTx = await signer.sendTransaction({
+        to: recipientAddress,
+        value: fundAmount,
+        gasLimit: 21000
+      });
+      
+      await maticTx.wait();
+      console.log(`MATIC funded successfully: ${maticTx.hash}`);
+      return maticTx.hash;
+    } else {
+      console.log(`Wallet already has sufficient MATIC (${balanceMatic}), skipping funding`);
+      return null;
+    }
+  } catch (error: any) {
+    console.error(`MATIC funding failed (non-critical): ${error.message}`);
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,7 +134,7 @@ export async function POST(request: NextRequest) {
     // Adjusted gas config for mainnet vs testnet
     const gasConfig = isProduction ? {
       gasLimit: 400000,
-      gasPrice: ethers.utils.parseUnits('100', 'gwei') // Higher for mainnet
+      gasPrice: ethers.utils.parseUnits('100', 'gwei')
     } : {
       gasLimit: 400000,
       gasPrice: ethers.utils.parseUnits('50', 'gwei')
@@ -155,7 +191,6 @@ export async function POST(request: NextRequest) {
     
     console.log('Transaction sent:', tx.hash);
     
-    // Use correct explorer URL based on network
     const explorerUrl = isProduction
       ? `https://polygonscan.com/tx/${tx.hash}`
       : `https://amoy.polygonscan.com/tx/${tx.hash}`;
@@ -169,6 +204,44 @@ export async function POST(request: NextRequest) {
     
     console.log('Transaction confirmed:', receipt.transactionHash);
     console.log('Gas used:', receipt.gasUsed.toString());
+    
+    // ========== FUND WALLETS WITH MATIC FOR FUTURE TRANSACTIONS ==========
+    if (action === 'release' && escrow.freelancer_wallet_address) {
+      // Freelancer receives full payment, fund them for withdrawal
+      await fundWalletIfNeeded(
+        provider,
+        backendSigner,
+        escrow.freelancer_wallet_address,
+        'Freelancer withdrawal'
+      );
+    } else if (action === 'refund' && escrow.client_wallet_address) {
+      // Client receives refund, fund them for future transactions
+      await fundWalletIfNeeded(
+        provider,
+        backendSigner,
+        escrow.client_wallet_address,
+        'Client refund'
+      );
+    } else if (action === 'accept_settlement') {
+      // Both parties receive funds in settlement, fund both
+      if (escrow.client_wallet_address) {
+        await fundWalletIfNeeded(
+          provider,
+          backendSigner,
+          escrow.client_wallet_address,
+          'Client settlement'
+        );
+      }
+      if (escrow.freelancer_wallet_address) {
+        await fundWalletIfNeeded(
+          provider,
+          backendSigner,
+          escrow.freelancer_wallet_address,
+          'Freelancer settlement'
+        );
+      }
+    }
+    // ====================================================================
     
     // Update database based on action
     if (action === 'release' || action === 'refund') {
@@ -189,7 +262,6 @@ export async function POST(request: NextRequest) {
       if (updateError) {
         console.error('Database update failed:', updateError);
         console.error('Update data was:', updateData);
-        // Don't fail the whole request since blockchain action succeeded
       } else {
         console.log('Database updated successfully:', updateResult);
         try {
@@ -222,12 +294,6 @@ export async function POST(request: NextRequest) {
               isInitiator: true,
               escrowLink
             }));
-          } else if (action === 'refund') {
-            await sendEmail(emailTemplates.escrowRefunded({
-              email: escrow.client_email,
-              amount: `$${(escrow.amount_cents / 100).toFixed(2)}`,
-              isInitiator: true
-            }));
           }
         } catch (emailError) {
           console.error('Notification emails failed:', emailError);
@@ -250,18 +316,16 @@ export async function POST(request: NextRequest) {
       
       if (insertError) {
         console.error('Settlement proposal insert failed:', insertError);
-        // Check if table exists
         if (insertError.message.includes('settlement_proposals')) {
           console.log('settlement_proposals table might not exist');
         }
       }
     }
     
-    // Trigger sync - use relative URL or localhost for reliability
+    // Trigger sync
     try {
       console.log('Triggering sync for escrow:', escrowId);
       
-      // Use the actual host or localhost
       const syncUrl = process.env.NODE_ENV === 'production' 
         ? `${process.env.NEXT_PUBLIC_APP_URL}/api/escrow/sync-blockchain`
         : 'https://escrowhaven.io/api/escrow/sync-blockchain';
@@ -280,7 +344,6 @@ export async function POST(request: NextRequest) {
       
     } catch (syncError) {
       console.error('Sync failed but continuing:', syncError);
-      // Don't fail the request since the main action succeeded
     }
     
     return NextResponse.json({
