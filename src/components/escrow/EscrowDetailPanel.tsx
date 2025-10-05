@@ -1125,6 +1125,7 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                           checked={termsAccepted}
                           onChange={(e) => setTermsAccepted(e.target.checked)}
                           className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          disabled={!user}
                         />
                         <label htmlFor="accept-terms" className="text-sm text-gray-900 cursor-pointer">
                           I understand and accept the escrowhaven blockchain-secured terms
@@ -1174,16 +1175,16 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
                       <>
                         <button
                           onClick={handleAccept}
-                          disabled={processing || !termsAccepted}
+                          disabled={processing || !termsAccepted || !user}
                           className={clsx(
                             "w-full py-2.5 rounded-lg transition-all text-sm font-medium",
-                            termsAccepted 
+                            (termsAccepted && user)
                               ? "bg-[#2962FF] text-white hover:bg-[#1d4ed8]" 
                               : "bg-gray-100 text-gray-400 cursor-not-allowed"
                           )}
-                        >
-                          {processing ? 'Processing...' : 'Accept Terms'}
-                        </button>
+                          >
+                            {!user ? 'Loading...' : processing ? 'Processing...' : 'Accept Terms'}
+                          </button>
                         <button
                           onClick={() => setShowDeclineForm(true)}
                           disabled={processing}
