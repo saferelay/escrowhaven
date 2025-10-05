@@ -65,9 +65,9 @@ export async function POST(request: NextRequest) {
     const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
     
     const FACTORY_ABI = [
-      "function getVaultAddress(bytes32 salt) view returns (address)",
+      "function getVaultAddress(bytes32,address,address) view returns (address,address)",
       "function createEscrowWithTransak(bytes32,address,address,uint256) payable returns (address,address)",
-      "function deployVault(bytes32,address,address,uint256) returns (address,address)"
+      "function deployVault(bytes32,address,address) returns (address,address)"
     ];
     
     const factory = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, signer);
@@ -83,23 +83,29 @@ export async function POST(request: NextRequest) {
     console.log('Freelancer Magic wallet:', freelancerAddress);
     
     // PREDICT vault address using CREATE2 (no deployment)
-    const predictedVaultAddress = await factory.getVaultAddress(salt);
+    const [predictedVaultAddress, predictedSplitterAddress] = await factory.getVaultAddress(
+      salt,
+      clientAddress,
+      freelancerAddress
+    );
     
     console.log('Predicted vault address:', predictedVaultAddress);
     
     // Store prediction info in database
     await supabase
-      .from('escrows')
-      .update({
-        vault_address: predictedVaultAddress, // Predicted address
-        client_wallet_address: clientAddress,
-        freelancer_wallet_address: freelancerAddress,
-        deployment_salt: salt,
-        network: isTestMode ? 'polygon-amoy' : 'polygon',
-        is_test_mode: isTestMode,
-        status: 'ACCEPTED' // Ready for funding
-      })
-      .eq('id', escrowId);
+    .from('escrows')
+    .update({
+      vault_address: predictedVaultAddress,
+      splitter_address: predictedSplitterAddress,  // ADD THIS LINE
+      client_wallet_address: clientAddress,
+      freelancer_wallet_address: freelancerAddress,
+      deployment_salt: salt,
+      factory_address: FACTORY_ADDRESS,  // ADD THIS TOO
+      network: isTestMode ? 'polygon-amoy' : 'polygon',
+      is_test_mode: isTestMode,
+      status: 'ACCEPTED'
+    })
+    .eq('id', escrowId);
     
     // Generate Transak One calldata for atomic execution
     const amountUsdc = ethers.utils.parseUnits((escrow.amount_cents / 100).toString(), 6);
