@@ -693,11 +693,10 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       alert('Please accept the terms to continue');
       return;
     }
-
+  
     setProcessing(true);
-
-    // Ensure wallet exists before accepting
-    const { ensureWallet } = useAuth();
+  
+    // Ensure wallet exists before accepting - use the one from useAuth at top
     try {
       const wallet = await ensureWallet();
       if (!wallet) {
@@ -706,29 +705,32 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         return;
       }
     } catch (err: any) {
+      console.error('Wallet creation error:', err);
       alert('Wallet connection required to accept escrow');
       setProcessing(false);
       return;
     }
-
-
-
+  
     try {
       const updateData: any = {
         status: 'ACCEPTED',
         accepted_at: new Date().toISOString()
       };
       
-      if (role === 'recipient') {
-        const { data: walletData } = await supabase
-          .from('user_wallets')
-          .select('wallet_address')
-          .eq('email', user?.email)
-          .single();
-        
-        if (walletData?.wallet_address) {
+      // Get the wallet address that was just created/ensured
+      const { data: walletData } = await supabase
+        .from('user_wallets')
+        .select('wallet_address')
+        .eq('email', user?.email)
+        .single();
+      
+      if (walletData?.wallet_address) {
+        // Update both wallet fields if user is the recipient
+        if (role === 'recipient') {
           updateData.recipient_wallet_address = walletData.wallet_address;
           updateData.freelancer_wallet_address = walletData.wallet_address;
+        } else if (role === 'payer') {
+          updateData.client_wallet_address = walletData.wallet_address;
         }
       }
   
@@ -746,7 +748,6 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       setProcessing(false);
     }
   };
-
   const handleDecline = async () => {
     if (!declineReason.trim()) {
       alert('Please provide a reason for declining');
