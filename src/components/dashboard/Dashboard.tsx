@@ -983,7 +983,10 @@ useEffect(() => {
               >
                 Feedback
               </button>
-              <button onClick={() => onNavigate('help')} className={btn.outlineSmall}>
+              <button 
+                onClick={() => window.open('/help', '_blank')}
+                className={btn.outlineSmall}
+              >
                 Help
               </button>
               <div className="hidden sm:flex flex-col items-end leading-tight ml-1">
