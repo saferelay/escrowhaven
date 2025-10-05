@@ -1,6 +1,5 @@
 // src/app/api/escrow/create-invitation/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail, emailTemplates } from '@/lib/email';
 
@@ -33,111 +32,17 @@ export async function POST(request: NextRequest) {
     // Determine network
     const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
     
-    // Get wallet addresses from user_wallets table
-    const [clientWalletResult, freelancerWalletResult] = await Promise.all([
-      supabase.from('user_wallets').select('wallet_address').eq('email', clientEmail).maybeSingle(),
-      supabase.from('user_wallets').select('wallet_address').eq('email', freelancerEmail).maybeSingle()
-    ]);
-    
-    const clientWallet = clientWalletResult?.data?.wallet_address;
-    const freelancerWallet = freelancerWalletResult?.data?.wallet_address;
-    
-    // Only require client wallet at creation
-    if (!clientWallet) {
-      return NextResponse.json({ 
-        error: 'Sender must connect their wallet first'
-      }, { status: 400 });
-    }
-    
-    // Provider setup - FIXED for mainnet/testnet
-    const provider = new ethers.providers.StaticJsonRpcProvider(
-      {
-        url: isProduction
-          ? `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
-          : `https://polygon-amoy.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-        skipFetchSetup: true
-      },
-      {
-        chainId: isProduction ? 137 : 80002,
-        name: isProduction ? 'polygon-mainnet' : 'polygon-amoy'
-      }
-    );
-    
-    // FIXED: Use correct factory address based on environment
-    const FACTORY_ADDRESS = isProduction
-      ? process.env.ESCROWHAVEN_FACTORY_ADDRESS_MAINNET
-      : process.env.ESCROWHAVEN_FACTORY_ADDRESS;
-
-    if (!FACTORY_ADDRESS) {
-      throw new Error(`ESCROWHAVEN_FACTORY_ADDRESS${isProduction ? '_MAINNET' : ''} not configured`);
-    }
-    
-    const FACTORY_ABI = [
-      "function getVaultAddress(bytes32,address,address) view returns (address,address)"
-    ];
-    
-    const factory = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, provider);
-    
-    // Generate unique salt
-    const timestamp = Date.now();
-    const saltString = `${clientEmail}-${freelancerEmail}-${timestamp}-${Math.random()}`;
-    const salt = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(saltString));
-    
-    // Calculate predicted addresses
-    let predictedVault, predictedSplitter;
-    try {
-      const [vault, splitter] = await factory.getVaultAddress(
-        salt,
-        clientWallet,
-        freelancerWallet
-      );
-      predictedVault = vault;
-      predictedSplitter = splitter;
-      
-      console.log('Predicted addresses:', {
-        vault: predictedVault,
-        splitter: predictedSplitter,
-        factory: FACTORY_ADDRESS
-      });
-    } catch (e: any) {
-      console.error('Failed to predict addresses:', e);
-      return NextResponse.json({ 
-        error: 'Failed to calculate vault address',
-        details: e.message 
-      }, { status: 500 });
-    }
-    
-    // Create database entry
+    // Create database entry - no wallet validation needed at invitation stage
     const { data: escrow, error } = await supabase
       .from('escrows')
       .insert({
-        // Core fields
         amount_cents: Math.round(parseFloat(amountUsd) * 100),
         status: 'INITIATED',
-        
-        // Salt and addresses
-        salt: salt,
-        vault_address: predictedVault,
-        splitter_address: predictedSplitter,
-        contract_deployed: false,
-        
-        // Email fields
         client_email: clientEmail,
         freelancer_email: freelancerEmail,
-        
-        // Wallet addresses - store them!
-        client_wallet_address: clientWallet,
-        freelancer_wallet_address: freelancerWallet || null,
-        
-        // Factory used
-        factory_address: FACTORY_ADDRESS,
-        
-        // Optional fields
         description: description || null,
         initiator_email: initiatorEmail || null,
         initiator_role: initiatorRole || null,
-        
-        // Network info
         network: isProduction ? 'polygon-mainnet' : 'polygon-amoy',
         is_test_mode: !isProduction
       })
@@ -152,18 +57,15 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
     
-    console.log('Escrow created:', {
+    console.log('Escrow invitation created:', {
       id: escrow.id,
-      salt: salt,
-      vault: predictedVault,
-      splitter: predictedSplitter,
       client: clientEmail,
       freelancer: freelancerEmail,
       amount: amountUsd,
-      factory: FACTORY_ADDRESS
+      initiator: initiatorEmail
     });
 
-
+    // Send invitation email
     const recipientEmail = initiatorRole === 'payer' ? freelancerEmail : clientEmail;
     const senderEmail = initiatorRole === 'payer' ? clientEmail : freelancerEmail;
 
@@ -178,10 +80,8 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({
       escrowId: escrow.id,
-      vaultAddress: predictedVault,
-      splitterAddress: predictedSplitter,
       status: 'INITIATED',
-      message: 'Escrow created successfully. Awaiting acceptance.'
+      message: 'Escrow invitation created. Awaiting acceptance.'
     });
     
   } catch (error: any) {
