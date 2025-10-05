@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
     
     const FACTORY_ABI = [
       "function getVaultAddress(bytes32,address,address) view returns (address,address)",
-      "function createEscrowWithTransak(bytes32,address,address,uint256) payable returns (address,address)",
       "function deployVault(bytes32,address,address) returns (address,address)"
     ];
     
@@ -76,69 +75,45 @@ export async function POST(request: NextRequest) {
     const saltString = `${escrowId}-${clientAddress}-${freelancerAddress}-${Date.now()}`;
     const salt = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(saltString));
     
-    console.log('=== TRANSAK ONE PREDICTION MODE ===');
+    console.log('=== VAULT ADDRESS PREDICTION ===');
     console.log('Escrow ID:', escrowId);
     console.log('Salt:', salt);
-    console.log('Client Magic wallet:', clientAddress);
-    console.log('Freelancer Magic wallet:', freelancerAddress);
+    console.log('Client wallet:', clientAddress);
+    console.log('Freelancer wallet:', freelancerAddress);
     
-    // PREDICT vault address using CREATE2 (no deployment)
+    // Get predicted vault address (no amount needed)
     const [predictedVaultAddress, predictedSplitterAddress] = await factory.getVaultAddress(
       salt,
       clientAddress,
       freelancerAddress
     );
     
-    console.log('Predicted vault address:', predictedVaultAddress);
+    console.log('Predicted vault:', predictedVaultAddress);
+    console.log('Predicted splitter:', predictedSplitterAddress);
     
-    // Store prediction info in database
+    // Store in database
     await supabase
-    .from('escrows')
-    .update({
-      vault_address: predictedVaultAddress,
-      splitter_address: predictedSplitterAddress,  // ADD THIS LINE
-      client_wallet_address: clientAddress,
-      freelancer_wallet_address: freelancerAddress,
-      deployment_salt: salt,
-      factory_address: FACTORY_ADDRESS,  // ADD THIS TOO
-      network: isTestMode ? 'polygon-amoy' : 'polygon',
-      is_test_mode: isTestMode,
-      status: 'ACCEPTED'
-    })
-    .eq('id', escrowId);
-    
-    // Generate Transak One calldata for atomic execution
-    const amountUsdc = ethers.utils.parseUnits((escrow.amount_cents / 100).toString(), 6);
-    
-    const factoryInterface = new ethers.utils.Interface([
-      "function createEscrowWithTransak(bytes32 salt, address client, address freelancer, uint256 expectedAmount) payable returns (address escrow, address splitter)"
-    ]);
-    
-    const calldata = factoryInterface.encodeFunctionData('createEscrowWithTransak', [
-      salt,
-      clientAddress,
-      freelancerAddress,
-      amountUsdc
-    ]);
-    
-    console.log('Generated calldata for Transak One:', calldata.slice(0, 20) + '...');
-    console.log('Calldata parameters:', {
-      salt,
-      clientAddress,
-      freelancerAddress,
-      amountUsdcFormatted: ethers.utils.formatUnits(amountUsdc, 6)
-    });
+      .from('escrows')
+      .update({
+        vault_address: predictedVaultAddress,
+        splitter_address: predictedSplitterAddress,
+        client_wallet_address: clientAddress,
+        freelancer_wallet_address: freelancerAddress,
+        salt: salt,
+        factory_address: FACTORY_ADDRESS,
+        network: isTestMode ? 'polygon-amoy' : 'polygon',
+        is_test_mode: isTestMode,
+        status: 'ACCEPTED'
+      })
+      .eq('id', escrowId);
     
     return NextResponse.json({
       vaultAddress: predictedVaultAddress,
+      splitterAddress: predictedSplitterAddress,
       recipientWallet: freelancerAddress,
       factoryAddress: FACTORY_ADDRESS,
-      calldata: calldata,
       salt: salt,
-      mode: 'transak_one_atomic',
-      message: isTestMode 
-        ? 'Vault address predicted - ready for atomic funding on testnet'
-        : 'Vault address predicted - ready for Transak One atomic funding',
+      message: 'Vault address predicted - ready for funding',
       explorerUrl: isTestMode 
         ? `https://amoy.polygonscan.com/address/${predictedVaultAddress}`
         : `https://polygonscan.com/address/${predictedVaultAddress}`
