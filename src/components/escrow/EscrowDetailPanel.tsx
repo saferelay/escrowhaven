@@ -868,81 +868,22 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       // Get or create salt for this escrow
       const { salt } = await getOrCreateSalt(escrow.id, supabase);
       
-      // Get client wallet (current user)
-      const { data: walletData } = await supabase
-        .from('user_wallets')
-        .select('wallet_address')
-        .eq('email', user?.email)
-        .single();
+      // Call prepare-funding API to compute vault address server-side
+      const response = await fetch('/api/escrow/prepare-funding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ escrowId: escrow.id })
+      });
       
-      const clientWallet = walletData?.wallet_address;
-      
-      // Get freelancer wallet
-      let freelancerWallet = escrow.freelancer_wallet_address || 
-                            escrow.recipient_wallet_address;
-  
-      if (!freelancerWallet) {
-        const { data: freelancerWalletData } = await supabase
-          .from('user_wallets')
-          .select('wallet_address')
-          .eq('email', escrow.freelancer_email)
-          .maybeSingle();
-        
-        freelancerWallet = freelancerWalletData?.wallet_address;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to prepare funding');
       }
       
-      // Validate both wallets exist
-      if (!clientWallet || !freelancerWallet) {
-        alert(`Missing wallet address: ${!clientWallet ? 'Your' : "Recipient's"} wallet needs to be connected first`);
-        setProcessing(false);
-        return;
-      }
-  
-      // Compute vault address if not already in DB
-      let vaultAddress = escrow.vault_address;
-
-      if (!vaultAddress) {
-        console.log('Computing vault address...');
-        
-        const { ethers } = await import('ethers');
-        const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
-        
-        const provider = new ethers.providers.StaticJsonRpcProvider(
-          isProduction 
-            ? `https://polygon-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`
-            : 'https://rpc-amoy.polygon.technology'
-        );
-
-        const factoryAddress = isProduction
-          ? process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS_MAINNET
-          : process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS;
-
-        const factory = new ethers.Contract(
-          factoryAddress,
-          ["function getVaultAddress(bytes32,address,address) view returns (address,address)"],
-          provider
-        );
-
-        const [computedVault, computedSplitter] = await factory.getVaultAddress(
-          salt,
-          clientWallet,
-          freelancerWallet
-        );
-        
-        vaultAddress = computedVault;
-        console.log('Computed vault:', vaultAddress);
-        
-        // Save to database
-        await supabase
-          .from('escrows')
-          .update({ 
-            vault_address: vaultAddress,
-            splitter_address: computedSplitter,
-            factory_address: factoryAddress
-          })
-          .eq('id', escrow.id);
-      }
-  
+      const { vaultAddress } = await response.json();
+      
+      console.log('Vault address ready:', vaultAddress);
+      
       // Build Onramp direct widget URL (sends USDC directly to vault)
       const url = createOnrampDirectWidget({
         email: user?.email || escrow.client_email,
