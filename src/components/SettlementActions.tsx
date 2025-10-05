@@ -142,7 +142,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
       const nonce = Date.now();
       const message = ethers.utils.solidityKeccak256(
         ['string', 'address', 'uint256'],
-        ['Release transaction', escrow.vault_address, nonce]
+        ['Release escrow', escrow.vault_address, nonce]
       );
       
       setStatus('Please sign the release authorization in your email...');
@@ -218,7 +218,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
       const nonce = Date.now();
       const message = ethers.utils.solidityKeccak256(
         ['string', 'address', 'uint256'],
-        ['Refund transaction', escrow.vault_address, nonce]
+        ['Refund escrow', escrow.vault_address, nonce]
       );
       
       setStatus('Please sign the refund authorization in your email...');
