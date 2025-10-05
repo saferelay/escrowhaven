@@ -742,7 +742,7 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       // Step 3: If both wallets exist, pre-compute vault address
       let vaultAddress = null;
       let splitterAddress = null;
-  
+
       if (otherWalletAddress) {
         console.log('Both wallets exist - pre-computing vault address');
         
@@ -750,24 +750,32 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         const freelancerWallet = role === 'recipient' ? walletAddress : otherWalletAddress;
         
         try {
-          const response = await fetch('/api/vault/address', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              salt: escrow.salt,
-              clientAddress: clientWallet,
-              freelancerAddress: freelancerWallet,
-              factoryAddress: escrow.factory_address || process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS,
-              rpcUrl: 'https://rpc-amoy.polygon.technology'
-            })
-          });
-  
-          if (response.ok) {
-            const data = await response.json();
-            vaultAddress = data.vaultAddress;
-            splitterAddress = data.splitterAddress;
-            console.log('Vault pre-computed:', vaultAddress);
-          }
+          const { ethers } = await import('ethers');
+          
+          const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
+          const provider = new ethers.providers.StaticJsonRpcProvider(
+            isProduction 
+              ? `https://polygon-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`
+              : 'https://rpc-amoy.polygon.technology'
+          );
+
+          const factoryAddress = isProduction
+            ? process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS_MAINNET
+            : process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS;
+
+          const factory = new ethers.Contract(
+            factoryAddress,
+            ["function getVaultAddress(bytes32,address,address) view returns (address,address)"],
+            provider
+          );
+
+          [vaultAddress, splitterAddress] = await factory.getVaultAddress(
+            escrow.salt,
+            clientWallet,
+            freelancerWallet
+          );
+          
+          console.log('Vault pre-computed:', vaultAddress);
         } catch (err) {
           console.warn('Vault pre-computation failed (non-critical):', err);
         }
@@ -890,42 +898,49 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         return;
       }
   
-      // Check if vault address already exists in database
+      // Compute vault address if not already in DB
       let vaultAddress = escrow.vault_address;
-      
-      // If not in database, compute it via API
+
       if (!vaultAddress) {
         console.log('Computing vault address...');
         
-        const response = await fetch('/api/vault/address', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            salt,
-            clientAddress: clientWallet,
-            freelancerAddress: freelancerWallet,
-            factoryAddress: escrow.factory_address,
-            rpcUrl: 'https://rpc-amoy.polygon.technology'
-          })
-        });
-  
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(errorData.error || 'Failed to get vault address');
-        }
-  
-        const { vaultAddress: computedVault } = await response.json();
+        const { ethers } = await import('ethers');
+        const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
+        
+        const provider = new ethers.providers.StaticJsonRpcProvider(
+          isProduction 
+            ? `https://polygon-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`
+            : 'https://rpc-amoy.polygon.technology'
+        );
+
+        const factoryAddress = isProduction
+          ? process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS_MAINNET
+          : process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS;
+
+        const factory = new ethers.Contract(
+          factoryAddress,
+          ["function getVaultAddress(bytes32,address,address) view returns (address,address)"],
+          provider
+        );
+
+        const [computedVault, computedSplitter] = await factory.getVaultAddress(
+          salt,
+          clientWallet,
+          freelancerWallet
+        );
+        
         vaultAddress = computedVault;
-  
-        console.log('Computed vault address:', vaultAddress);
-  
-        // Persist vault address to database
+        console.log('Computed vault:', vaultAddress);
+        
+        // Save to database
         await supabase
           .from('escrows')
-          .update({ vault_address: vaultAddress })
+          .update({ 
+            vault_address: vaultAddress,
+            splitter_address: computedSplitter,
+            factory_address: factoryAddress
+          })
           .eq('id', escrow.id);
-      } else {
-        console.log('Using existing vault address:', vaultAddress);
       }
   
       // Build Onramp direct widget URL (sends USDC directly to vault)
