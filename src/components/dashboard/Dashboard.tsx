@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import { CreateEscrowWizard } from '@/components/escrow/CreateEscrowWizard';
 import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
 import { OffRampModal } from '@/components/dashboard/OffRampModal';
+import { OnrampSDKTest } from '@/components/dashboard/OnrampSDKTest';
 
 // Icons
 import {
@@ -1181,6 +1182,7 @@ useEffect(() => {
   >
     Withdraw to bank
   </button>
+  <OnrampSDKTest />
 </div>
 
               </div>
