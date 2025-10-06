@@ -1182,6 +1182,7 @@ useEffect(() => {
   >
     Withdraw to bank
   </button>
+  <OnrampSDKTest />
 </div>
 
               </div>
