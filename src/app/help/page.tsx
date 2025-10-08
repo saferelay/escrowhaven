@@ -89,11 +89,11 @@ export default function HelpPage() {
     <div className="min-h-screen bg-white">
       <header className="border-b border-[#E0E2E7] bg-white sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button onClick={() => router.push('/dashboard')} className="text-xl font-normal text-black hover:opacity-80">
+          <button onClick={() => router.push('/')} className="text-xl font-normal text-black hover:opacity-80">
             escrowhaven<span className="text-[#2962FF]">.io</span>
           </button>
-          <button onClick={() => router.push('/dashboard')} className="text-sm text-[#787B86] hover:text-black">
-            Back to Dashboard
+          <button onClick={() => router.push('/')} className="text-sm text-[#787B86] hover:text-black">
+            Back to Homepage
           </button>
         </div>
       </header>
@@ -149,12 +149,12 @@ export default function HelpPage() {
           <h2 className="text-3xl font-normal text-black mb-2">Still need help?</h2>
           <p className="text-base text-[#787B86] mb-8">Cannot find what you are looking for? We are here to help.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button onClick={() => router.push('/dashboard')} className="px-8 py-3 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] font-medium">
-              Use Feedback Button
-            </button>
-            <a href="mailto:hello@escrowhaven.io" className="px-8 py-3 border border-[#E0E2E7] text-[#787B86] rounded-lg hover:bg-white hover:text-black">
-              Email hello@escrowhaven.io
+            <a href="mailto:hello@escrowhaven.io" className="px-8 py-3 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] font-medium">
+              Contact Support
             </a>
+            <button onClick={() => router.push('/')} className="px-8 py-3 border border-[#E0E2E7] text-[#787B86] rounded-lg hover:bg-white hover:text-black">
+              Back to Homepage
+            </button>
           </div>
         </div>
       </main>
