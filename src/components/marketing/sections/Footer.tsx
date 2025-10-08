@@ -6,6 +6,10 @@ import { useRouter } from 'next/navigation';
 export function Footer() {
   const router = useRouter();
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -53,7 +57,7 @@ export function Footer() {
                 </li>
                 <li>
                   <button 
-                    onClick={() => scrollToSection('transparency')} 
+                    onClick={() => handleNavigation('/help')} 
                     className="hover:text-black transition-colors text-left"
                   >
                     Security
@@ -68,7 +72,7 @@ export function Footer() {
               <ul className="space-y-4 text-sm text-[#787B86]">
                 <li>
                   <button 
-                    onClick={() => scrollToSection('benefits')} 
+                    onClick={scrollToTop} 
                     className="hover:text-black transition-colors text-left"
                   >
                     Secure Your Payment
@@ -76,7 +80,7 @@ export function Footer() {
                 </li>
                 <li>
                   <button 
-                    onClick={() => scrollToSection('how-it-works')} 
+                    onClick={scrollToTop} 
                     className="hover:text-black transition-colors text-left"
                   >
                     Hire with Confidence
@@ -84,7 +88,7 @@ export function Footer() {
                 </li>
                 <li>
                   <button 
-                    onClick={() => scrollToSection('comparison')} 
+                    onClick={scrollToTop} 
                     className="hover:text-black transition-colors text-left"
                   >
                     Instant Approvals
@@ -99,7 +103,7 @@ export function Footer() {
               <ul className="space-y-4 text-sm text-[#787B86]">
                 <li>
                   <button 
-                    onClick={() => scrollToSection('pain-hook')} 
+                    onClick={scrollToTop} 
                     className="hover:text-black transition-colors text-left"
                   >
                     Avoid Chargebacks
@@ -107,7 +111,7 @@ export function Footer() {
                 </li>
                 <li>
                   <button 
-                    onClick={() => scrollToSection('comparison')} 
+                    onClick={scrollToTop} 
                     className="hover:text-black transition-colors text-left"
                   >
                     Get Paid Faster
@@ -115,7 +119,7 @@ export function Footer() {
                 </li>
                 <li>
                   <button 
-                    onClick={() => scrollToSection('benefits')} 
+                    onClick={scrollToTop} 
                     className="hover:text-black transition-colors text-left"
                   >
                     Global Withdrawals
@@ -130,7 +134,7 @@ export function Footer() {
               <ul className="space-y-4 text-sm text-[#787B86]">
                 <li>
                   <button 
-                    onClick={() => scrollToSection('faq')} 
+                    onClick={() => handleNavigation('/help')} 
                     className="hover:text-black transition-colors text-left"
                   >
                     Help Center
@@ -145,10 +149,20 @@ export function Footer() {
                   </button>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-black transition-colors">Blog</a>
+                  <button 
+                    onClick={() => handleNavigation('/blog')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    Blog
+                  </button>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-black transition-colors">API Docs</a>
+                  <button 
+                    onClick={() => handleNavigation('/api-docs')} 
+                    className="hover:text-black transition-colors text-left"
+                  >
+                    API Docs
+                  </button>
                 </li>
               </ul>
             </div>
@@ -159,17 +173,14 @@ export function Footer() {
               <ul className="space-y-4 text-sm text-[#787B86]">
                 <li>
                   <button 
-                    onClick={() => scrollToSection('hero')} 
+                    onClick={() => handleNavigation('/about')} 
                     className="hover:text-black transition-colors text-left"
                   >
-                    About escrowhaven
+                    About EscrowHaven
                   </button>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-black transition-colors">Careers</a>
-                </li>
-                <li>
-                  <a href="mailto:support@escrowhaven.io" className="hover:text-black transition-colors">Contact</a>
+                  <a href="mailto:hello@escrowhaven.io" className="hover:text-black transition-colors">Contact</a>
                 </li>
               </ul>
             </div>
@@ -194,27 +205,14 @@ export function Footer() {
                     Log In
                   </button>
                 </li>
-                <li>
-                  <a href="#" className="hover:text-black transition-colors">iOS App</a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-black transition-colors">Android App</a>
-                </li>
               </ul>
             </div>
           </div>
           
-          {/* Social links and logo */}
+          {/* Logo only - removed social links */}
           <div className="border-t border-[#E0E2E7] pt-10">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10">
-              <div className="mb-6 md:mb-0">
-                <span className="text-lg font-semibold text-black">escrowhaven.io</span>
-              </div>
-              <div className="flex items-center gap-6">
-                <span className="text-sm text-[#787B86]">Follow Us</span>
-                <a href="https://twitter.com/escrowhaven" target="_blank" rel="noopener noreferrer" className="text-[#787B86] hover:text-black transition-colors" aria-label="Twitter">X</a>
-                <a href="https://reddit.com/r/escrowhaven" target="_blank" rel="noopener noreferrer" className="text-[#787B86] hover:text-black transition-colors" aria-label="Reddit">Reddit</a>
-              </div>
+            <div className="mb-6">
+              <span className="text-lg font-semibold text-black">escrowhaven.io</span>
             </div>
           </div>
         </div>
@@ -237,7 +235,7 @@ export function Footer() {
               <strong className="text-[#787B86]">4. Transaction Vault Risks.</strong> Transaction vaults are immutable once deployed. While we conduct code audits and testing, blockchain transactions are irreversible and carry inherent risks, including potential vulnerabilities, exploits, or network issues.
             </p>
             <p>
-              <strong className="text-[#787B86]">5. Payment Processing.</strong> All fiat-to-crypto conversions are provided by Transak, our third-party payment partners. KYC/AML verification may be required. Standard processing fees apply.
+              <strong className="text-[#787B86]">5. Payment Processing.</strong> All fiat-to-crypto conversions are provided by third-party payment partners. KYC/AML verification may be required. Standard processing fees apply.
             </p>
             <p>
               <strong className="text-[#787B86]">6. Platform Fees.</strong> escrowhaven charges a 1.99% fee on successful transaction releases. This fee is automatically deducted from the released amount via our smart contract splitter.
