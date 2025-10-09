@@ -23,6 +23,7 @@ import {
   CheckCircle,
   Menu as MenuIcon,
   X as CloseIcon,
+  ChevronDown,
 } from '@/components/icons/UIIcons';
 
 type ViewType = 'marketing' | 'dashboard' | 'transparency' | 'escrow' | 'login' | 'help';
@@ -101,6 +102,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Profile dropdown
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   // Feedback
   const [showFeedbackForEscrow, setShowFeedbackForEscrow] = useState<string | null>(null);
@@ -232,8 +237,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           completed: 0,
         });
       }
-    });  // <- This closes the dedupeFetch call
-  }, [supabase, user?.email, isProduction, dedupeFetch]);  // <- This closes useCallback
+    });
+  }, [supabase, user?.email, isProduction, dedupeFetch]);
 
   // Fetch metrics
   const fetchMetrics = useCallback(async () => {
@@ -241,10 +246,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     
     try {
       const { data: metricsResult, error: metricsError } = await supabase
-      .rpc('get_user_metrics', { 
-        p_user_email: user.email,
-        p_env: isProduction ? 'production' : 'development'
-      });
+        .rpc('get_user_metrics', { 
+          p_user_email: user.email,
+          p_env: isProduction ? 'production' : 'development'
+        });
       
       if (metricsError) {
         console.warn('Metrics fetch failed, using defaults:', metricsError);
@@ -255,7 +260,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           totalWithdrawn: 0,
           activeEscrows: 0,
           completedCount: 0,
-          refundedCount: 0
+          refundedCount: 0,
         });
         return;
       }
@@ -288,7 +293,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           totalWithdrawn: 0,
           activeEscrows: 0,
           completedCount: 0,
-          refundedCount: 0
+          refundedCount: 0,
         });
       }
     } catch (err) {
@@ -300,7 +305,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         totalWithdrawn: 0,
         activeEscrows: 0,
         completedCount: 0,
-        refundedCount: 0
+        refundedCount: 0,
       });
     }
   }, [supabase, user?.email, isProduction]);
@@ -309,7 +314,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const fetchEscrows = useCallback(async (reset = false, folder: Folder = activeFolder) => {
     if (!supabase || !user?.email) return;
     
-    // CRITICAL: Prevent concurrent fetches
     if (loadingRef.current) return;
     if (!reset && !hasMore) return;
     
@@ -319,7 +323,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     try {
       const pageToLoad = reset ? 0 : currentPage;
       
-      // Add a minimum delay to prevent rapid-fire requests
       await new Promise(resolve => setTimeout(resolve, 100));
       
       const { data: escrowsResult, error } = await supabase
@@ -333,7 +336,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       
       if (error) {
         console.error('Escrows fetch error:', error);
-        setHasMore(false); // Stop trying if there's an error
+        setHasMore(false);
         return;
       }
       
@@ -347,7 +350,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             const existingIds = new Set(prev.map(e => e.id));
             const newEscrows = escrowsResult.filter(e => !existingIds.has(e.id));
             if (newEscrows.length === 0) {
-              setHasMore(false); // No new items, stop fetching
+              setHasMore(false);
             }
             return [...prev, ...newEscrows];
           });
@@ -365,9 +368,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       }
     } catch (err: any) {
       console.error('Dashboard fetch error:', err);
-      setHasMore(false); // Stop trying on error
+      setHasMore(false);
     } finally {
-      // Ensure loading states are cleared
       loadingRef.current = false;
       setIsLoadingMore(false);
     }
@@ -428,17 +430,59 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
   }, [fetchEscrows, fetchWithdrawals, fetchMetrics, fetchFolderCounts, isRefreshing, activeFolder]);
 
+  // Handle withdraw
+  const handleWithdraw = async () => {
+    if (metrics.availableToWithdraw === 0 || !supabase || !user?.email) return;
+    
+    try {
+      const { data: walletData } = await supabase
+        .from('user_wallets')
+        .select('wallet_address')
+        .eq('email', user.email)
+        .single();
+        
+      if (!walletData?.wallet_address) {
+        alert('Wallet not found. Please connect your wallet first.');
+        return;
+      }
+      
+      const { data: withdrawal, error } = await supabase
+        .from('withdrawals')
+        .insert({
+          user_email: user.email,
+          amount_cents: Math.floor(metrics.availableToWithdraw * 100),
+          wallet_address: walletData.wallet_address,
+          status: 'PENDING',
+          provider: 'onramp',
+        })
+        .select()
+        .single();
+        
+      if (error) {
+        alert('Failed to initiate withdrawal: ' + error.message);
+        return;
+      }
+      
+      if (withdrawal && withdrawal.id) {
+        setCurrentWithdrawalId(String(withdrawal.id));
+        setShowOffRampModal(true);
+      }
+    } catch (e) {
+      console.error('Withdrawal error:', e);
+      alert('Failed to process withdrawal');
+    }
+  };
+
   // Initial load
   useEffect(() => {
     if (!authLoading && user?.email && supabase && isInitialLoad) {
-      // Only fetch once on initial load
       const initFetch = async () => {
         await fetchEscrows(true, activeFolder);
         await fetchWithdrawals();
       };
       initFetch();
     }
-  }, [authLoading, user?.email, supabase, isInitialLoad]); // Remove functions from dependencies
+  }, [authLoading, user?.email, supabase, isInitialLoad]);
 
   // Check for feedback needed
   useEffect(() => {
@@ -477,39 +521,38 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   }, [user?.email]);
 
   // Intersection Observer
-useEffect(() => {
-  let timeoutId: NodeJS.Timeout;
-  
-  const observer = new IntersectionObserver(
-    entries => {
-      if (entries[0].isIntersecting && hasMore && !loadingRef.current && !isLoadingMore) {
-        // Debounce the fetch call
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-          if (!loadingRef.current && hasMore) {
-            fetchEscrows(false, activeFolder);
-          }
-        }, 500); // Wait 500ms before fetching
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loadingRef.current && !isLoadingMore) {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            if (!loadingRef.current && hasMore) {
+              fetchEscrows(false, activeFolder);
+            }
+          }, 500);
+        }
+      },
+      { 
+        threshold: 0.1,
+        rootMargin: '100px'
       }
-    },
-    { 
-      threshold: 0.1,
-      rootMargin: '100px'
+    );
+    
+    const currentTarget = observerTarget.current;
+    if (currentTarget && hasMore && !isLoadingMore) {
+      observer.observe(currentTarget);
     }
-  );
-  
-  const currentTarget = observerTarget.current;
-  if (currentTarget && hasMore && !isLoadingMore) {
-    observer.observe(currentTarget);
-  }
-  
-  return () => {
-    clearTimeout(timeoutId);
-    if (currentTarget) {
-      observer.unobserve(currentTarget);
-    }
-  };
-}, [hasMore, isLoadingMore, activeFolder]); // Remove fetchEscrows from dependencies
+    
+    return () => {
+      clearTimeout(timeoutId);
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, isLoadingMore, activeFolder]);
 
   // Real-time subscription
   useEffect(() => {
@@ -530,7 +573,6 @@ useEffect(() => {
         (payload) => {
           const escrow = payload.new;
           if (escrow.client_email === user.email || escrow.freelancer_email === user.email) {
-            // Update the specific escrow immediately
             setEscrows(prev => {
               const index = prev.findIndex(e => e.id === escrow.id);
               if (index >= 0) {
@@ -541,7 +583,6 @@ useEffect(() => {
               return prev;
             });
             
-            // Throttle the metrics updates
             clearTimeout(updateTimeout);
             clearTimeout(metricsTimeout);
             
@@ -570,7 +611,6 @@ useEffect(() => {
               setTotalEscrowCount(prev => prev + 1);
             }
             
-            // Throttle updates
             clearTimeout(updateTimeout);
             updateTimeout = setTimeout(() => {
               fetchFolderCounts();
@@ -586,7 +626,7 @@ useEffect(() => {
       clearTimeout(metricsTimeout);
       supabase.removeChannel(channel);
     };
-  }, [supabase, user?.email, activeFolder]); // Remove fetch functions from dependencies
+  }, [supabase, user?.email, activeFolder]);
 
   // Mobile detection
   useEffect(() => {
@@ -685,6 +725,23 @@ useEffect(() => {
     }
   }, [searchParams, currentWithdrawalId, supabase, fetchWithdrawals]);
 
+  // Click outside to close profile dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+    
+    if (profileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [profileDropdownOpen]);
+
   // Actions
   const openCreate = () => {
     setRightPanelView('create');
@@ -716,48 +773,6 @@ useEffect(() => {
   const onEscrowCreated = (id: string) => {
     handleRefresh();
     openDetail(id);
-  };
-
-  const handleWithdraw = async () => {
-    if (metrics.availableToWithdraw === 0 || !supabase || !user?.email) return;
-    
-    try {
-      const { data: walletData } = await supabase
-        .from('user_wallets')
-        .select('wallet_address')
-        .eq('email', user.email)
-        .single();
-        
-      if (!walletData?.wallet_address) {
-        alert('Wallet not found. Please connect your wallet first.');
-        return;
-      }
-      
-      const { data: withdrawal, error } = await supabase
-        .from('withdrawals')
-        .insert({
-          user_email: user.email,
-          amount_cents: Math.floor(metrics.availableToWithdraw * 100),
-          wallet_address: walletData.wallet_address,
-          status: 'PENDING',
-          provider: 'onramp', // Change either 'onramp' or 'moonpay'
-        })
-        .select()
-        .single();
-        
-      if (error) {
-        alert('Failed to initiate withdrawal: ' + error.message);
-        return;
-      }
-      
-      if (withdrawal && withdrawal.id) {
-        setCurrentWithdrawalId(String(withdrawal.id));
-        setShowOffRampModal(true);
-      }
-    } catch (e) {
-      console.error('Withdrawal error:', e);
-      alert('Failed to process withdrawal');
-    }
   };
 
   // Helper functions
@@ -816,7 +831,7 @@ useEffect(() => {
     return arr;
   }, [filteredEscrows, sortBy, sortOrder, user, needsAction]);
 
-  // Render transaction row (was renderEscrowRow)
+  // Render transaction row
   const renderTransactionRow = (e: any) => {
     const isReceiver = user?.email === e.freelancer_email;
     const otherParty = isReceiver ? e.client_email : e.freelancer_email;
@@ -844,7 +859,7 @@ useEffect(() => {
         className={clsx(
           'group flex cursor-pointer items-start border-b border-[#E5E7EB] px-4 py-2.5 transition min-h-[52px]',
           rightPanelView === 'detail' && e.id === selectedEscrowId ? 'bg-[#F7F8FB]' : 'hover:bg-[#F8FAFC]',
-          isInactive && 'opacity-60' // ADD THIS LINE
+          isInactive && 'opacity-60'
         )}
       >
         <div className="min-w-0 flex-[3.5]">
@@ -862,12 +877,12 @@ useEffect(() => {
         </div>
   
         <div className="hidden lg:block flex-[0.8] flex items-start">
-        <span className={clsx(
-          "inline-flex items-center h-5 px-1.5 py-0.5 text-[11px] rounded whitespace-nowrap",
-          e.status === 'CANCELLED' || e.status === 'DECLINED' 
-            ? "border border-gray-200 text-gray-400 bg-gray-50"
-            : "border border-[#E2E8F0] text-[#475569]"
-        )}>
+          <span className={clsx(
+            "inline-flex items-center h-5 px-1.5 py-0.5 text-[11px] rounded whitespace-nowrap",
+            e.status === 'CANCELLED' || e.status === 'DECLINED' 
+              ? "border border-gray-200 text-gray-400 bg-gray-50"
+              : "border border-[#E2E8F0] text-[#475569]"
+          )}>
             {statusText[e.status] ?? e.status}
           </span>
         </div>
@@ -916,22 +931,23 @@ useEffect(() => {
   }
 
   const displayCount = getFolderCount(activeFolder);
+  const totalInEscrowHaven = metrics.protectedInEscrow + metrics.availableToWithdraw;
 
   return (
     <div
-      className="h-screen w-full overflow-hidden bg-white text-[14px] text-[#0F172A]"
+      className="h-screen w-full overflow-hidden bg-white text-[14px] text-[#0F172A] flex flex-col"
       style={{ fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Ubuntu, Inter, system-ui, sans-serif' }}
     >
       {/* Header */}
-      <header className="h-14 w-full border-b border-[#E5E7EB] bg-white">
+      <header className="h-14 w-full border-b border-[#E5E7EB] bg-white flex-shrink-0">
         <div className="hidden md:grid h-full w-full" style={{ gridTemplateColumns: '15rem 1fr' }}>
-        <div className="flex items-center px-6">
-          <button onClick={() => onNavigate('marketing')} className="hover:opacity-80 transition-opacity">
-            <span className="text-xl md:text-2xl font-medium tracking-tight text-black">
-              escrowhaven<span className="text-[#2962FF]">.io</span>
-            </span>
-          </button>
-        </div>
+          <div className="flex items-center px-6">
+            <button onClick={() => onNavigate('marketing')} className="hover:opacity-80 transition-opacity">
+              <span className="text-xl md:text-2xl font-medium tracking-tight text-black">
+                escrowhaven<span className="text-[#2962FF]">.io</span>
+              </span>
+            </button>
+          </div>
           <div className="flex items-center justify-between pr-6">
             <div className="flex items-center gap-2 pl-6">
               <div className="relative w-[320px]">
@@ -963,41 +979,46 @@ useEffect(() => {
                   {isStaging ? 'STAGING' : 'TEST'} MODE
                 </div>
               )}
-              <button onClick={() => onNavigate('transparency')} className={btn.outlineSmall}>
-                Transparency
-              </button>
               <button 
-                onClick={() => {
-                  const message = prompt('Found a bug or have feedback?');
-                  if (message) {
-                    supabase.from('feedback').insert({
-                      user_email: user?.email,
-                      feedback: message,
-                      type: 'manual_feedback',
-                      url: window.location.href
-                    }).then(() => {
-                      alert('Thanks for the feedback!');
-                    });
-                  }
-                }}
-                className={btn.outlineSmall}
+                onClick={handleWithdraw}
+                disabled={metrics.availableToWithdraw === 0}
+                className={clsx(
+                  btn.primary,
+                  'gap-1.5',
+                  metrics.availableToWithdraw === 0 && 'opacity-50 cursor-not-allowed'
+                )}
               >
-                Feedback
+                Withdraw ${metrics.availableToWithdraw.toFixed(2)}
               </button>
-              <button 
-                onClick={() => window.open('/help', '_blank')}
-                className={btn.outlineSmall}
-              >
-                Help
-              </button>
-              <div className="hidden sm:flex flex-col items-end leading-tight ml-1">
-                <span className="max-w-[240px] truncate text-[13px] font-medium">{user?.email}</span>
-                <button onClick={signOut} className="text-[11px] text-[#787B86] hover:text-[#0F172A]">
-                  Sign out
+              
+              {/* Profile Dropdown */}
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-[#F8F9FD] transition-colors"
+                >
+                  <div className="h-8 w-8 flex items-center justify-center rounded-full bg-[#F3F4F6]">
+                    <span className="text-[13px] font-medium">{user?.email?.[0]?.toUpperCase()}</span>
+                  </div>
+                  <ChevronDown size={16} className={clsx('text-[#64748B] transition-transform', profileDropdownOpen && 'rotate-180')} />
                 </button>
-              </div>
-              <div className="ml-1 hidden sm:flex h-9 w-9 items-center justify-center rounded-full bg-[#F3F4F6]">
-                <span className="text-[13px] font-medium">{user?.email?.[0]?.toUpperCase()}</span>
+                
+                {profileDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-64 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
+                    <div className="px-4 py-2 border-b border-[#E2E8F0]">
+                      <div className="text-[13px] font-medium text-black truncate">{user?.email}</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        signOut();
+                      }}
+                      className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1051,7 +1072,7 @@ useEffect(() => {
       </header>
 
       {/* Body */}
-      <div className="flex h-[calc(100vh-56px)] w-full overflow-hidden">
+      <div className="flex flex-1 w-full overflow-hidden min-h-0">
         {/* Sidebar */}
         <aside className="hidden md:flex w-60 flex-shrink-0 border-r border-[#E5E7EB] bg-white flex-col min-h-0">
           <div className="p-3">
@@ -1101,13 +1122,47 @@ useEffect(() => {
               );
             })}
           </nav>
+          
+          {/* Sidebar Footer */}
+          <div className="border-t border-[#E5E7EB] px-3 py-3 space-y-1.5">
+            <button 
+              onClick={() => onNavigate('transparency')} 
+              className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
+            >
+              Transparency
+            </button>
+            <button 
+              onClick={() => window.open('/help', '_blank')}
+              className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
+            >
+              Help
+            </button>
+            <button 
+              onClick={() => {
+                const message = prompt('Found a bug or have feedback?');
+                if (message) {
+                  supabase.from('feedback').insert({
+                    user_email: user?.email,
+                    feedback: message,
+                    type: 'manual_feedback',
+                    url: window.location.href
+                  }).then(() => {
+                    alert('Thanks for the feedback!');
+                  });
+                }
+              }}
+              className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
+            >
+              Feedback
+            </button>
+          </div>
         </aside>
 
         {/* Content */}
         <div className="flex min-w-0 flex-1 flex-col min-h-0 bg-white">
-          {/* Metrics - Updated labels */}
-          <div className="border-b border-[#E5E7EB] bg-white px-4 md:px-6 pt-3 pb-3">
-            <div className="hidden md:grid grid-cols-3 gap-3">
+{/* Metrics - 2 CARDS (Active First) */}
+<div className="border-b border-[#E5E7EB] bg-white px-4 md:px-6 pt-3 pb-3 flex-shrink-0">
+            <div className="hidden md:grid grid-cols-2 gap-3">
               <div className="rounded-md border border-[#E2E8F0] p-3">
                 <div className="text-[12px] text-[#64748B]">Active Transactions</div>
                 <div className="mt-1 text-[20px] font-semibold">
@@ -1116,95 +1171,32 @@ useEffect(() => {
                     <span className="ml-1 text-[10px] text-yellow-600 font-normal">(TEST)</span>
                   )}
                 </div>
-                <div className="mt-0.5 text-[12px] text-[#2962FF]">{metrics.activeEscrows} in progress</div>
+                <div className="mt-0.5 text-[12px] text-[#26A69A]">{metrics.activeEscrows} in progress</div>
               </div>
+              
               <div className="rounded-md border border-[#E2E8F0] p-3">
-                <div className="text-[12px] text-[#64748B]">Lifetime Earnings</div>
-                <div className="mt-1 text-[20px] font-semibold">
-                  ${metrics.totalEarnings.toFixed(2)}
-                  {!isProduction && metrics.totalEarnings > 0 && (
-                    <span className="ml-1 text-[10px] text-yellow-600 font-normal">(TEST)</span>
-                  )}
-                </div>
-                <div className="mt-0.5 text-[12px] text-[#64748B]">
-                  {metrics.completedCount} completed • {metrics.refundedCount} refunded
-                </div>
-              </div>
-              <div className="rounded-md border border-[#E2E8F0] p-3">
-                <div className="text-[12px] text-[#64748B]">Ready to Withdraw</div>
+                <div className="text-[12px] text-[#64748B]">Cash*</div>
                 <div className="mt-1 text-[20px] font-semibold">
                   ${metrics.availableToWithdraw.toFixed(2)}
                   {!isProduction && metrics.availableToWithdraw > 0 && (
                     <span className="ml-1 text-[10px] text-yellow-600 font-normal">(TEST)</span>
                   )}
                 </div>
-                <div className="mt-1">
-  <button
-    onClick={async () => {
-      if (metrics.availableToWithdraw <= 0) {
-        alert('Nothing available to withdraw yet.');
-        return;
-      }
-
-      // fetch wallet
-      const { data: walletData, error: wErr } = await supabase
-        .from('user_wallets')
-        .select('wallet_address')
-        .eq('email', user?.email)
-        .single();
-      if (wErr || !walletData?.wallet_address) {
-        alert('Wallet not found. Please connect your wallet first.');
-        return;
-      }
-
-      // create withdrawal record
-      const { data: withdrawal, error } = await supabase
-        .from('withdrawals')
-        .insert({
-          user_email: user?.email,
-          amount_cents: Math.floor(metrics.availableToWithdraw * 100),
-          wallet_address: walletData.wallet_address,
-          status: 'PENDING',
-          provider: 'onramp', // we’re using onramp.money
-        })
-        .select()
-        .single();
-
-      if (error || !withdrawal?.id) {
-        alert('Failed to initiate withdrawal.');
-        return;
-      }
-
-      setCurrentWithdrawalId(String(withdrawal.id));
-      setShowOffRampModal(true);  // <-- open the modal
-    }}
-    className="text-[12px] text-[#2962FF] hover:underline"
-  >
-    Withdraw to bank
-  </button>
-</div>
-
+                <div className="mt-0.5 text-[12px] text-[#2962FF]">Ready to withdraw</div>
               </div>
             </div>
 
-            {/* Mobile metrics */}
-            <div className="md:hidden grid grid-cols-3 gap-2">
+            {/* Mobile metrics - 2 CARDS */}
+            <div className="md:hidden grid grid-cols-2 gap-2">
               <div className="rounded-md border border-[#E2E8F0] p-2">
                 <div className="text-[10.5px] text-[#64748B]">Active</div>
                 <div className="text-[14px] font-semibold leading-snug">${metrics.protectedInEscrow.toFixed(2)}</div>
-                <div className="text-[10.5px] text-[#2962FF]">{metrics.activeEscrows} active</div>
+                <div className="text-[10.5px] text-[#26A69A]">{metrics.activeEscrows}</div>
               </div>
               <div className="rounded-md border border-[#E2E8F0] p-2">
-                <div className="text-[10.5px] text-[#64748B]">Earnings</div>
-                <div className="text-[14px] font-semibold leading-snug">${metrics.totalEarnings.toFixed(2)}</div>
-                <div className="text-[10.5px] text-[#16a34a]">{metrics.completedCount} done</div>
-              </div>
-              <div className="rounded-md border border-[#E2E8F0] p-2">
-                <div className="text-[10.5px] text-[#64748B]">Available</div>
+                <div className="text-[10.5px] text-[#64748B]">Cash*</div>
                 <div className="text-[14px] font-semibold leading-snug">${metrics.availableToWithdraw.toFixed(2)}</div>
-                <span className="text-[11px] text-[#787B86]">
-                  Coming soon
-                </span>
+                <div className="text-[10.5px] text-[#2962FF]">Ready</div>
               </div>
             </div>
           </div>
@@ -1221,7 +1213,7 @@ useEffect(() => {
           >
             {/* List */}
             <div className="min-w-0 min-h-0 flex flex-col">
-              {/* Column headings - UPDATED */}
+              {/* Column headings */}
               <div className="hidden md:flex items-center border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
                 <div className="flex-[3.5] text-[11px] font-medium text-[#64748B]">
                   Party / Description
@@ -1241,7 +1233,7 @@ useEffect(() => {
                 </div>
               </div>
 
-              {/* Mobile list header - UPDATED */}
+              {/* Mobile list header */}
               <div className="md:hidden h-9 border-b border-[#E5E7EB] bg-white px-4 flex items-center text-[12px] text-[#64748B]">
                 Transactions ({displayCount})
               </div>
@@ -1312,7 +1304,14 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Mobile nav drawer - UPDATED */}
+      {/* Dashboard Footer - USDC Disclaimer */}
+      <div className="border-t border-[#E5E7EB] bg-white px-4 md:px-6 py-2 flex-shrink-0">
+        <p className="text-[11px] text-[#94A3B8] text-center">
+          * Cash balances are held in USDC, a fully collateralized stablecoin
+        </p>
+      </div>
+
+      {/* Mobile nav drawer */}
       {mobileNavOpen && (
         <div className="md:hidden fixed inset-0 z-50">
           <div
@@ -1322,11 +1321,11 @@ useEffect(() => {
           />
           <div className="absolute left-0 top-0 h-full w-[82vw] max-w-[300px] bg-white shadow-xl flex flex-col">
             <div className="h-14 flex items-center justify-between px-4 border-b border-[#E5E7EB]">
-            <div className="flex items-center">
-              <span className="text-xl font-medium tracking-tight text-black">
-                escrowhaven<span className="text-[#2962FF]">.io</span>
-              </span>
-            </div>
+              <div className="flex items-center">
+                <span className="text-xl font-medium tracking-tight text-black">
+                  escrowhaven<span className="text-[#2962FF]">.io</span>
+                </span>
+              </div>
               <button className="p-2 rounded-md hover:bg-[#F3F4F6]" onClick={() => setMobileNavOpen(false)} aria-label="Close menu">
                 <CloseIcon size={18} />
               </button>
@@ -1378,6 +1377,41 @@ useEffect(() => {
                 );
               })}
             </nav>
+            
+            {/* Mobile sidebar footer */}
+            <div className="border-t border-[#E5E7EB] px-3 py-3 space-y-1.5">
+              <button 
+                onClick={() => { setMobileNavOpen(false); onNavigate('transparency'); }} 
+                className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
+              >
+                Transparency
+              </button>
+              <button 
+                onClick={() => { setMobileNavOpen(false); window.open('/help', '_blank'); }}
+                className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
+              >
+                Help
+              </button>
+              <button 
+                onClick={() => {
+                  const message = prompt('Found a bug or have feedback?');
+                  if (message) {
+                    supabase.from('feedback').insert({
+                      user_email: user?.email,
+                      feedback: message,
+                      type: 'manual_feedback',
+                      url: window.location.href
+                    }).then(() => {
+                      alert('Thanks for the feedback!');
+                    });
+                  }
+                  setMobileNavOpen(false);
+                }}
+                className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
+              >
+                Feedback
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1509,7 +1543,7 @@ useEffect(() => {
         }}
         availableAmount={metrics.availableToWithdraw}
         userEmail={user?.email || ''}
-        walletAddress={''} // Will be fetched in the modal if needed
+        walletAddress={''}
         withdrawalId={currentWithdrawalId || ''}
       />
     </div>
