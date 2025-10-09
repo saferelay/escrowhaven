@@ -33,7 +33,7 @@ export default function EscrowLinkPage({ params }: PageProps) {
     
     try {
       // Check if it's a premium link format
-      if (link.startsWith('secure-payment-')) {
+      if (link.startsWith('secure-transaction-')) {
         console.log('✅ Detected premium link format');
         
         const { data, error } = await supabase

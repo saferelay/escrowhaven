@@ -8,6 +8,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Generate unique premium link
+function generatePremiumLink(): string {
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+  return `secure-transaction-${timestamp}${random}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -32,7 +39,11 @@ export async function POST(request: NextRequest) {
     // Determine network
     const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
     
-    // Create database entry - no wallet validation needed at invitation stage
+    // Generate premium link
+    const premiumLink = generatePremiumLink();
+    console.log('Generated premium link:', premiumLink);
+    
+    // Create database entry with premium link
     const { data: escrow, error } = await supabase
       .from('escrows')
       .insert({
@@ -44,7 +55,8 @@ export async function POST(request: NextRequest) {
         initiator_email: initiatorEmail || null,
         initiator_role: initiatorRole || null,
         network: isProduction ? 'polygon-mainnet' : 'polygon-amoy',
-        is_test_mode: !isProduction
+        is_test_mode: !isProduction,
+        premium_link: premiumLink
       })
       .select()
       .single();
@@ -59,13 +71,14 @@ export async function POST(request: NextRequest) {
     
     console.log('Escrow invitation created:', {
       id: escrow.id,
+      premiumLink: escrow.premium_link,
       client: clientEmail,
       freelancer: freelancerEmail,
       amount: amountUsd,
       initiator: initiatorEmail
     });
 
-    // Send invitation email
+    // Send invitation email with premium link
     const recipientEmail = initiatorRole === 'payer' ? freelancerEmail : clientEmail;
     const senderEmail = initiatorRole === 'payer' ? clientEmail : freelancerEmail;
 
@@ -74,12 +87,13 @@ export async function POST(request: NextRequest) {
       senderEmail,
       amount: `$${amountUsd}`,
       description,
-      escrowLink: `${process.env.NEXT_PUBLIC_APP_URL}/${escrow.premium_link || `escrow/${escrow.id}`}`,
+      escrowLink: `${process.env.NEXT_PUBLIC_APP_URL}/${escrow.premium_link}`,
       role: initiatorRole === 'payer' ? 'recipient' : 'payer'
     }));
     
     return NextResponse.json({
       escrowId: escrow.id,
+      premiumLink: escrow.premium_link,
       status: 'INITIATED',
       message: 'Escrow invitation created. Awaiting acceptance.'
     });

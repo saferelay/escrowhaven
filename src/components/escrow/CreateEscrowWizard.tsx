@@ -249,11 +249,6 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
            termsAccepted;
   };
 
-  const generatePremiumLink = (escrowId: string): string => {
-    const uniqueId = escrowId.replace(/-/g, '').slice(-5).toUpperCase();
-    return `secure-payment-${uniqueId}`;
-  };
-
   const simulateTransactionCreation = async () => {
     const steps: DeploymentStepData[] = [
       { step: 1, status: 'active', message: 'Validating transaction details...' },
@@ -286,7 +281,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
   
     // Ensure wallet exists before creating escrow
     try {
-      const wallet = await ensureWallet();  // ← Just use it directly, no const { ensureWallet } = useAuth()
+      const wallet = await ensureWallet();
       if (!wallet) {
         setError('Failed to connect wallet. Please try again.');
         return;
@@ -331,16 +326,12 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
       
       const data = await response.json();
       
-      const premiumLink = generatePremiumLink(data.escrowId);
-      
-      await supabase
-        .from('escrows')
-        .update({ premium_link: premiumLink })
-        .eq('id', data.escrowId);
+      // Premium link is now generated server-side
+      console.log('✅ Escrow created with premium link:', data.premiumLink);
       
       setEscrowData({
         escrowId: data.escrowId,
-        premiumLink: premiumLink
+        premiumLink: data.premiumLink
       });
       
       setDeploymentStatus('complete');
