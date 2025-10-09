@@ -20,6 +20,7 @@ export default function EscrowLinkPage({ params }: PageProps) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isParticipant, setIsParticipant] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   
   // Unwrap params using React.use() for Next.js 15
   const { link } = use(params);
@@ -63,6 +64,7 @@ export default function EscrowLinkPage({ params }: PageProps) {
         console.log('👤 Current user:', user?.email);
         
         if (user?.email) {
+          setCurrentUser(user);
           const userEmail = user.email;
           if (userEmail === data.client_email || userEmail === data.freelancer_email) {
             console.log('✅ User is participant, redirecting to dashboard');
@@ -223,6 +225,9 @@ export default function EscrowLinkPage({ params }: PageProps) {
     );
   };
 
+  // Check if current user is a participant (for showing full details)
+  const isUserParticipant = currentUser?.email === escrow.client_email || currentUser?.email === escrow.freelancer_email;
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full">
@@ -242,17 +247,25 @@ export default function EscrowLinkPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Parties Info */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 text-sm">
-          <div className="flex justify-between mb-2">
-            <span className="text-gray-600">From:</span>
-            <span className="font-medium">{escrow.client_email}</span>
+        {/* Parties Info - Only show to participants */}
+        {isUserParticipant ? (
+          <div className="bg-gray-50 rounded-lg p-4 mb-6 text-sm">
+            <div className="flex justify-between mb-2">
+              <span className="text-gray-600">From:</span>
+              <span className="font-medium">{escrow.client_email}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">To:</span>
+              <span className="font-medium">{escrow.freelancer_email}</span>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">To:</span>
-            <span className="font-medium">{escrow.freelancer_email}</span>
+        ) : (
+          <div className="bg-gray-50 rounded-lg p-4 mb-6 text-sm text-center">
+            <p className="text-gray-600">
+              🔒 Enter your email below to view transaction details
+            </p>
           </div>
-        </div>
+        )}
 
         {/* Email Gate */}
         <form onSubmit={handleEmailSubmit} className="space-y-4">
