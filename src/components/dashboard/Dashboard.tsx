@@ -1035,7 +1035,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <MenuIcon size={20} />
             </button>
             <button onClick={() => onNavigate('marketing')} className="hover:opacity-80 transition-opacity">
-              <span className="text-xl font-medium tracking-tight text-black">
+              <span className="text-lg font-medium tracking-tight text-black">
                 escrowhaven<span className="text-[#2962FF]">.io</span>
               </span>
             </button>
@@ -1046,27 +1046,48 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 {isStaging ? 'STG' : 'TEST'}
               </div>
             )}
-            <div className="relative w-[180px]">
-              <input
-                id="search-input-mobile"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search…"
-                className="w-full rounded-md border border-[#E2E8F0] bg-white pl-8 pr-2 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-[#DBEAFE]"
-              />
-              <span className="pointer-events-none absolute left-2 top-1.5 text-[#94A3B8]">
-                <SearchIcon size={16} />
-              </span>
-            </div>
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className={clsx(btn.outlineSmall, isRefreshing && 'opacity-50')}
-              title="Refresh"
-              aria-label="Refresh"
+            
+            {/* Mobile Withdraw Button */}
+            <button 
+              onClick={handleWithdraw}
+              disabled={metrics.availableToWithdraw === 0}
+              className={clsx(
+                'inline-flex items-center justify-center rounded-md px-2.5 py-1.5 bg-[#2962FF] text-white hover:bg-[#1E53E5] transition shadow-sm text-[11px] font-medium',
+                metrics.availableToWithdraw === 0 && 'opacity-50 cursor-not-allowed'
+              )}
             >
-              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+              Withdraw
             </button>
+            
+            {/* Mobile Profile Dropdown */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-[#F8F9FD] transition-colors"
+              >
+                <div className="h-7 w-7 flex items-center justify-center rounded-full bg-[#F3F4F6]">
+                  <span className="text-[11px] font-medium">{user?.email?.[0]?.toUpperCase()}</span>
+                </div>
+                <ChevronDown size={14} className={clsx('text-[#64748B] transition-transform', profileDropdownOpen && 'rotate-180')} />
+              </button>
+              
+              {profileDropdownOpen && (
+                <div className="absolute right-0 mt-1 w-56 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
+                  <div className="px-4 py-2 border-b border-[#E2E8F0]">
+                    <div className="text-[12px] font-medium text-black truncate">{user?.email}</div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      signOut();
+                    }}
+                    className="w-full text-left px-4 py-2 text-[12px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -1196,7 +1217,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <div className="rounded-md border border-[#E2E8F0] p-2">
                 <div className="text-[10.5px] text-[#64748B]">Cash*</div>
                 <div className="text-[14px] font-semibold leading-snug">${metrics.availableToWithdraw.toFixed(2)}</div>
-                <div className="text-[10.5px] text-[#2962FF]">Ready</div>
+                <div className="text-[10.5px] text-[#2962FF]">Ready to withdraw</div>
               </div>
             </div>
           </div>
