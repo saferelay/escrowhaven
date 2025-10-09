@@ -1191,7 +1191,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <div className="rounded-md border border-[#E2E8F0] p-2">
                 <div className="text-[10.5px] text-[#64748B]">Active</div>
                 <div className="text-[14px] font-semibold leading-snug">${metrics.protectedInEscrow.toFixed(2)}</div>
-                <div className="text-[10.5px] text-[#26A69A]">{metrics.activeEscrows}</div>
+                <div className="text-[10.5px] text-[#26A69A]">{metrics.activeEscrows} in progress</div>
               </div>
               <div className="rounded-md border border-[#E2E8F0] p-2">
                 <div className="text-[10.5px] text-[#64748B]">Cash*</div>
