@@ -12,7 +12,6 @@ interface OffRampModalProps {
   userEmail: string;
   walletAddress: string;
   withdrawalId: string;
-  isTestMode?: boolean;
 }
 
 type FlowStep = 'connecting' | 'widget' | 'complete' | 'error';
@@ -24,7 +23,6 @@ export function OffRampModal({
   userEmail,
   walletAddress,
   withdrawalId,
-  isTestMode = process.env.NEXT_PUBLIC_ENVIRONMENT !== 'production',
 }: OffRampModalProps) {
   const { ensureWallet } = useAuth();
   const [flowStep, setFlowStep] = useState<FlowStep>('connecting');
@@ -69,7 +67,6 @@ export function OffRampModal({
           walletAddress: userWalletAddress,
           amount: availableAmount,
           withdrawalId: withdrawalId,
-          isTestMode: isTestMode
         });
 
         moonPayInstanceRef.current = moonPayWidget;
@@ -89,7 +86,7 @@ export function OffRampModal({
     };
 
     initMoonPay();
-  }, [isOpen, availableAmount, userEmail, withdrawalId, isTestMode, ensureWallet]);
+  }, [isOpen, availableAmount, userEmail, withdrawalId, ensureWallet]);
 
   // Lock body scroll
   useEffect(() => {

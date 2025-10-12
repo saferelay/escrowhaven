@@ -49,11 +49,13 @@ export async function createMoonPayOnramp({
 }: MoonPayOnrampConfig) {
   const moonPay = await loadMoonPay();
   
-  const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
+  // Check MoonPay mode specifically (not general app environment)
+  const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
+  const useMoonPayProduction = moonPayMode === 'production';
   
   // Build base parameters
   const baseParams: Record<string, any> = {
-    apiKey: isProduction
+    apiKey: useMoonPayProduction
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
     currencyCode: 'usdc_polygon',
@@ -70,23 +72,23 @@ export async function createMoonPayOnramp({
     baseParams.email = email;
   }
   
-  // IMPORTANT: Only sign parameters in production
+  // Only sign parameters in MoonPay production mode
   let finalParams = baseParams;
-  if (isProduction && !isTestMode) {
+  if (useMoonPayProduction) {
     try {
       finalParams = await signParams(baseParams);
-      console.log('✅ Parameters signed for production');
+      console.log('✅ MoonPay parameters signed for production');
     } catch (error) {
-      console.error('❌ Failed to sign parameters:', error);
-      throw new Error('Security signature required for production');
+      console.error('❌ Failed to sign MoonPay parameters:', error);
+      throw new Error('Security signature required for MoonPay production');
     }
   } else {
-    console.log('ℹ️ Test mode - skipping signature');
+    console.log('ℹ️ MoonPay sandbox mode - skipping signature');
   }
   
   const moonPaySdk = moonPay({
     flow: 'buy',
-    environment: isTestMode || !isProduction ? 'sandbox' : 'production',
+    environment: useMoonPayProduction ? 'production' : 'sandbox',
     variant: 'overlay',
     params: finalParams as any
   });
@@ -104,11 +106,13 @@ export async function createMoonPayOfframp({
 }: MoonPayOfframpConfig) {
   const moonPay = await loadMoonPay();
   
-  const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
+  // Check MoonPay mode specifically (not general app environment)
+  const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
+  const useMoonPayProduction = moonPayMode === 'production';
   
   // Build base parameters
   const baseParams: Record<string, any> = {
-    apiKey: isProduction
+    apiKey: useMoonPayProduction
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
     currencyCode: 'usdc_polygon',
@@ -125,44 +129,25 @@ export async function createMoonPayOfframp({
     baseParams.email = email;
   }
   
-  // IMPORTANT: Only sign parameters in production
+  // Only sign parameters in MoonPay production mode
   let finalParams = baseParams;
-  if (isProduction && !isTestMode) {
+  if (useMoonPayProduction) {
     try {
       finalParams = await signParams(baseParams);
-      console.log('✅ Parameters signed for production');
+      console.log('✅ MoonPay parameters signed for production');
     } catch (error) {
-      console.error('❌ Failed to sign parameters:', error);
-      throw new Error('Security signature required for production');
+      console.error('❌ Failed to sign MoonPay parameters:', error);
+      throw new Error('Security signature required for MoonPay production');
     }
   } else {
-    console.log('ℹ️ Test mode - skipping signature');
+    console.log('ℹ️ MoonPay sandbox mode - skipping signature');
   }
   
   const moonPaySdk = moonPay({
     flow: 'sell',
-    environment: isTestMode || !isProduction ? 'sandbox' : 'production',
+    environment: useMoonPayProduction ? 'production' : 'sandbox',
     variant: 'overlay',
     params: finalParams as any
-  });
-  
-  return moonPaySdk;
-}
-
-// Test transaction (for activation)
-export async function createMoonPayTestWidget() {
-  const moonPay = await loadMoonPay();
-  
-  const moonPaySdk = moonPay({
-    flow: 'buy',
-    environment: 'sandbox',
-    variant: 'overlay',
-    params: {
-      apiKey: process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
-      baseCurrencyCode: 'usd',
-      baseCurrencyAmount: '20',
-      currencyCode: 'eth'
-    } as any
   });
   
   return moonPaySdk;
