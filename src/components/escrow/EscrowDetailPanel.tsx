@@ -7,6 +7,7 @@ import TransactionSuccessModal from '@/components/escrow/TransactionSuccessModal
 import { SettlementActions } from '@/components/SettlementActions';
 import clsx from 'clsx';
 import { createOnrampDirectWidget, getOrCreateSalt } from '@/lib/onramp';
+import { MoonPayOnrampModal } from '@/components/MoonPayOnrampModal';
 
 // Icon components
 const FileTextIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -510,7 +511,7 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   const [copied, setCopied] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showOnrampModal, setShowOnrampModal] = useState(false);
+  const [showMoonPayModal, setShowMoonPayModal] = useState(false);
   const [onrampUrl, setOnrampUrl] = useState<string>('');
   
   const fetchingRef = useRef(false);
@@ -668,25 +669,6 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       }
     }
   }, [escrow?.status, escrow?.id, escrow?.released_at, escrow?.settled_at, user?.email, supabase]);
-
-    // Prevent background scroll when Onramp modal is open
-  useEffect(() => {
-    if (!showOnrampModal) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [showOnrampModal]);
-
-  // Close modal on Escape key
-  useEffect(() => {
-    if (!showOnrampModal) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowOnrampModal(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [showOnrampModal]);
-
 
 
   const handleAccept = async () => {
@@ -865,9 +847,6 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   const handleFund = async () => {
     setProcessing(true);
     try {
-      // Get or create salt for this escrow
-      const { salt } = await getOrCreateSalt(escrow.id, supabase);
-      
       // Call prepare-funding API to compute vault address server-side
       const response = await fetch('/api/escrow/prepare-funding', {
         method: 'POST',
@@ -884,75 +863,16 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       
       console.log('Vault address ready:', vaultAddress);
       
-      // Build Onramp direct widget URL (sends USDC directly to vault)
-      const url = createOnrampDirectWidget({
-        email: user?.email || escrow.client_email,
-        targetUsdcAmount: escrow.amount_cents / 100,
-        escrowId: escrow.id,
-        vaultAddress,
-        isTestMode: !!escrow.is_test_mode
-      });
-  
-      // Open Onramp modal
-      setOnrampUrl(url);
-      setShowOnrampModal(true);
-  
-      // Start polling vault balance to detect when funded
-      const checkInterval = setInterval(async () => {
-        try {
-          const balanceResponse = await fetch('/api/vault/balance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ vaultAddress })
-          });
-  
-          if (balanceResponse.ok) {
-            const { balance } = await balanceResponse.json();
-            const requiredAmount = escrow.amount_cents / 100;
-  
-            console.log(`Vault balance: ${balance} USDC (need ${requiredAmount})`);
-  
-            if (balance >= requiredAmount) {
-              clearInterval(checkInterval);
-  
-              // Update escrow status to FUNDED
-              await supabase
-                .from('escrows')
-                .update({ 
-                  status: 'FUNDED',
-                  funded_at: new Date().toISOString()
-                })
-                .eq('id', escrow.id);
-  
-              if (onUpdate) onUpdate();
-  
-              // Close modal
-              setShowOnrampModal(false);
-              setOnrampUrl('');
-  
-              alert('Payment received! The transaction has been funded.');
-            }
-          }
-        } catch (error) {
-          console.error('Balance check error:', error);
-        }
-      }, 10000); // Check every 10 seconds
-  
-      // Stop checking after 30 minutes
-      setTimeout(() => {
-        clearInterval(checkInterval);
-        console.log('Stopped polling vault balance after 30 minutes');
-      }, 30 * 60 * 1000);
+      // Open MoonPay modal
+      setShowMoonPayModal(true);
       
     } catch (error: any) {
       console.error('Funding error:', error);
       alert(`Failed to initiate payment: ${error.message || 'Unknown error'}`);
+    } finally {
       setProcessing(false);
     }
-    // Note: setProcessing(false) is NOT called here on success
-    // because the modal stays open while user completes payment
   };
-
   if (!isOpen) return null;
 
   return (
@@ -1472,53 +1392,20 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   </div>
 )}
 
-      {/* Onramp Modal (iframe embed) */}
-      {showOnrampModal && !!onrampUrl && (
-        <div className="fixed inset-0 z-[60]">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => {
-              // Optional: confirm with the user if you want to avoid accidental close
-              setShowOnrampModal(false);
-              setOnrampUrl('');
+        {/* MoonPay Onramp Modal */}
+        {showMoonPayModal && escrow && (
+          <MoonPayOnrampModal
+            isOpen={showMoonPayModal}
+            onClose={() => setShowMoonPayModal(false)}
+            vaultAddress={escrow.vault_address}
+            amount={escrow.amount_cents / 100}
+            escrowId={escrow.id}
+            onSuccess={() => {
+              // Refresh escrow data
+              if (onUpdate) onUpdate();
             }}
           />
-          {/* Dialog */}
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="relative w-full max-w-md md:max-w-lg lg:max-w-xl h-[80vh] bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-[#F8FAFC]">
-                <span className="text-sm font-medium text-gray-700">Add funds securely</span>
-                <button
-                  onClick={() => {
-                    setShowOnrampModal(false);
-                    setOnrampUrl('');
-                  }}
-                  className="p-1.5 hover:bg-gray-100 rounded"
-                  aria-label="Close"
-                >
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Body */}
-              <div className="w-full h-full">
-                <iframe
-                  title="Onramp"
-                  src={onrampUrl}
-                  className="w-full h-full"
-                  loading="eager"
-                  allow="payment *; clipboard-write; accelerometer; autoplay; gyroscope"
-                  sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
 
       
 

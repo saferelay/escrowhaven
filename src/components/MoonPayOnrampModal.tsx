@@ -1,37 +1,36 @@
-// src/components/dashboard/OffRampModal.tsx
+// src/components/MoonPayOnrampModal.tsx
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { createMoonPayOfframp } from '@/lib/moonpay';
+import { createMoonPayOnramp } from '@/lib/moonpay';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface OffRampModalProps {
+interface MoonPayOnrampModalProps {
   isOpen: boolean;
   onClose: () => void;
-  availableAmount: number;
-  userEmail: string;
-  walletAddress: string;
-  withdrawalId: string;
-  isTestMode?: boolean;
+  vaultAddress: string;
+  amount: number;
+  escrowId: string;
+  onSuccess?: () => void;
 }
 
 type FlowStep = 'connecting' | 'widget' | 'complete' | 'error';
 
-export function OffRampModal({
+export function MoonPayOnrampModal({
   isOpen,
   onClose,
-  availableAmount,
-  userEmail,
-  walletAddress,
-  withdrawalId,
-  isTestMode = process.env.NEXT_PUBLIC_ENVIRONMENT !== 'production',
-}: OffRampModalProps) {
-  const { ensureWallet } = useAuth();
+  vaultAddress,
+  amount,
+  escrowId,
+  onSuccess
+}: MoonPayOnrampModalProps) {
+  const { user, ensureWallet } = useAuth();
   const [flowStep, setFlowStep] = useState<FlowStep>('connecting');
   const [errorMsg, setErrorMsg] = useState<string>('');
   
   const moonPayInstanceRef = useRef<any>(null);
   const isInitializedRef = useRef(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -40,6 +39,10 @@ export function OffRampModal({
           moonPayInstanceRef.current.close();
         } catch (e) {}
         moonPayInstanceRef.current = null;
+      }
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
       setFlowStep('connecting');
       setErrorMsg('');
@@ -52,23 +55,25 @@ export function OffRampModal({
 
     const initMoonPay = async () => {
       try {
-        // Step 1: Ensure Magic wallet is connected
+        // Step 1: Ensure Magic wallet is connected (silent)
         setFlowStep('connecting');
-        const userWalletAddress = await ensureWallet();
+        const walletAddress = await ensureWallet();
         
-        if (!userWalletAddress) {
+        if (!walletAddress) {
           throw new Error('Failed to connect wallet');
         }
 
         // Small delay for UX
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        // Step 2: Initialize MoonPay sell widget
-        const moonPayWidget = await createMoonPayOfframp({
-          email: userEmail,
-          walletAddress: userWalletAddress,
-          amount: availableAmount,
-          withdrawalId: withdrawalId,
+        // Step 2: Initialize MoonPay widget
+        const isTestMode = process.env.NEXT_PUBLIC_ENVIRONMENT !== 'production';
+        
+        const moonPayWidget = await createMoonPayOnramp({
+          email: user?.email,
+          walletAddress: vaultAddress, // Send funds directly to vault
+          amount: amount,
+          escrowId: escrowId,
           isTestMode: isTestMode
         });
 
@@ -78,18 +83,63 @@ export function OffRampModal({
         setFlowStep('widget');
         moonPayWidget.show();
 
-        // Note: MoonPay will handle the transaction flow internally
-        // User will see success/failure in the widget itself
+        // Start polling vault balance to detect when funded
+        pollingIntervalRef.current = setInterval(async () => {
+          try {
+            const balanceResponse = await fetch('/api/vault/balance', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ vaultAddress })
+            });
+
+            if (balanceResponse.ok) {
+              const { balance } = await balanceResponse.json();
+              const requiredAmount = amount;
+
+              if (balance >= requiredAmount) {
+                if (pollingIntervalRef.current) {
+                  clearInterval(pollingIntervalRef.current);
+                  pollingIntervalRef.current = null;
+                }
+
+                setFlowStep('complete');
+                
+                if (moonPayInstanceRef.current) {
+                  try {
+                    moonPayInstanceRef.current.close();
+                  } catch (e) {}
+                }
+
+                if (onSuccess) {
+                  setTimeout(() => {
+                    onSuccess();
+                    onClose();
+                  }, 2000);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Balance check error:', error);
+          }
+        }, 10000); // Check every 10 seconds
+
+        // Stop polling after 30 minutes
+        setTimeout(() => {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        }, 30 * 60 * 1000);
 
       } catch (error: any) {
         console.error('MoonPay init failed:', error);
-        setErrorMsg(error.message || 'Failed to load withdrawal');
+        setErrorMsg(error.message || 'Failed to load payment');
         setFlowStep('error');
       }
     };
 
     initMoonPay();
-  }, [isOpen, availableAmount, userEmail, withdrawalId, isTestMode, ensureWallet]);
+  }, [isOpen, vaultAddress, amount, escrowId, user?.email, ensureWallet, onSuccess, onClose]);
 
   // Lock body scroll
   useEffect(() => {
@@ -98,6 +148,16 @@ export function OffRampModal({
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, [isOpen]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -108,7 +168,7 @@ export function OffRampModal({
       {showCustomOverlay && (
         <div className="fixed inset-0 z-[100]">
           <div 
-            className="absolute inset-0 bg-black/70" 
+            className="absolute inset-0 bg-black/50" 
             onClick={flowStep === 'error' ? onClose : undefined} 
           />
           
@@ -119,10 +179,10 @@ export function OffRampModal({
                 <div className="flex flex-col items-center">
                   <div className="w-16 h-16 border-4 border-[#E0E2E7] border-t-[#2962FF] rounded-full animate-spin" />
                   <p className="text-base font-medium text-black mt-6 mb-2">
-                    Preparing withdrawal
+                    Preparing secure payment
                   </p>
                   <p className="text-sm text-[#787B86]">
-                    Connecting to payment processor...
+                    Setting up your payment session...
                   </p>
                 </div>
               )}
@@ -135,7 +195,7 @@ export function OffRampModal({
                     </svg>
                   </div>
                   <p className="text-base font-medium text-black mb-2">
-                    Withdrawal failed
+                    Payment setup failed
                   </p>
                   <p className="text-sm text-[#787B86] text-center mb-6">
                     {errorMsg}
@@ -157,10 +217,10 @@ export function OffRampModal({
                     </svg>
                   </div>
                   <p className="text-base font-medium text-black mb-2">
-                    Withdrawal complete!
+                    Payment successful!
                   </p>
                   <p className="text-sm text-[#787B86] text-center">
-                    Funds will arrive in 1-3 business days
+                    Escrow funded and activated
                   </p>
                 </div>
               )}
