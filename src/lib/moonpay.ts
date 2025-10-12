@@ -18,7 +18,7 @@ interface MoonPayOfframpConfig {
 }
 
 // Sign parameters server-side
-async function signParams(params: Record<string, any>) {
+async function signParams(params: Record<string, any>): Promise<Record<string, any>> {
   try {
     const response = await fetch('/api/moonpay/sign', {
       method: 'POST',
@@ -27,11 +27,12 @@ async function signParams(params: Record<string, any>) {
     });
     
     if (!response.ok) {
-      throw new Error('Failed to sign parameters');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to sign parameters');
     }
     
-    const { signature } = await response.json();
-    return { ...params, signature };
+    const { signedParams } = await response.json();
+    return signedParams;
   } catch (error) {
     console.error('Parameter signing failed:', error);
     throw error;
@@ -50,40 +51,43 @@ export async function createMoonPayOnramp({
   
   const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
   
-  const baseParams: any = {
+  // Build base parameters
+  const baseParams: Record<string, any> = {
     apiKey: isProduction
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
-    defaultCurrencyCode: 'usdc_polygon',
+    currencyCode: 'usdc_polygon',
     baseCurrencyCode: 'usd',
-    baseCurrencyAmount: amount.toString(),
+    baseCurrencyAmount: amount.toFixed(2),
     walletAddress: walletAddress,
-    theme: 'light',
-    colorCode: '#2962FF',
+    colorCode: '2962FF',
     externalTransactionId: escrowId,
-    lockAmount: true,
+    lockAmount: 'true',
   };
   
+  // Add email if provided
   if (email) {
     baseParams.email = email;
   }
   
-  // Sign parameters
+  // Sign parameters - CRITICAL for production
   let finalParams = baseParams;
   try {
     finalParams = await signParams(baseParams);
+    console.log('Parameters signed successfully');
   } catch (error) {
     console.error('Failed to sign parameters:', error);
     if (isProduction) {
-      throw new Error('Security signature required');
+      throw new Error('Security signature required for production');
     }
+    console.warn('Proceeding without signature in test mode');
   }
   
   const moonPaySdk = moonPay({
     flow: 'buy',
     environment: isTestMode || !isProduction ? 'sandbox' : 'production',
     variant: 'overlay',
-    params: finalParams
+    params: finalParams as any // Cast to any to bypass strict typing
   });
   
   return moonPaySdk;
@@ -101,40 +105,43 @@ export async function createMoonPayOfframp({
   
   const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
   
-  const baseParams: any = {
+  // Build base parameters
+  const baseParams: Record<string, any> = {
     apiKey: isProduction
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
-    defaultCurrencyCode: 'usdc_polygon',
+    currencyCode: 'usdc_polygon',
     baseCurrencyCode: 'usd',
-    quoteCurrencyAmount: amount.toString(),
+    quoteCurrencyAmount: amount.toFixed(2),
     walletAddress: walletAddress,
-    theme: 'light',
-    colorCode: '#2962FF',
+    colorCode: '2962FF',
     externalTransactionId: withdrawalId,
-    lockAmount: true,
+    lockAmount: 'true',
   };
   
+  // Add email if provided
   if (email) {
     baseParams.email = email;
   }
   
-  // Sign parameters
+  // Sign parameters - CRITICAL for production
   let finalParams = baseParams;
   try {
     finalParams = await signParams(baseParams);
+    console.log('Parameters signed successfully');
   } catch (error) {
     console.error('Failed to sign parameters:', error);
     if (isProduction) {
-      throw new Error('Security signature required');
+      throw new Error('Security signature required for production');
     }
+    console.warn('Proceeding without signature in test mode');
   }
   
   const moonPaySdk = moonPay({
     flow: 'sell',
     environment: isTestMode || !isProduction ? 'sandbox' : 'production',
     variant: 'overlay',
-    params: finalParams
+    params: finalParams as any // Cast to any to bypass strict typing
   });
   
   return moonPaySdk;
@@ -150,11 +157,10 @@ export async function createMoonPayTestWidget() {
     variant: 'overlay',
     params: {
       apiKey: process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
-      theme: 'light',
       baseCurrencyCode: 'usd',
       baseCurrencyAmount: '20',
-      defaultCurrencyCode: 'eth'
-    }
+      currencyCode: 'eth'
+    } as any
   });
   
   return moonPaySdk;

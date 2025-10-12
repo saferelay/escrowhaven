@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
     }
     
     // Get secret key based on environment
-    const secretKey = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production'
+    const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
+    const secretKey = isProduction
       ? process.env.MOONPAY_SECRET_KEY_LIVE!
       : process.env.MOONPAY_SECRET_KEY_TEST!;
     
@@ -26,14 +27,30 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Create URL query string from params
-    const queryString = new URLSearchParams(params).toString();
+    // CRITICAL: Sort parameters alphabetically by key
+    const sortedKeys = Object.keys(params).sort();
+    
+    // Build query string with sorted keys
+    const queryParts: string[] = [];
+    for (const key of sortedKeys) {
+      const value = params[key];
+      if (value !== undefined && value !== null && value !== '') {
+        // URL encode both key and value
+        queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+      }
+    }
+    
+    const queryString = queryParts.join('&');
+    
+    console.log('Signing query string:', queryString);
     
     // Generate signature
     const signature = crypto
       .createHmac('sha256', secretKey)
       .update(queryString)
       .digest('base64');
+    
+    console.log('Generated signature');
     
     return NextResponse.json({ 
       signature,
