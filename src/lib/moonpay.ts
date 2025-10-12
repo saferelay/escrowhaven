@@ -17,7 +17,7 @@ interface MoonPayOfframpConfig {
   isTestMode?: boolean;
 }
 
-// Sign parameters server-side
+// Sign parameters server-side (only for production)
 async function signParams(params: Record<string, any>): Promise<Record<string, any>> {
   try {
     const response = await fetch('/api/moonpay/sign', {
@@ -70,24 +70,25 @@ export async function createMoonPayOnramp({
     baseParams.email = email;
   }
   
-  // Sign parameters - CRITICAL for production
+  // IMPORTANT: Only sign parameters in production
   let finalParams = baseParams;
-  try {
-    finalParams = await signParams(baseParams);
-    console.log('Parameters signed successfully');
-  } catch (error) {
-    console.error('Failed to sign parameters:', error);
-    if (isProduction) {
+  if (isProduction && !isTestMode) {
+    try {
+      finalParams = await signParams(baseParams);
+      console.log('✅ Parameters signed for production');
+    } catch (error) {
+      console.error('❌ Failed to sign parameters:', error);
       throw new Error('Security signature required for production');
     }
-    console.warn('Proceeding without signature in test mode');
+  } else {
+    console.log('ℹ️ Test mode - skipping signature');
   }
   
   const moonPaySdk = moonPay({
     flow: 'buy',
     environment: isTestMode || !isProduction ? 'sandbox' : 'production',
     variant: 'overlay',
-    params: finalParams as any // Cast to any to bypass strict typing
+    params: finalParams as any
   });
   
   return moonPaySdk;
@@ -124,24 +125,25 @@ export async function createMoonPayOfframp({
     baseParams.email = email;
   }
   
-  // Sign parameters - CRITICAL for production
+  // IMPORTANT: Only sign parameters in production
   let finalParams = baseParams;
-  try {
-    finalParams = await signParams(baseParams);
-    console.log('Parameters signed successfully');
-  } catch (error) {
-    console.error('Failed to sign parameters:', error);
-    if (isProduction) {
+  if (isProduction && !isTestMode) {
+    try {
+      finalParams = await signParams(baseParams);
+      console.log('✅ Parameters signed for production');
+    } catch (error) {
+      console.error('❌ Failed to sign parameters:', error);
       throw new Error('Security signature required for production');
     }
-    console.warn('Proceeding without signature in test mode');
+  } else {
+    console.log('ℹ️ Test mode - skipping signature');
   }
   
   const moonPaySdk = moonPay({
     flow: 'sell',
     environment: isTestMode || !isProduction ? 'sandbox' : 'production',
     variant: 'overlay',
-    params: finalParams as any // Cast to any to bypass strict typing
+    params: finalParams as any
   });
   
   return moonPaySdk;
