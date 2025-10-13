@@ -13,8 +13,6 @@ interface MoonPayOnrampModalProps {
   onSuccess?: () => void;
 }
 
-type FlowStep = 'connecting' | 'widget' | 'complete' | 'error';
-
 export function MoonPayOnrampModal({
   isOpen,
   onClose,
@@ -23,55 +21,29 @@ export function MoonPayOnrampModal({
   escrowId,
   onSuccess
 }: MoonPayOnrampModalProps) {
-  const { user, ensureWallet } = useAuth();
-  const [flowStep, setFlowStep] = useState<FlowStep>('connecting');
-  const [errorMsg, setErrorMsg] = useState<string>('');
-  
-  const isInitializedRef = useRef(false);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const windowRef = useRef<Window | null>(null);
+  const { user } = useAuth();
+  const [status, setStatus] = useState<'loading' | 'ready' | 'complete' | 'error'>('loading');
+  const [error, setError] = useState('');
+  const [iframeUrl, setIframeUrl] = useState('');
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
       // Cleanup
-      if (windowRef.current && !windowRef.current.closed) {
-        windowRef.current.close();
-        windowRef.current = null;
-      }
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-      setFlowStep('connecting');
-      setErrorMsg('');
-      isInitializedRef.current = false;
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      setStatus('loading');
+      setError('');
+      setIframeUrl('');
       return;
     }
 
-    if (isInitializedRef.current) return;
-    isInitializedRef.current = true;
-
-    const initMoonPay = async () => {
+    const setupMoonPay = async () => {
       try {
-        setFlowStep('connecting');
-        
-        const walletAddress = await ensureWallet();
-        
-        if (!walletAddress) {
-          throw new Error('Failed to connect wallet');
-        }
+        console.log('Setting up MoonPay iframe');
 
-        console.log('=== Opening MoonPay URL ===');
-        console.log('Vault:', vaultAddress);
-        console.log('Amount:', amount);
-
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Build MoonPay URL
-        const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
-        const isProduction = moonPayMode === 'production';
-        
-        const apiKey = isProduction
+        // Get environment
+        const mode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
+        const apiKey = mode === 'production'
           ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY
           : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY;
 
@@ -79,206 +51,168 @@ export function MoonPayOnrampModal({
           throw new Error('MoonPay API key not configured');
         }
 
-        const baseUrl = isProduction
+        // Build URL
+        const baseUrl = mode === 'production'
           ? 'https://buy.moonpay.com'
           : 'https://buy-sandbox.moonpay.com';
 
-        const url = new URL(baseUrl);
-        url.searchParams.append('apiKey', apiKey);
-        url.searchParams.append('currencyCode', 'usdc_polygon');
-        url.searchParams.append('baseCurrencyCode', 'usd');
-        url.searchParams.append('baseCurrencyAmount', amount.toString());
-        url.searchParams.append('walletAddress', vaultAddress);
-        url.searchParams.append('colorCode', '2962FF');
-        url.searchParams.append('externalTransactionId', escrowId);
-        url.searchParams.append('showWalletAddressForm', 'false');
+        const params: Record<string, string> = {
+          apiKey: apiKey,
+          currencyCode: 'usdc_polygon',
+          baseCurrencyCode: 'usd',
+          baseCurrencyAmount: amount.toString(),
+          walletAddress: vaultAddress,
+          colorCode: '2962FF',
+          externalTransactionId: escrowId,
+          showWalletAddressForm: 'false'
+        };
         
         if (user?.email) {
-          url.searchParams.append('email', user.email);
+          params.email = user.email;
         }
 
-        // Sign URL
-        const response = await fetch('/api/moonpay/sign', {
+        // Build query string
+        const queryParts: string[] = [];
+        for (const [key, value] of Object.entries(params)) {
+          queryParts.push(`${key}=${encodeURIComponent(value)}`);
+        }
+        const queryString = queryParts.join('&');
+
+        // Sign the query string
+        const signResponse = await fetch('/api/moonpay/sign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: url.toString() })
+          body: JSON.stringify({ queryString })
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to sign URL');
+        if (!signResponse.ok) {
+          const errorData = await signResponse.json();
+          throw new Error(errorData.error || 'Failed to sign URL');
         }
 
-        const { signature } = await response.json();
-        url.searchParams.append('signature', signature);
-
-        // Open in popup
-        const width = 500;
-        const height = 700;
-        const left = (window.screen.width - width) / 2;
-        const top = (window.screen.height - height) / 2;
+        const { signature } = await signResponse.json();
         
-        windowRef.current = window.open(
-          url.toString(),
-          'moonpay',
-          `width=${width},height=${height},left=${left},top=${top}`
-        );
-
-        setFlowStep('widget');
+        // Build final URL with signature
+        const finalUrl = `${baseUrl}?${queryString}&signature=${encodeURIComponent(signature)}`;
+        
+        console.log('MoonPay URL ready');
+        setIframeUrl(finalUrl);
+        setStatus('ready');
 
         // Start polling vault balance
-        pollingIntervalRef.current = setInterval(async () => {
+        pollingRef.current = setInterval(async () => {
           try {
-            const balanceResponse = await fetch('/api/vault/balance', {
+            const res = await fetch('/api/vault/balance', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ vaultAddress })
             });
 
-            if (balanceResponse.ok) {
-              const { balance } = await balanceResponse.json();
+            if (res.ok) {
+              const { balance } = await res.json();
 
               if (balance >= amount) {
-                if (pollingIntervalRef.current) {
-                  clearInterval(pollingIntervalRef.current);
-                  pollingIntervalRef.current = null;
-                }
-
-                if (windowRef.current && !windowRef.current.closed) {
-                  windowRef.current.close();
-                }
-
-                setFlowStep('complete');
-
-                if (onSuccess) {
-                  setTimeout(() => {
-                    onSuccess();
-                    onClose();
-                  }, 2000);
-                }
+                // Success!
+                if (pollingRef.current) clearInterval(pollingRef.current);
+                
+                setStatus('complete');
+                
+                setTimeout(() => {
+                  if (onSuccess) onSuccess();
+                  onClose();
+                }, 2000);
               }
             }
-          } catch (error) {
-            console.error('Balance check error:', error);
+          } catch (err) {
+            console.error('Balance check failed:', err);
           }
         }, 10000);
 
+        // Stop after 30 minutes
         setTimeout(() => {
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
+          if (pollingRef.current) clearInterval(pollingRef.current);
         }, 30 * 60 * 1000);
 
-      } catch (error: any) {
-        console.error('MoonPay init failed:', error);
-        setErrorMsg(error.message || 'Failed to load payment');
-        setFlowStep('error');
+      } catch (err: any) {
+        console.error('MoonPay error:', err);
+        setError(err.message || 'Failed to load MoonPay');
+        setStatus('error');
       }
     };
 
-    initMoonPay();
-  }, [isOpen, vaultAddress, amount, escrowId, user?.email, ensureWallet, onSuccess, onClose]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+    setupMoonPay();
+  }, [isOpen, vaultAddress, amount, escrowId, user?.email, onSuccess, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[150]">
-      <div 
-        className="absolute inset-0 bg-black/50" 
-        onClick={flowStep === 'error' ? onClose : undefined} 
-      />
-      
-      <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-[#E0E2E7] p-8">
-          
-          {flowStep === 'connecting' && (
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 border-4 border-[#E0E2E7] border-t-[#2962FF] rounded-full animate-spin" />
-              <p className="text-base font-medium text-black mt-6 mb-2">
-                Opening secure payment
-              </p>
-              <p className="text-sm text-[#787B86] text-center">
-                Complete your purchase in the popup window
-              </p>
-            </div>
-          )}
-
-          {flowStep === 'widget' && (
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 border-4 border-[#E0E2E7] border-t-[#2962FF] rounded-full animate-spin" />
-              <p className="text-base font-medium text-black mt-6 mb-2">
-                Waiting for payment
-              </p>
-              <p className="text-sm text-[#787B86] text-center mb-4">
-                Complete your purchase in the MoonPay window
-              </p>
-              <button
-                onClick={onClose}
-                className="text-sm text-[#787B86] hover:text-black"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-
-          {flowStep === 'error' && (
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 rounded-full bg-[#FEF2F2] flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-[#EF5350]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <p className="text-base font-medium text-black mb-2">
-                Payment setup failed
-              </p>
-              <p className="text-sm text-[#787B86] text-center mb-6">
-                {errorMsg}
-              </p>
-              <button
-                onClick={onClose}
-                className="px-6 py-3 bg-[#2962FF] text-white text-sm font-medium rounded-lg hover:bg-[#1E53E5] transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          )}
-
-          {flowStep === 'complete' && (
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 rounded-full bg-[#E8F5E9] flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-[#26A69A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <p className="text-base font-medium text-black mb-2">
-                Escrow Funded!
-              </p>
-              <p className="text-sm text-[#787B86] text-center mb-1">
-                ${amount.toFixed(2)} secured in vault
-              </p>
-              <p className="text-xs text-[#787B86] text-center">
-                Funds protected until you approve release
-              </p>
-            </div>
-          )}
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60">
+      {/* Loading State */}
+      {status === 'loading' && (
+        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-[#E0E2E7] border-t-[#2962FF] rounded-full animate-spin mx-auto" />
+            <p className="mt-4 font-medium text-black">Loading payment...</p>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Error State */}
+      {status === 'error' && (
+        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-[#FEF2F2] flex items-center justify-center mx-auto">
+              <svg className="w-8 h-8 text-[#EF5350]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <p className="mt-4 font-medium text-black">Error</p>
+            <p className="text-sm text-[#787B86] mt-2">{error}</p>
+            <button
+              onClick={onClose}
+              className="mt-6 px-6 py-2 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Complete State */}
+      {status === 'complete' && (
+        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-[#E8F5E9] flex items-center justify-center mx-auto">
+              <svg className="w-8 h-8 text-[#26A69A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="mt-4 font-medium text-black text-lg">Escrow Funded!</p>
+            <p className="text-sm text-[#787B86] mt-2">${amount.toFixed(2)} secured in vault</p>
+          </div>
+        </div>
+      )}
+
+      {/* MoonPay Iframe */}
+      {status === 'ready' && iframeUrl && (
+        <div className="relative w-full h-full max-w-[500px] max-h-[700px] m-4">
+          <button
+            onClick={onClose}
+            className="absolute -top-12 right-0 p-2 text-white hover:text-gray-300 transition-colors z-10"
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          <iframe
+            src={iframeUrl}
+            className="w-full h-full rounded-xl shadow-2xl bg-white"
+            allow="accelerometer; autoplay; camera; encrypted-media; gyroscope; payment"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+          />
+        </div>
+      )}
     </div>
   );
 }
