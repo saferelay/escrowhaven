@@ -104,9 +104,24 @@ export async function createMoonPayOnramp({
     console.log('Wallet:', walletAddress);
     console.log('Base params:', baseParams);
     
-    // Only sign parameters in MoonPay production mode
+    console.log('Creating MoonPay SDK instance...');
+    
+    // CRITICAL: When using walletAddress, signature is MANDATORY (even in sandbox)
+    // MoonPay will not load the widget without it
     let finalParams = baseParams;
-    if (useMoonPayProduction) {
+    const signatureRequired = !!baseParams.walletAddress;
+    
+    if (signatureRequired) {
+      console.log('⚠️  Wallet address provided - URL signing REQUIRED');
+      try {
+        finalParams = await signParams(baseParams);
+        console.log('✅ URL signed successfully');
+      } catch (error) {
+        console.error('❌ URL signing failed:', error);
+        throw new Error('URL signing required when using wallet address');
+      }
+    } else if (useMoonPayProduction) {
+      console.log('Production mode - signing URL');
       try {
         finalParams = await signParams(baseParams);
         console.log('✅ MoonPay parameters signed for production');
@@ -115,10 +130,9 @@ export async function createMoonPayOnramp({
         throw new Error('Security signature required for MoonPay production');
       }
     } else {
-      console.log('ℹ️ MoonPay sandbox mode - skipping signature');
+      console.log('ℹ️ MoonPay sandbox mode - no wallet address, skipping signature');
     }
     
-    console.log('Creating MoonPay SDK instance...');
     const moonPaySdk = moonPay({
       flow: 'buy',
       environment: useMoonPayProduction ? 'production' : 'sandbox',
@@ -147,43 +161,34 @@ export async function createMoonPayOfframp({
 }: MoonPayOfframpConfig) {
   const moonPay = await loadMoonPay();
   
-  // Check MoonPay mode specifically (not general app environment)
   const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
   const useMoonPayProduction = moonPayMode === 'production';
   
-  // Build base parameters - FULLY LOCKED
   const baseParams: Record<string, any> = {
     apiKey: useMoonPayProduction
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
-    currencyCode: 'usdc_polygon',  // What crypto to sell
-    baseCurrencyAmount: amount.toFixed(2),  // USDC amount to sell (locked)
+    currencyCode: 'usdc_polygon',
+    baseCurrencyAmount: amount.toFixed(2),
     walletAddress: walletAddress,
     colorCode: '2962FF',
     externalTransactionId: withdrawalId,
-    
-    // LOCKING PARAMETERS
-    lockAmount: 'true',  // Lock the crypto amount field
-    showWalletAddressForm: 'false',  // Hide wallet address field (pre-filled)
+    lockAmount: 'true',
+    showWalletAddressForm: 'false',
   };
   
-  // Add email if provided
   if (email) {
     baseParams.email = email;
   }
   
-  // Only sign parameters in MoonPay production mode
   let finalParams = baseParams;
   if (useMoonPayProduction) {
     try {
       finalParams = await signParams(baseParams);
-      console.log('✅ MoonPay parameters signed for production');
     } catch (error) {
       console.error('❌ Failed to sign MoonPay parameters:', error);
       throw new Error('Security signature required for MoonPay production');
     }
-  } else {
-    console.log('ℹ️ MoonPay sandbox mode - skipping signature');
   }
   
   const moonPaySdk = moonPay({
