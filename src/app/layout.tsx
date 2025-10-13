@@ -2,7 +2,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Providers } from "./providers";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { SessionRefreshProvider } from "../providers/SessionRefreshProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from "@vercel/analytics/next" 
 
@@ -24,11 +25,13 @@ export default function RootLayout({
         className={inter.className}
         suppressHydrationWarning={true}
       >
-        <Providers>
-          {children}
-          <SpeedInsights />  
-          <Analytics />
-        </Providers>
+        <AuthProvider>
+          <SessionRefreshProvider>
+            {children}
+            <SpeedInsights />  
+            <Analytics />
+          </SessionRefreshProvider>
+        </AuthProvider>
       </body>
     </html>
   );

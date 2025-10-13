@@ -745,12 +745,6 @@ export function EscrowDetailPanel({
   };
 
   const handleFund = async () => {
-    setShowPaymentMethodModal(true);
-  };
-  
-  const handlePaymentMethodSelected = async (method: 'card' | 'bank') => {
-    setSelectedPaymentMethod(method);
-    setShowPaymentMethodModal(false);
     setProcessing(true);
     
     try {
@@ -767,7 +761,6 @@ export function EscrowDetailPanel({
       
       const { vaultAddress } = await response.json();
       
-      // FIXED: Pass data to parent component
       if (onShowMoonPay) {
         if (autoCloseOnFund) {
           onClose();
@@ -1309,15 +1302,6 @@ export function EscrowDetailPanel({
         />
       )}
 
-      {/* Payment Method Modal */}
-      {showPaymentMethodModal && escrow && (
-        <PaymentMethodModal
-          isOpen={showPaymentMethodModal}
-          onClose={() => setShowPaymentMethodModal(false)}
-          onSelect={handlePaymentMethodSelected}
-          amount={escrow.amount_cents / 100}
-        />
-      )}
     </>
   );
 }
