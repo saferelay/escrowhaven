@@ -77,8 +77,13 @@ export function MoonPayOnrampModal({
       return;
     }
 
-    if (isInitializedRef.current) return;
+    if (isInitializedRef.current) {
+      console.log('⚠️ Already initialized, skipping');
+      return;
+    }
+    
     isInitializedRef.current = true;
+    console.log('🚀 Starting initialization...');
 
     const initMoonPay = async () => {
       try {
