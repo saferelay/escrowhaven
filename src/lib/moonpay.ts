@@ -53,17 +53,21 @@ export async function createMoonPayOnramp({
   const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
   const useMoonPayProduction = moonPayMode === 'production';
   
-  // Build base parameters
+  // Build base parameters - FULLY LOCKED
   const baseParams: Record<string, any> = {
     apiKey: useMoonPayProduction
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
     currencyCode: 'usdc_polygon',  // What crypto to buy
-    quoteCurrencyAmount: amount.toFixed(2),  // USDC amount (locked) - THIS IS THE KEY CHANGE
+    quoteCurrencyAmount: amount.toFixed(2),  // USDC amount (locked)
     walletAddress: walletAddress,
     colorCode: '2962FF',
     externalTransactionId: escrowId,
-    lockAmount: 'true',  // Lock the USDC amount
+    
+    // LOCKING PARAMETERS
+    lockAmount: 'true',  // Lock the crypto amount field
+    showWalletAddressForm: 'false',  // Hide wallet address field (pre-filled)
+    enabledCurrencies: 'usdc_polygon',  // Only allow USDC on Polygon
   };
   
   // Add email if provided
@@ -109,17 +113,20 @@ export async function createMoonPayOfframp({
   const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
   const useMoonPayProduction = moonPayMode === 'production';
   
-  // Build base parameters
+  // Build base parameters - FULLY LOCKED
   const baseParams: Record<string, any> = {
     apiKey: useMoonPayProduction
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
     currencyCode: 'usdc_polygon',  // What crypto to sell
-    baseCurrencyAmount: amount.toFixed(2),  // USDC amount to sell (locked) - KEY CHANGE
+    baseCurrencyAmount: amount.toFixed(2),  // USDC amount to sell (locked)
     walletAddress: walletAddress,
     colorCode: '2962FF',
     externalTransactionId: withdrawalId,
-    lockAmount: 'true',  // Lock the USDC amount
+    
+    // LOCKING PARAMETERS
+    lockAmount: 'true',  // Lock the crypto amount field
+    showWalletAddressForm: 'false',  // Hide wallet address field (pre-filled)
   };
   
   // Add email if provided
