@@ -2,8 +2,14 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { createMoonPayOnramp } from '@/lib/moonpay';
 import { useAuth } from '@/contexts/AuthContext';
+import dynamic from 'next/dynamic';
+
+// Dynamically import MoonPay widget to prevent SSR issues
+const MoonPayBuyWidget = dynamic(
+  () => import('@moonpay/moonpay-react').then((mod) => mod.MoonPayBuyWidget),
+  { ssr: false }
+);
 
 interface MoonPayOnrampModalProps {
   isOpen: boolean;
@@ -27,25 +33,46 @@ export function MoonPayOnrampModal({
   const { user, ensureWallet } = useAuth();
   const [flowStep, setFlowStep] = useState<FlowStep>('connecting');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [showWidget, setShowWidget] = useState(false);
   
-  const moonPayInstanceRef = useRef<any>(null);
   const isInitializedRef = useRef(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // URL signature handler - required when using walletAddress parameter
+  const handleUrlSignatureRequested = async (url: string): Promise<string> => {
+    try {
+      console.log('🔐 Requesting signature for URL');
+      
+      const response = await fetch('/api/moonpay/sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to sign URL');
+      }
+      
+      const { signature } = await response.json();
+      console.log('✅ URL signed successfully');
+      return signature;
+    } catch (error) {
+      console.error('❌ URL signing failed:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     if (!isOpen) {
-      if (moonPayInstanceRef.current) {
-        try {
-          moonPayInstanceRef.current.close();
-        } catch (e) {}
-        moonPayInstanceRef.current = null;
-      }
+      // Cleanup on close
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
       setFlowStep('connecting');
       setErrorMsg('');
+      setShowWidget(false);
       isInitializedRef.current = false;
       return;
     }
@@ -56,27 +83,27 @@ export function MoonPayOnrampModal({
     const initMoonPay = async () => {
       try {
         setFlowStep('connecting');
+        
+        // Ensure wallet is connected
         const walletAddress = await ensureWallet();
         
         if (!walletAddress) {
           throw new Error('Failed to connect wallet');
         }
 
+        console.log('=== MoonPay Initialization ===');
+        console.log('Vault Address:', vaultAddress);
+        console.log('Amount:', amount);
+        console.log('Escrow ID:', escrowId);
+
+        // Small delay for better UX
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        const moonPayWidget = await createMoonPayOnramp({
-          email: user?.email,
-          walletAddress: vaultAddress,
-          amount: amount,
-          escrowId: escrowId,
-        });
-
-        moonPayInstanceRef.current = moonPayWidget;
-
+        // Show the widget
         setFlowStep('widget');
-        moonPayWidget.show();
+        setShowWidget(true);
 
-        // Start polling vault balance
+        // Start polling vault balance to detect when funding completes
         pollingIntervalRef.current = setInterval(async () => {
           try {
             const balanceResponse = await fetch('/api/vault/balance', {
@@ -90,18 +117,14 @@ export function MoonPayOnrampModal({
               const requiredAmount = amount;
 
               if (balance >= requiredAmount) {
+                // Success! Vault is funded
                 if (pollingIntervalRef.current) {
                   clearInterval(pollingIntervalRef.current);
                   pollingIntervalRef.current = null;
                 }
 
                 setFlowStep('complete');
-                
-                if (moonPayInstanceRef.current) {
-                  try {
-                    moonPayInstanceRef.current.close();
-                  } catch (e) {}
-                }
+                setShowWidget(false);
 
                 if (onSuccess) {
                   setTimeout(() => {
@@ -114,8 +137,9 @@ export function MoonPayOnrampModal({
           } catch (error) {
             console.error('Balance check error:', error);
           }
-        }, 10000);
+        }, 10000); // Check every 10 seconds
 
+        // Auto-stop polling after 30 minutes
         setTimeout(() => {
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
@@ -127,12 +151,14 @@ export function MoonPayOnrampModal({
         console.error('MoonPay init failed:', error);
         setErrorMsg(error.message || 'Failed to load payment');
         setFlowStep('error');
+        setShowWidget(false);
       }
     };
 
     initMoonPay();
   }, [isOpen, vaultAddress, amount, escrowId, user?.email, ensureWallet, onSuccess, onClose]);
 
+  // Prevent body scroll when modal is open
   useEffect(() => {
     if (!isOpen) return;
     const prev = document.body.style.overflow;
@@ -140,6 +166,7 @@ export function MoonPayOnrampModal({
     return () => { document.body.style.overflow = prev; };
   }, [isOpen]);
 
+  // Handle escape key
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -155,6 +182,7 @@ export function MoonPayOnrampModal({
 
   return (
     <>
+      {/* Custom overlay for loading/error/complete states */}
       {showCustomOverlay && (
         <div className="fixed inset-0 z-[150]">
           <div 
@@ -222,7 +250,28 @@ export function MoonPayOnrampModal({
         </div>
       )}
       
-      {/* REMOVED: The helper overlay that was showing "Complete Your Payment" */}
+      {/* MoonPay Widget - only show when in widget state */}
+      {showWidget && (
+        <MoonPayBuyWidget
+          variant="overlay"
+          visible={true}
+          baseCurrencyCode="usd"
+          baseCurrencyAmount={amount.toString()}
+          defaultCurrencyCode="usdc_polygon"
+          walletAddress={vaultAddress}
+          colorCode="2962FF"
+          externalTransactionId={escrowId}
+          email={user?.email}
+          showWalletAddressForm="false"
+          onUrlSignatureRequested={handleUrlSignatureRequested}
+          onLogin={async () => {
+            console.log('✅ MoonPay: Customer logged in');
+          }}
+          onTransactionCompleted={async (data: any) => {
+            console.log('✅ MoonPay: Transaction completed', data);
+          }}
+        />
+      )}
     </>
   );
 }

@@ -4,65 +4,97 @@ import crypto from 'crypto';
 
 export async function POST(req: NextRequest) {
   try {
-    const { params } = await req.json();
+    const body = await req.json();
     
-    if (!params || typeof params !== 'object') {
+    // Support both URL signing (for React SDK) and params signing (legacy)
+    const url = body.url;
+    const params = body.params;
+    
+    if (!url && !params) {
       return NextResponse.json(
-        { error: 'Invalid parameters' },
+        { error: 'Either url or params is required' },
         { status: 400 }
       );
     }
     
     // Get secret key based on MoonPay mode
     const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
+    const isProduction = moonPayMode === 'production';
     
-    // In sandbox mode, secret key is not required
-    if (moonPayMode === 'sandbox') {
-      console.log('ℹ️ Sandbox mode - signature not required');
-      return NextResponse.json({ 
-        signature: null // No signature needed for sandbox
-      });
-    }
-    
-    const secretKey = process.env.MOONPAY_SECRET_KEY_LIVE;
+    const secretKey = isProduction
+      ? process.env.MOONPAY_SECRET_KEY
+      : process.env.MOONPAY_TEST_SECRET_KEY;
     
     if (!secretKey) {
-      console.error('❌ MoonPay live secret key not configured');
+      console.error('❌ MoonPay secret key not configured for', isProduction ? 'production' : 'sandbox');
       return NextResponse.json(
-        { error: 'MoonPay production secret key not configured' },
+        { error: `MoonPay secret key not configured for ${isProduction ? 'production' : 'sandbox'}` },
         { status: 500 }
       );
     }
     
-    // Build query string - DO NOT SORT (order matters!)
-    const queryParts: string[] = [];
-    for (const [key, value] of Object.entries(params)) {
-      if (value !== undefined && value !== null && value !== '') {
-        // URL encode the value (not the key)
-        queryParts.push(`${key}=${encodeURIComponent(String(value))}`);
-      }
+    let queryString = '';
+    
+    // URL signing (for React SDK with onUrlSignatureRequested)
+    if (url) {
+      const urlObj = new URL(url);
+      queryString = urlObj.search.substring(1); // Remove the '?'
+      
+      console.log('🔐 Signing URL query string:', queryString.substring(0, 100) + '...');
+      
+      // Generate signature
+      const signature = crypto
+        .createHmac('sha256', secretKey)
+        .update(queryString)
+        .digest('base64');
+      
+      console.log('✅ URL signature generated');
+      
+      return NextResponse.json({ signature });
     }
     
-    const queryString = queryParts.join('&');
+    // Params signing (legacy approach)
+    if (params && typeof params === 'object') {
+      const queryParts: string[] = [];
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParts.push(`${key}=${encodeURIComponent(String(value))}`);
+        }
+      }
+      
+      queryString = queryParts.join('&');
+      
+      console.log('🔐 Signing params query string:', queryString.substring(0, 100) + '...');
+      
+      // Generate signature
+      const signature = crypto
+        .createHmac('sha256', secretKey)
+        .update(queryString)
+        .digest('base64');
+      
+      console.log('✅ Params signature generated');
+      
+      // Return signed params with signature included
+      const signedParams = {
+        ...params,
+        signature
+      };
+      
+      return NextResponse.json({ 
+        signature,
+        signedParams 
+      });
+    }
     
-    console.log('Signing query string:', queryString);
-    
-    // Generate signature using HMAC SHA-256
-    const signature = crypto
-      .createHmac('sha256', secretKey)
-      .update(queryString)
-      .digest('base64');
-    
-    console.log('✅ Signature generated successfully');
-    
-    return NextResponse.json({ 
-      signature
-    });
+    return NextResponse.json(
+      { error: 'Invalid request format' },
+      { status: 400 }
+    );
     
   } catch (error: any) {
     console.error('❌ MoonPay signing error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to sign parameters' },
+      { error: error.message || 'Failed to sign' },
       { status: 500 }
     );
   }
