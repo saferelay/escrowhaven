@@ -84,24 +84,43 @@ export function MoonPayOnrampModal({
       try {
         setFlowStep('connecting');
         
+        console.log('=== MoonPay Initialization Start ===');
+        console.log('Vault Address:', vaultAddress);
+        console.log('Amount:', amount);
+        console.log('Escrow ID:', escrowId);
+        console.log('User email:', user?.email);
+        
         // Ensure wallet is connected
+        console.log('Ensuring wallet...');
         const walletAddress = await ensureWallet();
         
         if (!walletAddress) {
           throw new Error('Failed to connect wallet');
         }
+        console.log('✅ Wallet connected');
 
-        console.log('=== MoonPay Initialization ===');
-        console.log('Vault Address:', vaultAddress);
-        console.log('Amount:', amount);
-        console.log('Escrow ID:', escrowId);
+        // Check if MoonPay API key exists
+        const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
+        const apiKey = moonPayMode === 'production'
+          ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY
+          : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY;
+        
+        console.log('Environment:', moonPayMode);
+        console.log('API Key exists:', !!apiKey);
+        console.log('API Key prefix:', apiKey?.substring(0, 10));
+        
+        if (!apiKey) {
+          throw new Error(`MoonPay API key not found for ${moonPayMode} mode`);
+        }
 
         // Small delay for better UX
         await new Promise(resolve => setTimeout(resolve, 800));
 
+        console.log('✅ About to show widget');
         // Show the widget
         setFlowStep('widget');
         setShowWidget(true);
+        console.log('✅ Widget state set to true');
 
         // Start polling vault balance to detect when funding completes
         pollingIntervalRef.current = setInterval(async () => {
