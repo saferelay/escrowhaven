@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import { CreateEscrowWizard } from '@/components/escrow/CreateEscrowWizard';
 import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
 import { OffRampModal } from '@/components/dashboard/OffRampModal';
+import { MoonPayOnrampModal } from '@/components/MoonPayOnrampModal';
 import { OnrampSDKTest } from '@/components/dashboard/OnrampSDKTest';
 
 // Icons
@@ -121,6 +122,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     completedCount: 0,
     refundedCount: 0,
   });
+
+  const [moonPayData, setMoonPayData] = useState<{
+    vaultAddress: string;
+    amount: number;
+    escrowId: string;
+  } | null>(null);
 
   // Other state
   const [urlEscrowProcessed, setUrlEscrowProcessed] = useState(false);
@@ -472,6 +479,21 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       alert('Failed to process withdrawal');
     }
   };
+
+  const handleShowMoonPay = useCallback((data: { vaultAddress: string; amount: number; escrowId: string }) => {
+    console.log('Opening MoonPay modal with:', data);
+    setMoonPayData(data);
+  }, []);
+  
+  const handleMoonPayClose = useCallback(() => {
+    setMoonPayData(null);
+  }, []);
+  
+  const handleMoonPaySuccess = useCallback(() => {
+    console.log('MoonPay funding successful!');
+    setMoonPayData(null);
+    handleRefresh();
+  }, [handleRefresh]);
 
   // Initial load
   useEffect(() => {
@@ -1316,6 +1338,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       isOpen
                       onClose={closePanel}
                       onUpdate={handleRefresh}
+                      onShowMoonPay={handleShowMoonPay}  // <-- ADD THIS LINE
                     />
                   ) : null}
                 </div>
@@ -1449,6 +1472,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 isOpen
                 onClose={closePanel}
                 onUpdate={handleRefresh}
+                onShowMoonPay={handleShowMoonPay}  // <-- ADD THIS LINE
               />
             </div>
           ) : null}
@@ -1567,6 +1591,32 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         walletAddress={''}
         withdrawalId={currentWithdrawalId || ''}
       />
+
+
+      <OffRampModal
+        isOpen={showOffRampModal}
+        onClose={() => {
+          setShowOffRampModal(false);
+          setCurrentWithdrawalId(null);
+        }}
+        availableAmount={metrics.availableToWithdraw}
+        userEmail={user?.email || ''}
+        walletAddress={''}
+        withdrawalId={currentWithdrawalId || ''}
+      />
+
+      {/* MoonPay Modal - Add this */}
+      {moonPayData && (
+        <MoonPayOnrampModal
+          isOpen={true}
+          onClose={handleMoonPayClose}
+          vaultAddress={moonPayData.vaultAddress}
+          amount={moonPayData.amount}
+          escrowId={moonPayData.escrowId}
+          onSuccess={handleMoonPaySuccess}
+        />
+      )}
+
     </div>
   );
 }
