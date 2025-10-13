@@ -53,21 +53,22 @@ export async function createMoonPayOnramp({
   const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
   const useMoonPayProduction = moonPayMode === 'production';
   
-  // Build base parameters - FULLY LOCKED
+  // Build base parameters - Lock USDC amount (vault needs exact amount)
   const baseParams: Record<string, any> = {
     apiKey: useMoonPayProduction
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
     currencyCode: 'usdc_polygon',  // What crypto to buy
-    quoteCurrencyAmount: amount.toFixed(2),  // USDC amount (locked)
+    quoteCurrencyAmount: amount.toFixed(2),  // EXACT USDC amount needed for vault
     walletAddress: walletAddress,
     colorCode: '2962FF',
     externalTransactionId: escrowId,
     
-    // LOCKING PARAMETERS
-    lockAmount: 'true',  // Lock the crypto amount field
+    // LOCKING PARAMETERS - User must buy EXACTLY this much USDC
+    lockAmount: 'true',  // Lock the USDC amount field (cannot be changed)
     showWalletAddressForm: 'false',  // Hide wallet address field (pre-filled)
     enabledCurrencies: 'usdc_polygon',  // Only allow USDC on Polygon
+    baseCurrencyCode: 'usd',  // Calculate USD price based on USDC amount
   };
   
   // Add email if provided
