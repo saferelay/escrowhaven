@@ -7,21 +7,25 @@ export async function POST(req: NextRequest) {
     console.log('=== MoonPay Sign Request ===');
     
     const body = await req.json();
-    console.log('Body keys:', Object.keys(body));
     
-    // Get the URL to sign
-    const urlToSign = body.url;
+    // Accept either queryString directly or extract from url
+    let queryString = body.queryString;
     
-    if (!urlToSign) {
-      console.error('❌ No URL provided in body');
+    if (!queryString && body.url) {
+      // Legacy: extract from URL
+      const url = new URL(body.url);
+      queryString = url.search.substring(1);
+    }
+    
+    if (!queryString) {
+      console.error('❌ No query string provided');
       return NextResponse.json(
-        { error: 'URL is required' },
+        { error: 'Query string is required' },
         { status: 400 }
       );
     }
 
-    console.log('URL length:', urlToSign.length);
-    console.log('URL preview:', urlToSign.substring(0, 150) + '...');
+    console.log('Query string to sign:', queryString.substring(0, 150) + '...');
     
     // Get secret key based on environment
     const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
@@ -46,39 +50,16 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Parse URL and extract query string
-    let url;
-    try {
-      url = new URL(urlToSign);
-    } catch (err) {
-      console.error('❌ Invalid URL format:', err);
-      return NextResponse.json(
-        { error: 'Invalid URL format' },
-        { status: 400 }
-      );
-    }
-    
-    const queryString = url.search.substring(1); // Remove the '?'
-    
     console.log('Query string length:', queryString.length);
-    console.log('Query string preview:', queryString.substring(0, 100) + '...');
     
-    if (!queryString) {
-      console.error('❌ No query string in URL');
-      return NextResponse.json(
-        { error: 'URL must contain query parameters' },
-        { status: 400 }
-      );
-    }
-    
-    // Create HMAC SHA256 signature
+    // Create HMAC SHA256 signature - MoonPay expects base64
     const signature = crypto
       .createHmac('sha256', secretKey)
       .update(queryString)
       .digest('base64');
     
     console.log('✅ Signature generated successfully');
-    console.log('Signature length:', signature.length);
+    console.log('Signature preview:', signature.substring(0, 20) + '...');
     
     return NextResponse.json({ signature });
     
