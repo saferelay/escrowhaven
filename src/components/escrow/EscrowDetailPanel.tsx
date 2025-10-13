@@ -8,6 +8,7 @@ import { SettlementActions } from '@/components/SettlementActions';
 import clsx from 'clsx';
 import { createOnrampDirectWidget, getOrCreateSalt } from '@/lib/onramp';
 import { MoonPayOnrampModal } from '@/components/MoonPayOnrampModal';
+import { PaymentMethodModal } from '@/components/PaymentMethodModal';
 
 // Icon components
 const FileTextIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -496,9 +497,16 @@ interface EscrowDetailPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate?: () => void;
+  autoCloseOnFund?: boolean;
 }
 
-export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: EscrowDetailPanelProps) {
+export function EscrowDetailPanel({ 
+  escrowId, 
+  isOpen, 
+  onClose, 
+  onUpdate,
+  autoCloseOnFund = true
+}: EscrowDetailPanelProps) {
   const { user, supabase, ensureWallet } = useAuth();
   const [escrow, setEscrow] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -506,6 +514,8 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   const [error, setError] = useState(''); 
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'bank' | null>(null);
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
   const [copied, setCopied] = useState(false);
@@ -845,7 +855,15 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   };
 
   const handleFund = async () => {
+    // Step 1: Show payment method selection modal
+    setShowPaymentMethodModal(true);
+  };
+  
+  const handlePaymentMethodSelected = async (method: 'card' | 'bank') => {
+    setSelectedPaymentMethod(method);
+    setShowPaymentMethodModal(false);
     setProcessing(true);
+    
     try {
       // Call prepare-funding API to compute vault address server-side
       const response = await fetch('/api/escrow/prepare-funding', {
@@ -862,6 +880,15 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
       const { vaultAddress } = await response.json();
       
       console.log('Vault address ready:', vaultAddress);
+      console.log(`User selected: ${method} payment`);
+      
+      // Close detail panel to avoid overlay stacking
+      if (autoCloseOnFund) {
+        onClose();
+      }
+      
+      // Small delay to let panel close animation complete
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       // Open MoonPay modal
       setShowMoonPayModal(true);
@@ -1392,22 +1419,6 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
   </div>
 )}
 
-        {/* MoonPay Onramp Modal */}
-        {showMoonPayModal && escrow && (
-          <MoonPayOnrampModal
-            isOpen={showMoonPayModal}
-            onClose={() => setShowMoonPayModal(false)}
-            vaultAddress={escrow.vault_address}
-            amount={escrow.amount_cents / 100}
-            escrowId={escrow.id}
-            onSuccess={() => {
-              // Refresh escrow data
-              if (onUpdate) onUpdate();
-            }}
-          />
-        )}
-
-      
 
             {/* SUCCESS MODAL</> */}
             {showSuccessModal && (escrow.status === 'RELEASED' || escrow.status === 'SETTLED') && (
@@ -1418,6 +1429,32 @@ export function EscrowDetailPanel({ escrowId, isOpen, onClose, onUpdate }: Escro
         />
       )}
       
+
+            {/* Payment Method Selection Modal - OUTSIDE detail panel */}
+            {showPaymentMethodModal && escrow && (
+        <PaymentMethodModal
+          isOpen={showPaymentMethodModal}
+          onClose={() => setShowPaymentMethodModal(false)}
+          onSelect={handlePaymentMethodSelected}
+          amount={escrow.amount_cents / 100}
+        />
+      )}
+
+      {/* MoonPay Onramp Modal - OUTSIDE detail panel */}
+      {showMoonPayModal && escrow && (
+        <MoonPayOnrampModal
+          isOpen={showMoonPayModal}
+          onClose={() => {
+            setShowMoonPayModal(false);
+          }}
+          vaultAddress={escrow.vault_address}
+          amount={escrow.amount_cents / 100}
+          escrowId={escrow.id}
+          onSuccess={() => {
+            if (onUpdate) onUpdate();
+          }}
+        />
+      )}
     </>
   );
 }

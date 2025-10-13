@@ -158,7 +158,7 @@ export function MoonPayOnrampModal({
   return (
     <>
       {showCustomOverlay && (
-        <div className="fixed inset-0 z-[100]">
+        <div className="fixed inset-0 z-[150]">
           <div 
             className="absolute inset-0 bg-black/50" 
             onClick={flowStep === 'error' ? onClose : undefined} 
@@ -226,7 +226,7 @@ export function MoonPayOnrampModal({
       
       {/* Helper overlay when widget is showing */}
       {flowStep === 'widget' && showHelper && (
-        <div className="fixed bottom-4 right-4 max-w-sm bg-white rounded-lg shadow-2xl border border-[#E0E2E7] p-4 z-[101] animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-4 right-4 max-w-sm bg-white rounded-lg shadow-2xl border border-[#E0E2E7] p-4 z-[151] animate-in slide-in-from-bottom-4 duration-300">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-full bg-[#2962FF] flex items-center justify-center flex-shrink-0">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
