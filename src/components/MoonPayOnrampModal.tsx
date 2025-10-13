@@ -3,13 +3,6 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import dynamic from 'next/dynamic';
-
-// Dynamically import MoonPay widget to prevent SSR issues
-const MoonPayBuyWidget = dynamic(
-  () => import('@moonpay/moonpay-react').then((mod) => mod.MoonPayBuyWidget),
-  { ssr: false }
-);
 
 interface MoonPayOnrampModalProps {
   isOpen: boolean;
@@ -33,101 +26,106 @@ export function MoonPayOnrampModal({
   const { user, ensureWallet } = useAuth();
   const [flowStep, setFlowStep] = useState<FlowStep>('connecting');
   const [errorMsg, setErrorMsg] = useState<string>('');
-  const [showWidget, setShowWidget] = useState(false);
   
   const isInitializedRef = useRef(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // URL signature handler - required when using walletAddress parameter
-  const handleUrlSignatureRequested = async (url: string): Promise<string> => {
-    try {
-      console.log('🔐 Requesting signature for URL');
-      
-      const response = await fetch('/api/moonpay/sign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to sign URL');
-      }
-      
-      const { signature } = await response.json();
-      console.log('✅ URL signed successfully');
-      return signature;
-    } catch (error) {
-      console.error('❌ URL signing failed:', error);
-      throw error;
-    }
-  };
+  const windowRef = useRef<Window | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
-      // Cleanup on close
+      // Cleanup
+      if (windowRef.current && !windowRef.current.closed) {
+        windowRef.current.close();
+        windowRef.current = null;
+      }
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
       setFlowStep('connecting');
       setErrorMsg('');
-      setShowWidget(false);
       isInitializedRef.current = false;
       return;
     }
 
-    if (isInitializedRef.current) {
-      console.log('⚠️ Already initialized, skipping');
-      return;
-    }
-    
+    if (isInitializedRef.current) return;
     isInitializedRef.current = true;
-    console.log('🚀 Starting initialization...');
 
     const initMoonPay = async () => {
       try {
         setFlowStep('connecting');
         
-        console.log('=== MoonPay Initialization Start ===');
-        console.log('Vault Address:', vaultAddress);
-        console.log('Amount:', amount);
-        console.log('Escrow ID:', escrowId);
-        console.log('User email:', user?.email);
-        
-        // Ensure wallet is connected
-        console.log('Ensuring wallet...');
         const walletAddress = await ensureWallet();
         
         if (!walletAddress) {
           throw new Error('Failed to connect wallet');
         }
-        console.log('✅ Wallet connected');
 
-        // Check if MoonPay API key exists
+        console.log('=== Opening MoonPay URL ===');
+        console.log('Vault:', vaultAddress);
+        console.log('Amount:', amount);
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Build MoonPay URL
         const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
-        const apiKey = moonPayMode === 'production'
+        const isProduction = moonPayMode === 'production';
+        
+        const apiKey = isProduction
           ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY
           : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY;
-        
-        console.log('Environment:', moonPayMode);
-        console.log('API Key exists:', !!apiKey);
-        console.log('API Key prefix:', apiKey?.substring(0, 10));
-        
+
         if (!apiKey) {
-          throw new Error(`MoonPay API key not found for ${moonPayMode} mode`);
+          throw new Error('MoonPay API key not configured');
         }
 
-        // Small delay for better UX
-        await new Promise(resolve => setTimeout(resolve, 800));
+        const baseUrl = isProduction
+          ? 'https://buy.moonpay.com'
+          : 'https://buy-sandbox.moonpay.com';
 
-        console.log('✅ About to show widget');
-        // Show the widget
+        const url = new URL(baseUrl);
+        url.searchParams.append('apiKey', apiKey);
+        url.searchParams.append('currencyCode', 'usdc_polygon');
+        url.searchParams.append('baseCurrencyCode', 'usd');
+        url.searchParams.append('baseCurrencyAmount', amount.toString());
+        url.searchParams.append('walletAddress', vaultAddress);
+        url.searchParams.append('colorCode', '2962FF');
+        url.searchParams.append('externalTransactionId', escrowId);
+        url.searchParams.append('showWalletAddressForm', 'false');
+        
+        if (user?.email) {
+          url.searchParams.append('email', user.email);
+        }
+
+        // Sign URL
+        const response = await fetch('/api/moonpay/sign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: url.toString() })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to sign URL');
+        }
+
+        const { signature } = await response.json();
+        url.searchParams.append('signature', signature);
+
+        // Open in popup
+        const width = 500;
+        const height = 700;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+        
+        windowRef.current = window.open(
+          url.toString(),
+          'moonpay',
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
+
         setFlowStep('widget');
-        setShowWidget(true);
-        console.log('✅ Widget state set to true');
 
-        // Start polling vault balance to detect when funding completes
+        // Start polling vault balance
         pollingIntervalRef.current = setInterval(async () => {
           try {
             const balanceResponse = await fetch('/api/vault/balance', {
@@ -138,17 +136,18 @@ export function MoonPayOnrampModal({
 
             if (balanceResponse.ok) {
               const { balance } = await balanceResponse.json();
-              const requiredAmount = amount;
 
-              if (balance >= requiredAmount) {
-                // Success! Vault is funded
+              if (balance >= amount) {
                 if (pollingIntervalRef.current) {
                   clearInterval(pollingIntervalRef.current);
                   pollingIntervalRef.current = null;
                 }
 
+                if (windowRef.current && !windowRef.current.closed) {
+                  windowRef.current.close();
+                }
+
                 setFlowStep('complete');
-                setShowWidget(false);
 
                 if (onSuccess) {
                   setTimeout(() => {
@@ -161,9 +160,8 @@ export function MoonPayOnrampModal({
           } catch (error) {
             console.error('Balance check error:', error);
           }
-        }, 10000); // Check every 10 seconds
+        }, 10000);
 
-        // Auto-stop polling after 30 minutes
         setTimeout(() => {
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
@@ -175,14 +173,12 @@ export function MoonPayOnrampModal({
         console.error('MoonPay init failed:', error);
         setErrorMsg(error.message || 'Failed to load payment');
         setFlowStep('error');
-        setShowWidget(false);
       }
     };
 
     initMoonPay();
   }, [isOpen, vaultAddress, amount, escrowId, user?.email, ensureWallet, onSuccess, onClose]);
 
-  // Prevent body scroll when modal is open
   useEffect(() => {
     if (!isOpen) return;
     const prev = document.body.style.overflow;
@@ -190,7 +186,6 @@ export function MoonPayOnrampModal({
     return () => { document.body.style.overflow = prev; };
   }, [isOpen]);
 
-  // Handle escape key
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -202,100 +197,88 @@ export function MoonPayOnrampModal({
 
   if (!isOpen) return null;
 
-  const showCustomOverlay = flowStep !== 'widget';
-
   return (
-    <>
-      {/* Custom overlay for loading/error/complete states */}
-      {showCustomOverlay && (
-        <div className="fixed inset-0 z-[150]">
-          <div 
-            className="absolute inset-0 bg-black/50" 
-            onClick={flowStep === 'error' ? onClose : undefined} 
-          />
-          
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-[#E0E2E7] p-8">
-              
-              {flowStep === 'connecting' && (
-                <div className="flex flex-col items-center">
-                  <div className="w-16 h-16 border-4 border-[#E0E2E7] border-t-[#2962FF] rounded-full animate-spin" />
-                  <p className="text-base font-medium text-black mt-6 mb-2">
-                    Preparing secure payment
-                  </p>
-                  <p className="text-sm text-[#787B86] text-center">
-                    Setting up your escrow funding session...
-                  </p>
-                </div>
-              )}
-
-              {flowStep === 'error' && (
-                <div className="flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-[#FEF2F2] flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8 text-[#EF5350]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </div>
-                  <p className="text-base font-medium text-black mb-2">
-                    Payment setup failed
-                  </p>
-                  <p className="text-sm text-[#787B86] text-center mb-6">
-                    {errorMsg}
-                  </p>
-                  <button
-                    onClick={onClose}
-                    className="px-6 py-3 bg-[#2962FF] text-white text-sm font-medium rounded-lg hover:bg-[#1E53E5] transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              )}
-
-              {flowStep === 'complete' && (
-                <div className="flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-[#E8F5E9] flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8 text-[#26A69A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <p className="text-base font-medium text-black mb-2">
-                    Escrow Funded!
-                  </p>
-                  <p className="text-sm text-[#787B86] text-center mb-1">
-                    ${amount.toFixed(2)} secured in vault
-                  </p>
-                  <p className="text-xs text-[#787B86] text-center">
-                    Funds protected until you approve release
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="fixed inset-0 z-[150]">
+      <div 
+        className="absolute inset-0 bg-black/50" 
+        onClick={flowStep === 'error' ? onClose : undefined} 
+      />
       
-      {/* MoonPay Widget - only show when in widget state */}
-      {showWidget && (
-        <MoonPayBuyWidget
-          variant="overlay"
-          visible={true}
-          baseCurrencyCode="usd"
-          baseCurrencyAmount={amount.toString()}
-          defaultCurrencyCode="usdc_polygon"
-          walletAddress={vaultAddress}
-          colorCode="2962FF"
-          externalTransactionId={escrowId}
-          email={user?.email}
-          showWalletAddressForm="false"
-          onUrlSignatureRequested={handleUrlSignatureRequested}
-          onLogin={async () => {
-            console.log('✅ MoonPay: Customer logged in');
-          }}
-          onTransactionCompleted={async (data: any) => {
-            console.log('✅ MoonPay: Transaction completed', data);
-          }}
-        />
-      )}
-    </>
+      <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-[#E0E2E7] p-8">
+          
+          {flowStep === 'connecting' && (
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 border-4 border-[#E0E2E7] border-t-[#2962FF] rounded-full animate-spin" />
+              <p className="text-base font-medium text-black mt-6 mb-2">
+                Opening secure payment
+              </p>
+              <p className="text-sm text-[#787B86] text-center">
+                Complete your purchase in the popup window
+              </p>
+            </div>
+          )}
+
+          {flowStep === 'widget' && (
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 border-4 border-[#E0E2E7] border-t-[#2962FF] rounded-full animate-spin" />
+              <p className="text-base font-medium text-black mt-6 mb-2">
+                Waiting for payment
+              </p>
+              <p className="text-sm text-[#787B86] text-center mb-4">
+                Complete your purchase in the MoonPay window
+              </p>
+              <button
+                onClick={onClose}
+                className="text-sm text-[#787B86] hover:text-black"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {flowStep === 'error' && (
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full bg-[#FEF2F2] flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-[#EF5350]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <p className="text-base font-medium text-black mb-2">
+                Payment setup failed
+              </p>
+              <p className="text-sm text-[#787B86] text-center mb-6">
+                {errorMsg}
+              </p>
+              <button
+                onClick={onClose}
+                className="px-6 py-3 bg-[#2962FF] text-white text-sm font-medium rounded-lg hover:bg-[#1E53E5] transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          )}
+
+          {flowStep === 'complete' && (
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full bg-[#E8F5E9] flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-[#26A69A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-base font-medium text-black mb-2">
+                Escrow Funded!
+              </p>
+              <p className="text-sm text-[#787B86] text-center mb-1">
+                ${amount.toFixed(2)} secured in vault
+              </p>
+              <p className="text-xs text-[#787B86] text-center">
+                Funds protected until you approve release
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
