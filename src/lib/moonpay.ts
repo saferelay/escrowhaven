@@ -58,13 +58,12 @@ export async function createMoonPayOnramp({
     apiKey: useMoonPayProduction
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
-    currencyCode: 'usdc_polygon',
-    baseCurrencyCode: 'usd',
-    baseCurrencyAmount: amount.toFixed(2),
+    currencyCode: 'usdc_polygon',  // What crypto to buy
+    quoteCurrencyAmount: amount.toFixed(2),  // USDC amount (locked) - THIS IS THE KEY CHANGE
     walletAddress: walletAddress,
     colorCode: '2962FF',
     externalTransactionId: escrowId,
-    lockAmount: 'true',
+    lockAmount: 'true',  // Lock the USDC amount
   };
   
   // Add email if provided
@@ -115,13 +114,12 @@ export async function createMoonPayOfframp({
     apiKey: useMoonPayProduction
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
-    currencyCode: 'usdc_polygon',
-    baseCurrencyCode: 'usd',
-    quoteCurrencyAmount: amount.toFixed(2),
+    currencyCode: 'usdc_polygon',  // What crypto to sell
+    baseCurrencyAmount: amount.toFixed(2),  // USDC amount to sell (locked) - KEY CHANGE
     walletAddress: walletAddress,
     colorCode: '2962FF',
     externalTransactionId: withdrawalId,
-    lockAmount: 'true',
+    lockAmount: 'true',  // Lock the USDC amount
   };
   
   // Add email if provided
