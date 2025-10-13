@@ -77,6 +77,11 @@ export function MoonPayOnrampModal({
           queryParts.push(`${key}=${encodeURIComponent(value)}`);
         }
         const queryString = queryParts.join('&');
+        
+        console.log('=== MoonPay URL Construction ===');
+        console.log('Base URL:', baseUrl);
+        console.log('Query params:', params);
+        console.log('Query string:', queryString);
 
         // Sign the query string
         const signResponse = await fetch('/api/moonpay/sign', {
@@ -87,15 +92,17 @@ export function MoonPayOnrampModal({
 
         if (!signResponse.ok) {
           const errorData = await signResponse.json();
+          console.error('Signing failed:', errorData);
           throw new Error(errorData.error || 'Failed to sign URL');
         }
 
         const { signature } = await signResponse.json();
+        console.log('Signature received, length:', signature.length);
         
         // Build final URL with signature
         const finalUrl = `${baseUrl}?${queryString}&signature=${encodeURIComponent(signature)}`;
         
-        console.log('MoonPay URL ready');
+        console.log('Final URL preview:', finalUrl.substring(0, 150) + '...');
         setIframeUrl(finalUrl);
         setStatus('ready');
 
