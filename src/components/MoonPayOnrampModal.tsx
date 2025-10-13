@@ -26,6 +26,7 @@ export function MoonPayOnrampModal({
   const [error, setError] = useState('');
   const [iframeUrl, setIframeUrl] = useState('');
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const initialBalanceRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -34,12 +35,30 @@ export function MoonPayOnrampModal({
       setStatus('loading');
       setError('');
       setIframeUrl('');
+      initialBalanceRef.current = null;
       return;
     }
 
     const setupMoonPay = async () => {
       try {
         console.log('Setting up MoonPay iframe');
+
+        // Get initial balance first
+        try {
+          const balanceRes = await fetch('/api/vault/balance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vaultAddress })
+          });
+
+          if (balanceRes.ok) {
+            const { balance } = await balanceRes.json();
+            initialBalanceRef.current = balance;
+            console.log('Initial vault balance:', balance);
+          }
+        } catch (err) {
+          console.warn('Could not fetch initial balance:', err);
+        }
 
         // Get environment
         const mode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
@@ -80,8 +99,7 @@ export function MoonPayOnrampModal({
         
         console.log('=== MoonPay URL Construction ===');
         console.log('Base URL:', baseUrl);
-        console.log('Query params:', params);
-        console.log('Query string:', queryString);
+        console.log('Mode:', mode);
 
         // Sign the query string
         const signResponse = await fetch('/api/moonpay/sign', {
@@ -93,20 +111,20 @@ export function MoonPayOnrampModal({
         if (!signResponse.ok) {
           const errorData = await signResponse.json();
           console.error('Signing failed:', errorData);
-          throw new Error(errorData.error || 'Failed to sign URL');
+          throw new Error(errorData.error || 'Failed to sign MoonPay URL');
         }
 
         const { signature } = await signResponse.json();
-        console.log('Signature received, length:', signature.length);
+        console.log('✅ URL signed successfully');
         
         // Build final URL with signature
         const finalUrl = `${baseUrl}?${queryString}&signature=${encodeURIComponent(signature)}`;
         
-        console.log('Final URL preview:', finalUrl.substring(0, 150) + '...');
+        console.log('MoonPay URL ready');
         setIframeUrl(finalUrl);
         setStatus('ready');
 
-        // Start polling vault balance
+        // Start polling vault balance every 15 seconds
         pollingRef.current = setInterval(async () => {
           try {
             const res = await fetch('/api/vault/balance', {
@@ -117,13 +135,24 @@ export function MoonPayOnrampModal({
 
             if (res.ok) {
               const { balance } = await res.json();
+              console.log('Current balance:', balance, 'Initial:', initialBalanceRef.current);
 
-              if (balance >= amount) {
+              // Check if balance increased by at least the expected amount
+              const expectedIncrease = amount * 0.95; // Allow 5% slippage
+              const actualIncrease = balance - (initialBalanceRef.current || 0);
+
+              if (actualIncrease >= expectedIncrease) {
                 // Success!
-                if (pollingRef.current) clearInterval(pollingRef.current);
+                console.log('✅ Payment detected! Balance increased by', actualIncrease);
+                
+                if (pollingRef.current) {
+                  clearInterval(pollingRef.current);
+                  pollingRef.current = null;
+                }
                 
                 setStatus('complete');
                 
+                // Close modal after showing success
                 setTimeout(() => {
                   if (onSuccess) onSuccess();
                   onClose();
@@ -133,21 +162,32 @@ export function MoonPayOnrampModal({
           } catch (err) {
             console.error('Balance check failed:', err);
           }
-        }, 10000);
+        }, 15000); // Check every 15 seconds
 
-        // Stop after 30 minutes
+        // Stop polling after 30 minutes
         setTimeout(() => {
-          if (pollingRef.current) clearInterval(pollingRef.current);
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
         }, 30 * 60 * 1000);
 
       } catch (err: any) {
-        console.error('MoonPay error:', err);
+        console.error('MoonPay setup error:', err);
         setError(err.message || 'Failed to load MoonPay');
         setStatus('error');
       }
     };
 
     setupMoonPay();
+
+    // Cleanup on unmount
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
   }, [isOpen, vaultAddress, amount, escrowId, user?.email, onSuccess, onClose]);
 
   if (!isOpen) return null;
@@ -173,11 +213,11 @@ export function MoonPayOnrampModal({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <p className="mt-4 font-medium text-black">Error</p>
+            <p className="mt-4 font-medium text-black">Payment Setup Failed</p>
             <p className="text-sm text-[#787B86] mt-2">{error}</p>
             <button
               onClick={onClose}
-              className="mt-6 px-6 py-2 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] transition-colors"
+              className="mt-6 px-6 py-2 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] transition-colors font-medium"
             >
               Close
             </button>
@@ -206,6 +246,7 @@ export function MoonPayOnrampModal({
           <button
             onClick={onClose}
             className="absolute -top-12 right-0 p-2 text-white hover:text-gray-300 transition-colors z-10"
+            aria-label="Close"
           >
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -216,7 +257,8 @@ export function MoonPayOnrampModal({
             src={iframeUrl}
             className="w-full h-full rounded-xl shadow-2xl bg-white"
             allow="accelerometer; autoplay; camera; encrypted-media; gyroscope; payment"
-            sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation"
+            title="MoonPay Payment"
           />
         </div>
       )}
