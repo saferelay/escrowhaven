@@ -6,85 +6,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import TransactionSuccessModal from '@/components/escrow/TransactionSuccessModal';
 import { SettlementActions } from '@/components/SettlementActions';
 import clsx from 'clsx';
-import { createOnrampDirectWidget, getOrCreateSalt } from '@/lib/onramp';
-import { MoonPayOnrampModal } from '@/components/MoonPayOnrampModal';
 import { PaymentMethodModal } from '@/components/PaymentMethodModal';
 
 // Icon components
-const FileTextIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-  </svg>
-);
-
-const PenToolIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 19l7-7 3 3-7 7-3-3z" />
-    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-    <path d="M2 2l7.586 7.586" />
-    <circle cx="11" cy="11" r="2" />
-  </svg>
-);
-
-const ShieldIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </svg>
-);
-
-const DollarSignIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <line x1="12" y1="1" x2="12" y2="23" />
-    <path d="M17 5H9.5a3.5 3.5 0 00 0 7h5a3.5 3.5 0 010 7H6" />
-  </svg>
-);
-
-const ClockIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-
-const CheckCircleIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
-
-const LinkIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
-    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
-  </svg>
-);
-
-const ArrowUpRightIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M7 17L17 7M17 7H7M17 7V17" />
-  </svg>
-);
-
-const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-
 const CheckIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
-
-const CopyIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
   </svg>
 );
 
@@ -95,6 +22,12 @@ const ScaleIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
     <path d="M7 21h10" />
     <path d="M12 3v18" />
     <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+  </svg>
+);
+
+const ArrowUpRightIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M7 17L17 7M17 7H7M17 7V17" />
   </svg>
 );
 
@@ -217,7 +150,6 @@ const BlockchainTimeline = ({
     const isInitiator = escrow?.initiator_email === userEmail;
     const needsToAccept = escrow?.status === 'INITIATED' && !isInitiator && (role === 'payer' || role === 'recipient');
     
-    // Step 1: Invite sent
     steps.push({
       title: 'Invite sent',
       date: escrow.created_at ? new Date(escrow.created_at).toLocaleString() : undefined,
@@ -226,7 +158,6 @@ const BlockchainTimeline = ({
       isPulsing: false
     });
 
-    // Step 2: Terms acceptance
     if (escrow.accepted_at) {
       steps.push({
         title: 'Terms agreed',
@@ -260,7 +191,6 @@ const BlockchainTimeline = ({
       return steps;
     }
 
-    // Step 3: Funding
     if (escrow.status === 'FUNDED' || escrow.status === 'RELEASED' || escrow.status === 'REFUNDED' || escrow.status === 'SETTLED') {
       steps.push({
         title: 'Secure vault funded & deployed',
@@ -292,7 +222,6 @@ const BlockchainTimeline = ({
       return steps;
     }
 
-    // Step 4/5: Active or completed
     if (escrow.status === 'RELEASED') {
       steps.push({
         title: 'Payment released',
@@ -335,7 +264,7 @@ const BlockchainTimeline = ({
               </a>
             )}
             <button
-              onClick={() => setShowSuccessModal(true)}  // FIXED: Changed from setShowTermsModal
+              onClick={() => setShowSuccessModal(true)}
               className="text-xs text-[#2962FF] hover:text-[#1E53E5] flex items-center gap-1"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -480,7 +409,6 @@ const BlockchainTimeline = ({
   );
 };
 
-// Payment icons component
 const PaymentIcons = () => (
   <div className="flex items-center justify-center gap-2 py-2">
     <img src="/payment-icons/visa.svg" alt="Visa" className="h-5 opacity-60" />
@@ -498,6 +426,7 @@ interface EscrowDetailPanelProps {
   onClose: () => void;
   onUpdate?: () => void;
   autoCloseOnFund?: boolean;
+  onShowMoonPay?: (data: { vaultAddress: string; amount: number; escrowId: string }) => void;
 }
 
 export function EscrowDetailPanel({ 
@@ -505,7 +434,8 @@ export function EscrowDetailPanel({
   isOpen, 
   onClose, 
   onUpdate,
-  autoCloseOnFund = true
+  autoCloseOnFund = true,
+  onShowMoonPay
 }: EscrowDetailPanelProps) {
   const { user, supabase, ensureWallet } = useAuth();
   const [escrow, setEscrow] = useState<any>(null);
@@ -521,8 +451,6 @@ export function EscrowDetailPanel({
   const [copied, setCopied] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showMoonPayModal, setShowMoonPayModal] = useState(false);
-  const [onrampUrl, setOnrampUrl] = useState<string>('');
   
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -566,21 +494,17 @@ export function EscrowDetailPanel({
       fetchingRef.current = true;
       
       try {
-        // Try to refresh session first
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (!session || sessionError) {
-          console.log('No valid session, attempting refresh...');
           const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
           
           if (!newSession || refreshError) {
-            console.error('Session refresh failed:', refreshError);
             setLoading(false);
             return;
           }
         }
         
-        // Now fetch with retries
         let retries = 3;
         let data = null;
         let error = null;
@@ -596,7 +520,6 @@ export function EscrowDetailPanel({
           error = result.error;
           
           if (error?.message?.includes('JWT')) {
-            // Try one more refresh
             await supabase.auth.refreshSession();
             retries--;
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -605,20 +528,11 @@ export function EscrowDetailPanel({
           }
         }
         
-        if (error) {
-          if (error.message !== 'JWT expired') {
-            console.error('Error fetching escrow:', error.message);
-          }
-          return;
-        }
-        
         if (data && mountedRef.current) {
           setEscrow(data);
         }
       } catch (error: any) {
-        if (!error?.message?.includes('JWT')) {
-          console.error('Unexpected error:', error?.message || 'Unknown error');
-        }
+        console.error('Error:', error);
       } finally {
         if (mountedRef.current) {
           setLoading(false);
@@ -664,7 +578,6 @@ export function EscrowDetailPanel({
       if (!hasSeenModal) {
         setShowSuccessModal(true);
         
-        // Mark as shown in database
         const updateField = isClient 
           ? 'success_modal_shown_to_client' 
           : 'success_modal_shown_to_freelancer';
@@ -680,7 +593,6 @@ export function EscrowDetailPanel({
     }
   }, [escrow?.status, escrow?.id, escrow?.released_at, escrow?.settled_at, user?.email, supabase]);
 
-
   const handleAccept = async () => {
     if (!termsAccepted) {
       alert('Please accept the terms to continue');
@@ -691,7 +603,6 @@ export function EscrowDetailPanel({
     setError('');
   
     try {
-      // Step 1: Ensure wallet exists
       const { data: existingWallet } = await supabase
         .from('user_wallets')
         .select('wallet_address')
@@ -701,27 +612,19 @@ export function EscrowDetailPanel({
       let walletAddress = existingWallet?.wallet_address;
   
       if (!walletAddress) {
-        console.log('No wallet found - creating one');
-        
         try {
           walletAddress = await ensureWallet();
           
           if (!walletAddress) {
             throw new Error('Wallet creation returned null');
           }
-          
-          console.log('Wallet created:', walletAddress);
         } catch (err: any) {
-          console.error('Wallet creation error:', err);
           alert(`Wallet creation failed: ${err.message || 'Please try again'}`);
           setProcessing(false);
           return;
         }
-      } else {
-        console.log('Using existing wallet:', walletAddress);
       }
   
-      // Step 2: Get other party's wallet address
       const otherPartyEmail = role === 'payer' ? escrow.freelancer_email : escrow.client_email;
       const { data: otherWallet } = await supabase
         .from('user_wallets')
@@ -731,13 +634,10 @@ export function EscrowDetailPanel({
   
       const otherWalletAddress = otherWallet?.wallet_address;
   
-      // Step 3: If both wallets exist, pre-compute vault address
       let vaultAddress = null;
       let splitterAddress = null;
 
       if (otherWalletAddress) {
-        console.log('Both wallets exist - pre-computing vault address');
-        
         const clientWallet = role === 'payer' ? walletAddress : otherWalletAddress;
         const freelancerWallet = role === 'recipient' ? walletAddress : otherWalletAddress;
         
@@ -766,20 +666,16 @@ export function EscrowDetailPanel({
             clientWallet,
             freelancerWallet
           );
-          
-          console.log('Vault pre-computed:', vaultAddress);
         } catch (err) {
-          console.warn('Vault pre-computation failed (non-critical):', err);
+          console.warn('Vault pre-computation failed:', err);
         }
       }
   
-      // Step 4: Update escrow with wallet addresses and vault
       const updateData: any = {
         status: 'ACCEPTED',
         accepted_at: new Date().toISOString()
       };
       
-      // Set wallet addresses for both parties
       if (role === 'recipient') {
         updateData.recipient_wallet_address = walletAddress;
         updateData.freelancer_wallet_address = walletAddress;
@@ -794,7 +690,6 @@ export function EscrowDetailPanel({
         }
       }
   
-      // Add vault addresses if computed
       if (vaultAddress) {
         updateData.vault_address = vaultAddress;
       }
@@ -811,18 +706,14 @@ export function EscrowDetailPanel({
         throw new Error(`Failed to accept escrow: ${updateError.message}`);
       }
   
-      console.log('Escrow accepted successfully');
       if (onUpdate) onUpdate();
       
     } catch (error: any) {
-      console.error('Accept failed:', error);
       alert(`Failed to accept: ${error.message || 'Unknown error'}`);
     } finally {
       setProcessing(false);
     }
   };
-
-
 
   const handleDecline = async () => {
     if (!declineReason.trim()) {
@@ -847,7 +738,6 @@ export function EscrowDetailPanel({
       setShowDeclineForm(false);
       if (onUpdate) onUpdate();
     } catch (error) {
-      console.error('Decline failed:', error);
       alert('Failed to decline. Please try again.');
     } finally {
       setProcessing(false);
@@ -855,7 +745,6 @@ export function EscrowDetailPanel({
   };
 
   const handleFund = async () => {
-    // Step 1: Show payment method selection modal
     setShowPaymentMethodModal(true);
   };
   
@@ -865,7 +754,6 @@ export function EscrowDetailPanel({
     setProcessing(true);
     
     try {
-      // Call prepare-funding API to compute vault address server-side
       const response = await fetch('/api/escrow/prepare-funding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -879,57 +767,55 @@ export function EscrowDetailPanel({
       
       const { vaultAddress } = await response.json();
       
-      console.log('Vault address ready:', vaultAddress);
-      console.log(`User selected: ${method} payment`);
-      
-      // Close detail panel to avoid overlay stacking
-      if (autoCloseOnFund) {
-        onClose();
+      // FIXED: Pass data to parent component
+      if (onShowMoonPay) {
+        if (autoCloseOnFund) {
+          onClose();
+        }
+        
+        onShowMoonPay({
+          vaultAddress,
+          amount: escrow.amount_cents / 100,
+          escrowId: escrow.id
+        });
       }
       
-      // Small delay to let panel close animation complete
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Open MoonPay modal
-      setShowMoonPayModal(true);
-      
     } catch (error: any) {
-      console.error('Funding error:', error);
       alert(`Failed to initiate payment: ${error.message || 'Unknown error'}`);
     } finally {
       setProcessing(false);
     }
   };
+
   if (!isOpen) return null;
 
   return (
     <>
       <div className="h-full flex flex-col bg-white">
-      {/* FIXED HEADER - Matching dashboard column header height exactly */}
-      <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-medium text-[#64748B]">
-                    TRANSACTION DETAILS
-                  </span>
-                  {escrow && (
-                    <div className={clsx(
-                      "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border",
-                      escrow.status === 'FUNDED' ? 'border-blue-200 text-blue-700 bg-blue-50' :
-                      escrow.status === 'RELEASED' ? 'border-green-200 text-green-700 bg-green-50' :
-                      escrow.status === 'INITIATED' ? 'border-gray-200 text-gray-700' :
-                      escrow.status === 'DECLINED' ? 'border-red-200 text-red-700 bg-red-50' :
-                      'border-yellow-200 text-yellow-700 bg-yellow-50'
-                    )}>
-                      {escrow.status}
-                    </div>
-                  )}
-                </div>
-                <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
-                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+        <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-[#64748B]">
+              TRANSACTION DETAILS
+            </span>
+            {escrow && (
+              <div className={clsx(
+                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border",
+                escrow.status === 'FUNDED' ? 'border-blue-200 text-blue-700 bg-blue-50' :
+                escrow.status === 'RELEASED' ? 'border-green-200 text-green-700 bg-green-50' :
+                escrow.status === 'INITIATED' ? 'border-gray-200 text-gray-700' :
+                escrow.status === 'DECLINED' ? 'border-red-200 text-red-700 bg-red-50' :
+                'border-yellow-200 text-yellow-700 bg-yellow-50'
+              )}>
+                {escrow.status}
               </div>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
         <ProgressIndicator 
           currentStep={getCurrentStep()} 
@@ -985,53 +871,53 @@ export function EscrowDetailPanel({
                 </div>
               </div>
 
-{/* Show shareable link for initiator waiting */}
-{isInitiator && escrow.status === 'INITIATED' && (
-  <>
-    <div className="border border-gray-200 rounded-lg p-4 mb-6">
-      <p className="text-sm font-medium text-gray-900 mb-3">Share this transaction link</p>
-      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            value={`${window.location.origin}/${escrow.premium_link || `escrow/${escrow.id}`}`}
-            readOnly
-            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded text-sm font-mono text-gray-700"
-            onClick={(e) => e.currentTarget.select()}
-          />
-          <button
-            onClick={async () => {
-              const link = `${window.location.origin}/${escrow.premium_link || `escrow/${escrow.id}`}`;
-              await navigator.clipboard.writeText(link);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }}
-            className={clsx(
-              "px-4 py-2 rounded text-sm font-medium transition-all",
-              copied 
-                ? "bg-green-600 text-white" 
-                : "bg-[#2962FF] text-white hover:bg-[#1E53E5]"
-            )}
-          >
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
-        </div>
-        <p className="text-xs text-gray-600 mt-2">
-          They can use this link to view and accept the transaction
-        </p>
-      </div>
-    </div>
+              {/* Share link for initiator */}
+              {isInitiator && escrow.status === 'INITIATED' && (
+                <>
+                  <div className="border border-gray-200 rounded-lg p-4 mb-6">
+                    <p className="text-sm font-medium text-gray-900 mb-3">Share this transaction link</p>
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={`${window.location.origin}/${escrow.premium_link || `escrow/${escrow.id}`}`}
+                          readOnly
+                          className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded text-sm font-mono text-gray-700"
+                          onClick={(e) => e.currentTarget.select()}
+                        />
+                        <button
+                          onClick={async () => {
+                            const link = `${window.location.origin}/${escrow.premium_link || `escrow/${escrow.id}`}`;
+                            await navigator.clipboard.writeText(link);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }}
+                          className={clsx(
+                            "px-4 py-2 rounded text-sm font-medium transition-all",
+                            copied 
+                              ? "bg-green-600 text-white" 
+                              : "bg-[#2962FF] text-white hover:bg-[#1E53E5]"
+                          )}
+                        >
+                          {copied ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        They can use this link to view and accept the transaction
+                      </p>
+                    </div>
+                  </div>
 
-    <div className="flex justify-end mb-6">
-      <button
-        onClick={() => setShowCancelDialog(true)}
-        className="text-sm text-gray-600 hover:text-red-600 transition-colors"
-      >
-        Cancel this transaction
-      </button>
-    </div>
-  </>
-)}
+                  <div className="flex justify-end mb-6">
+                    <button
+                      onClick={() => setShowCancelDialog(true)}
+                      className="text-sm text-gray-600 hover:text-red-600 transition-colors"
+                    >
+                      Cancel this transaction
+                    </button>
+                  </div>
+                </>
+              )}
 
               {/* Timeline */}
               <div className="my-6">
@@ -1046,7 +932,7 @@ export function EscrowDetailPanel({
 
               {/* Actions section */}
               <div className="space-y-3">
-                {/* Cancel dialog for initiator */}
+                {/* Cancel dialog */}
                 {showCancelDialog && (escrow.status === 'INITIATED' || escrow.status === 'ACCEPTED') && (
                   <div className="border border-red-200 bg-red-50 rounded-lg p-4">
                     <p className="text-sm font-medium text-gray-900 mb-3">Cancel this escrow?</p>
@@ -1067,7 +953,7 @@ export function EscrowDetailPanel({
                                 cancelled_at: new Date().toISOString()
                               })
                               .eq('id', escrowId)
-                              .in('status', ['INITIATED', 'ACCEPTED']); // Safety check
+                              .in('status', ['INITIATED', 'ACCEPTED']);
                             
                             if (onUpdate) onUpdate();
                             onClose();
@@ -1093,7 +979,7 @@ export function EscrowDetailPanel({
                   </div>
                 )}
 
-                {/* For non-initiator who needs to accept */}
+                {/* Accept/Decline for non-initiator */}
                 {escrow.status === 'INITIATED' && needsToAccept && (
                   <>
                     <div className="border border-gray-200 rounded-lg p-4">
@@ -1161,9 +1047,9 @@ export function EscrowDetailPanel({
                               ? "bg-[#2962FF] text-white hover:bg-[#1d4ed8]" 
                               : "bg-gray-100 text-gray-400 cursor-not-allowed"
                           )}
-                          >
-                            {!user ? 'Loading...' : processing ? 'Processing...' : 'Accept Terms'}
-                          </button>
+                        >
+                          {!user ? 'Loading...' : processing ? 'Processing...' : 'Accept Terms'}
+                        </button>
                         <button
                           onClick={() => setShowDeclineForm(true)}
                           disabled={processing}
@@ -1206,7 +1092,7 @@ export function EscrowDetailPanel({
                   </>
                 )}
 
-                {/* Fund button for accepted escrows */}
+                {/* Fund button */}
                 {escrow.status === 'ACCEPTED' && role === 'payer' && (
                   <>
                     <div className="flex items-center justify-between py-3 px-4 border border-gray-200 rounded-lg text-xs bg-white">
@@ -1236,7 +1122,6 @@ export function EscrowDetailPanel({
 
                     <PaymentIcons />
                     
-                    {/* ADD THIS CANCEL BUTTON FOR PAYER */}
                     <button
                       onClick={() => setShowCancelDialog(true)}
                       className="w-full mt-2 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
@@ -1246,7 +1131,7 @@ export function EscrowDetailPanel({
                   </>
                 )}  
 
-                {/* Cancel option for recipient waiting for funding */}
+                {/* Recipient waiting */}
                 {escrow.status === 'ACCEPTED' && role === 'recipient' && (
                   <div className="space-y-3">
                     <div className="border border-gray-200 rounded-lg p-4">
@@ -1264,8 +1149,7 @@ export function EscrowDetailPanel({
                   </div>
                 )}
 
-
-                {/* Settlement actions for funded escrows */}
+                {/* Settlement actions */}
                 {escrow.status === 'FUNDED' && role && (
                   <>
                     <div className="flex items-center justify-between py-3 px-4 border border-gray-200 rounded-lg text-xs bg-white">
@@ -1316,7 +1200,6 @@ export function EscrowDetailPanel({
                   </>
                 )}
 
-
                 {/* Declined status */}
                 {escrow.status === 'DECLINED' && (
                   <div className="text-center py-8">
@@ -1334,125 +1217,105 @@ export function EscrowDetailPanel({
                   </div>
                 )}
 
-                  {/* Share Success Button - Shows for completed transactions */}
-                  {(escrow.status === 'RELEASED' || escrow.status === 'SETTLED') && (
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <button
-                        onClick={() => setShowSuccessModal(true)}
-                        className="w-full py-3 bg-gradient-to-r from-[#2962FF] to-[#1E53E5] text-white rounded-lg hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 group"
-                      >
-                        <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="font-medium">Take Your Victory Lap</span>
-                        <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                        </svg>
-                      </button>
-                      
-                      <p className="text-xs text-center text-gray-500 mt-2">
-                        Share verified proof of this successful transaction
-                      </p>
-                    </div>
-                  )}
-
+                {/* Share Success */}
+                {(escrow.status === 'RELEASED' || escrow.status === 'SETTLED') && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <button
+                      onClick={() => setShowSuccessModal(true)}
+                      className="w-full py-3 bg-gradient-to-r from-[#2962FF] to-[#1E53E5] text-white rounded-lg hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 group"
+                    >
+                      <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="font-medium">Take Your Victory Lap</span>
+                      <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </button>
+                    
+                    <p className="text-xs text-center text-gray-500 mt-2">
+                      Share verified proof of this successful transaction
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
-
         </div>
       </div>
 
-{/* Terms Modal */}
-{showTermsModal && (
-  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-      <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Transaction Vault Protection</h3>
-        <button
-          onClick={() => setShowTermsModal(false)}
-          className="p-1 hover:bg-gray-100 rounded"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      <div className="p-6 space-y-4 text-sm text-gray-600">
-        <div>
-          <p className="font-semibold text-gray-900 mb-2">Transaction Vault Security</p>
-          <ul className="space-y-1.5 list-disc pl-5">
-            <li>Each transaction has its own secure vault on Polygon</li>
-            <li>Funds locked in immutable smart contract</li>
-            <li>No admin functions - escrowhaven cannot access the vault</li>
-            <li>Vault address provided after deployment</li>
-          </ul>
+      {/* Terms Modal */}
+      {showTermsModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Transaction Vault Protection</h3>
+              <button
+                onClick={() => setShowTermsModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-sm text-gray-600">
+              <div>
+                <p className="font-semibold text-gray-900 mb-2">Transaction Vault Security</p>
+                <ul className="space-y-1.5 list-disc pl-5">
+                  <li>Each transaction has its own secure vault on Polygon</li>
+                  <li>Funds locked in immutable smart contract</li>
+                  <li>No admin functions - escrowhaven cannot access the vault</li>
+                  <li>Vault address provided after deployment</li>
+                </ul>
+              </div>
+              
+              <div>
+                <p className="font-semibold text-gray-900 mb-2">Payment Control</p>
+                <ul className="space-y-1.5 list-disc pl-5">
+                  <li>Full Release: Sender approves payment from vault to receiver</li>
+                  <li>Settlement: Both parties can propose partial releases from vault</li>
+                  <li>Refund: Receiver can refund full vault amount to sender</li>
+                </ul>
+              </div>
+              
+              <div>
+                <p className="font-semibold text-gray-900 mb-2">Complete Transparency</p>
+                <ul className="space-y-1.5 list-disc pl-5">
+                  <li>All vault transactions viewable on Polygon blockchain</li>
+                  <li>1.99% platform fee only on successful release</li>
+                  <li>Digital signatures ensure authenticity</li>
+                  <li>Non-custodial: you control your vault</li>
+                </ul>
+              </div>
+              
+              <div className="pt-3 mt-3 border-t border-gray-200">
+                <p className="text-xs text-gray-500">
+                  By using this service, you acknowledge that blockchain transactions are irreversible
+                  and escrowhaven acts only as a technology provider, not as a custodian or arbitrator.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <div>
-          <p className="font-semibold text-gray-900 mb-2">Payment Control</p>
-          <ul className="space-y-1.5 list-disc pl-5">
-            <li>Full Release: Sender approves payment from vault to receiver</li>
-            <li>Settlement: Both parties can propose partial releases from vault</li>
-            <li>Refund: Receiver can refund full vault amount to sender</li>
-          </ul>
-        </div>
-        
-        <div>
-          <p className="font-semibold text-gray-900 mb-2">Complete Transparency</p>
-          <ul className="space-y-1.5 list-disc pl-5">
-            <li>All vault transactions viewable on Polygon blockchain</li>
-            <li>1.99% platform fee only on successful release</li>
-            <li>Digital signatures ensure authenticity</li>
-            <li>Non-custodial: you control your vault</li>
-          </ul>
-        </div>
-        
-        <div className="pt-3 mt-3 border-t border-gray-200">
-          <p className="text-xs text-gray-500">
-            By using this service, you acknowledge that blockchain transactions are irreversible
-            and escrowhaven acts only as a technology provider, not as a custodian or arbitrator.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
-
-            {/* SUCCESS MODAL</> */}
-            {showSuccessModal && (escrow.status === 'RELEASED' || escrow.status === 'SETTLED') && (
+      {/* Success Modal */}
+      {showSuccessModal && (escrow.status === 'RELEASED' || escrow.status === 'SETTLED') && (
         <TransactionSuccessModal
           escrow={escrow}
           role={role}
           onClose={() => setShowSuccessModal(false)}
         />
       )}
-      
 
-            {/* Payment Method Selection Modal - OUTSIDE detail panel */}
-            {showPaymentMethodModal && escrow && (
+      {/* Payment Method Modal */}
+      {showPaymentMethodModal && escrow && (
         <PaymentMethodModal
           isOpen={showPaymentMethodModal}
           onClose={() => setShowPaymentMethodModal(false)}
           onSelect={handlePaymentMethodSelected}
           amount={escrow.amount_cents / 100}
-        />
-      )}
-
-      {/* MoonPay Onramp Modal - OUTSIDE detail panel */}
-      {showMoonPayModal && escrow && (
-        <MoonPayOnrampModal
-          isOpen={showMoonPayModal}
-          onClose={() => {
-            setShowMoonPayModal(false);
-          }}
-          vaultAddress={escrow.vault_address}
-          amount={escrow.amount_cents / 100}
-          escrowId={escrow.id}
-          onSuccess={() => {
-            if (onUpdate) onUpdate();
-          }}
         />
       )}
     </>
