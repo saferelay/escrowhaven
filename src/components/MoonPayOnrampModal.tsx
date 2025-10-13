@@ -44,7 +44,7 @@ export function MoonPayOnrampModal({
 
     const setupMoonPay = async () => {
       try {
-        console.log('Opening MoonPay modal with:', { vaultAddress, amount, escrowId });
+        console.log('Opening MoonPay modal');
 
         const mode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
         const apiKey = mode === 'production'
@@ -55,62 +55,48 @@ export function MoonPayOnrampModal({
           throw new Error('MoonPay API key not configured');
         }
 
-        console.log('Setting up MoonPay SDK');
-        console.log('Environment:', mode);
+        console.log('MoonPay Environment:', mode);
 
-        // Build base parameters object
-        const baseParams: Record<string, string> = {
+        // For sandbox approval: Don't pre-fill wallet, let user enter it
+        // For production: Pre-fill the vault address
+        const isSandbox = mode === 'sandbox';
+
+        const params: any = {
           apiKey: apiKey,
           currencyCode: 'usdc_polygon',
           baseCurrencyCode: 'usd',
           baseCurrencyAmount: amount.toString(),
-          walletAddress: vaultAddress,
           colorCode: '2962FF',
           externalTransactionId: escrowId,
-          showWalletAddressForm: 'false'
         };
+
+        // Only add wallet address in production mode
+        if (!isSandbox) {
+          params.walletAddress = vaultAddress;
+          params.showWalletAddressForm = false;
+        } else {
+          // In sandbox, show wallet form and let reviewer enter test address
+          params.showWalletAddressForm = true;
+          // Optionally pre-fill for convenience (reviewer can change it)
+          params.walletAddress = vaultAddress;
+        }
         
         if (user?.email) {
-          baseParams.email = user.email;
+          params.email = user.email;
         }
 
-        console.log('Base params:', Object.keys(baseParams));
-
-        // CRITICAL: Sign the parameters before passing to SDK
-        // When walletAddress is present, signature is REQUIRED
-        console.log('Requesting signature from server...');
-        
-        const signResponse = await fetch('/api/moonpay/sign', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ params: baseParams })
-        });
-
-        if (!signResponse.ok) {
-          const errorData = await signResponse.json();
-          console.error('Signing failed:', errorData);
-          throw new Error(errorData.error || 'Failed to sign MoonPay URL');
-        }
-
-        const { signature } = await signResponse.json();
-        console.log('✅ Signature received');
-
-        // Add signature to params (explicitly type as any to bypass strict typing)
-        const signedParams: any = {
-          ...baseParams,
-          signature: signature
-        };
-
-        console.log('Initializing MoonPay SDK with signed params');
+        console.log('Params:', Object.keys(params));
 
         // Load and initialize MoonPay SDK
         const moonPay = await loadMoonPay();
+        
+        console.log('Creating SDK instance...');
         
         const sdk = moonPay({
           flow: 'buy',
           environment: mode === 'production' ? 'production' : 'sandbox',
           variant: 'overlay',
-          params: signedParams
+          params: params
         });
 
         console.log('✅ MoonPay SDK initialized');
@@ -124,6 +110,7 @@ export function MoonPayOnrampModal({
 
       } catch (err: any) {
         console.error('❌ MoonPay error:', err);
+        console.error('Stack:', err.stack);
         setError(err.message || 'Failed to load MoonPay');
         setStatus('error');
       }
@@ -155,6 +142,8 @@ export function MoonPayOnrampModal({
 
   if (!isOpen) return null;
 
+  const isSandbox = (process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox') === 'sandbox';
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60">
       {/* Loading State */}
@@ -163,7 +152,6 @@ export function MoonPayOnrampModal({
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-[#E0E2E7] border-t-[#2962FF] rounded-full animate-spin mx-auto" />
             <p className="mt-4 font-medium text-black">Loading MoonPay...</p>
-            <p className="mt-2 text-sm text-[#787B86]">Securing your payment...</p>
           </div>
         </div>
       )}
@@ -189,7 +177,7 @@ export function MoonPayOnrampModal({
         </div>
       )}
 
-      {/* Ready State - Widget is shown by SDK */}
+      {/* Ready State */}
       {status === 'ready' && (
         <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
           <div className="text-center">
@@ -198,17 +186,27 @@ export function MoonPayOnrampModal({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="mt-4 font-medium text-black text-lg">MoonPay Ready</p>
+            <p className="mt-4 font-medium text-black text-lg">Payment Window Open</p>
             <p className="text-sm text-[#787B86] mt-2">
               Complete your payment in the MoonPay window
             </p>
+            
+            {isSandbox && (
+              <div className="mt-4 p-3 bg-[#FFF9E6] border border-[#F7931A] rounded-lg text-left text-xs text-[#787B86]">
+                <p className="font-medium text-[#F7931A] mb-1">⚠️ Sandbox Test Mode</p>
+                <p>Use MoonPay test card: <code className="bg-white px-1 rounded">4000 0209 5159 5032</code></p>
+                <p className="mt-1">You can modify the wallet address in the widget if needed.</p>
+              </div>
+            )}
+            
             <div className="mt-4 p-3 bg-[#F8F9FD] rounded-lg text-left text-sm text-[#787B86]">
               <p className="mb-1">💰 <strong>Amount:</strong> ${amount.toFixed(2)} USDC</p>
               <p className="mb-1">🔐 <strong>Vault:</strong> {vaultAddress.slice(0, 8)}...{vaultAddress.slice(-6)}</p>
               <p>⏱️ <strong>Processing:</strong> 5-30 minutes</p>
             </div>
+            
             <p className="text-xs text-[#B2B5BE] mt-3">
-              You can close this window - your escrow will update automatically when payment completes
+              Your escrow will update automatically when payment completes
             </p>
             <button
               onClick={handleClose}
