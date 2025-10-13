@@ -27,6 +27,7 @@ export function MoonPayOnrampModal({
   const { user, ensureWallet } = useAuth();
   const [flowStep, setFlowStep] = useState<FlowStep>('connecting');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [showHelper, setShowHelper] = useState(true);
   
   const moonPayInstanceRef = useRef<any>(null);
   const isInitializedRef = useRef(false);
@@ -46,6 +47,7 @@ export function MoonPayOnrampModal({
       }
       setFlowStep('connecting');
       setErrorMsg('');
+      setShowHelper(true);
       isInitializedRef.current = false;
       return;
     }
@@ -55,7 +57,6 @@ export function MoonPayOnrampModal({
 
     const initMoonPay = async () => {
       try {
-        // Step 1: Ensure Magic wallet is connected (silent)
         setFlowStep('connecting');
         const walletAddress = await ensureWallet();
         
@@ -63,27 +64,21 @@ export function MoonPayOnrampModal({
           throw new Error('Failed to connect wallet');
         }
 
-        // Small delay for UX
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        // Step 2: Initialize MoonPay widget
-        const isTestMode = process.env.NEXT_PUBLIC_ENVIRONMENT !== 'production';
-        
         const moonPayWidget = await createMoonPayOnramp({
           email: user?.email,
-          walletAddress: vaultAddress, // Send funds directly to vault
+          walletAddress: vaultAddress,
           amount: amount,
           escrowId: escrowId,
-          isTestMode: isTestMode
         });
 
         moonPayInstanceRef.current = moonPayWidget;
 
-        // Show widget
         setFlowStep('widget');
         moonPayWidget.show();
 
-        // Start polling vault balance to detect when funded
+        // Start polling vault balance
         pollingIntervalRef.current = setInterval(async () => {
           try {
             const balanceResponse = await fetch('/api/vault/balance', {
@@ -121,9 +116,8 @@ export function MoonPayOnrampModal({
           } catch (error) {
             console.error('Balance check error:', error);
           }
-        }, 10000); // Check every 10 seconds
+        }, 10000);
 
-        // Stop polling after 30 minutes
         setTimeout(() => {
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
@@ -141,7 +135,6 @@ export function MoonPayOnrampModal({
     initMoonPay();
   }, [isOpen, vaultAddress, amount, escrowId, user?.email, ensureWallet, onSuccess, onClose]);
 
-  // Lock body scroll
   useEffect(() => {
     if (!isOpen) return;
     const prev = document.body.style.overflow;
@@ -149,7 +142,6 @@ export function MoonPayOnrampModal({
     return () => { document.body.style.overflow = prev; };
   }, [isOpen]);
 
-  // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -181,8 +173,8 @@ export function MoonPayOnrampModal({
                   <p className="text-base font-medium text-black mt-6 mb-2">
                     Preparing secure payment
                   </p>
-                  <p className="text-sm text-[#787B86]">
-                    Setting up your payment session...
+                  <p className="text-sm text-[#787B86] text-center">
+                    Setting up your escrow funding session...
                   </p>
                 </div>
               )}
@@ -217,14 +209,52 @@ export function MoonPayOnrampModal({
                     </svg>
                   </div>
                   <p className="text-base font-medium text-black mb-2">
-                    Payment successful!
+                    Escrow Funded!
                   </p>
-                  <p className="text-sm text-[#787B86] text-center">
-                    Escrow funded and activated
+                  <p className="text-sm text-[#787B86] text-center mb-1">
+                    ${amount.toFixed(2)} secured in vault
+                  </p>
+                  <p className="text-xs text-[#787B86] text-center">
+                    Funds protected until you approve release
                   </p>
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Helper overlay when widget is showing */}
+      {flowStep === 'widget' && showHelper && (
+        <div className="fixed bottom-4 right-4 max-w-sm bg-white rounded-lg shadow-2xl border border-[#E0E2E7] p-4 z-[101] animate-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#2962FF] flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-medium text-black mb-1">
+                Complete Your Payment
+              </h4>
+              <p className="text-xs text-[#787B86] mb-3">
+                Enter your payment details in the checkout window. Your ${amount.toFixed(2)} will be immediately secured in the escrow vault.
+              </p>
+              <button
+                onClick={() => setShowHelper(false)}
+                className="text-xs text-[#2962FF] hover:underline font-medium"
+              >
+                Got it, thanks →
+              </button>
+            </div>
+            <button
+              onClick={() => setShowHelper(false)}
+              className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+            >
+              <svg className="w-4 h-4 text-[#787B86]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
       )}
