@@ -1261,7 +1261,7 @@ export function EscrowDetailPanel({
             </div>
             <div className="p-6 space-y-4 text-sm text-gray-600">
               <div>
-                <p className="font-semibold text-gray-900 mb-2">Vault Security</p>
+                <p className="font-semibold text-gray-900 mb-2">Security</p>
                 <ul className="space-y-1.5 list-disc pl-5">
                   <li>Each vault is secured by a dedicated smart contract on Polygon</li>
                   <li>Funds are locked and protected by immutable blockchain code</li>

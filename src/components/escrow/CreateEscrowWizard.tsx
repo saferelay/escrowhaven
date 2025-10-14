@@ -78,7 +78,7 @@ const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
-// Terms Disclosure - Updated language for transaction/vault model
+// Terms Disclosure - Vault protection model
 const TermsDisclosure = ({ accepted, onAccept }: { accepted: boolean; onAccept: (accepted: boolean) => void }) => {
   const [expanded, setExpanded] = useState(false);
   
@@ -94,7 +94,7 @@ const TermsDisclosure = ({ accepted, onAccept }: { accepted: boolean; onAccept: 
         />
         <div className="flex-1">
           <label htmlFor="accept-terms" className="text-sm text-gray-900 cursor-pointer select-none">
-            I understand this transaction will have a secure vault protected by escrow
+            I understand this vault will be protected by blockchain escrow
           </label>
           
           <button
@@ -105,44 +105,44 @@ const TermsDisclosure = ({ accepted, onAccept }: { accepted: boolean; onAccept: 
             }}
             className="text-xs text-blue-600 hover:text-blue-700 mt-1 flex items-center gap-1"
           >
-            {expanded ? 'Hide' : 'View'} how the vault protects you
+            {expanded ? 'Hide' : 'View'} vault protection details
             <ChevronDownIcon className={clsx("w-3 h-3 transition-transform", expanded && "rotate-180")} />
           </button>
           
           {expanded && (
             <div className="mt-3 space-y-3 text-xs text-gray-600 bg-gray-50 rounded-lg p-3">
               <div>
-                <p className="font-semibold text-gray-900 mb-1">Transaction Vault Security</p>
+                <p className="font-semibold text-gray-900 mb-1">Vault Security</p>
                 <ul className="space-y-1 list-disc pl-5">
-                  <li>Each transaction has its own secure vault on Polygon</li>
-                  <li>Funds locked in immutable smart contract</li>
-                  <li>No admin functions - escrowhaven cannot access the vault</li>
-                  <li>Vault address provided after deployment</li>
+                  <li>Each vault is secured by a dedicated smart contract on Polygon</li>
+                  <li>Funds are locked and protected by immutable blockchain code</li>
+                  <li>Zero admin access - escrowhaven cannot touch vault funds</li>
+                  <li>Unique vault address provided upon creation</li>
                 </ul>
               </div>
               
               <div>
                 <p className="font-semibold text-gray-900 mb-1">Payment Control</p>
                 <ul className="space-y-1 list-disc pl-5">
-                  <li>Full Release: Sender approves payment from vault to receiver</li>
-                  <li>Settlement: Both parties can propose partial releases from vault</li>
-                  <li>Refund: Receiver can refund full vault amount to sender</li>
+                  <li>Full Release: Sender approves complete vault release to receiver</li>
+                  <li>Settlement: Both parties can propose custom vault distributions</li>
+                  <li>Refund: Receiver can return entire vault balance to sender</li>
                 </ul>
               </div>
               
               <div>
                 <p className="font-semibold text-gray-900 mb-1">Complete Transparency</p>
                 <ul className="space-y-1 list-disc pl-5">
-                  <li>All vault transactions viewable on Polygon blockchain</li>
-                  <li>1.99% platform fee only on successful release</li>
-                  <li>Digital signatures ensure authenticity</li>
-                  <li>Non-custodial: you control your vault</li>
+                  <li>All vault activity is publicly verifiable on Polygon blockchain</li>
+                  <li>1.99% platform fee only charged on successful vault release</li>
+                  <li>Digital signatures ensure all vault actions are authentic</li>
+                  <li>Non-custodial: you maintain full control of your vault</li>
                 </ul>
               </div>
               
               <div className="pt-3 mt-3 border-t border-gray-200">
                 <p className="text-xs text-gray-500">
-                  By using this service, you acknowledge that blockchain transactions are irreversible
+                  By creating a vault, you acknowledge that blockchain transactions are irreversible
                   and escrowhaven acts only as a technology provider, not as a custodian or arbitrator.
                 </p>
               </div>
