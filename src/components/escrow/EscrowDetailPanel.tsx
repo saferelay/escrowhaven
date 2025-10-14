@@ -896,7 +896,7 @@ export function EscrowDetailPanel({
                         </button>
                       </div>
                       <p className="text-xs text-gray-600 mt-2">
-                        They can use this link to view and accept the transaction
+                        Share this link for them to review and accept.
                       </p>
                     </div>
                   </div>
@@ -906,7 +906,7 @@ export function EscrowDetailPanel({
                       onClick={() => setShowCancelDialog(true)}
                       className="text-sm text-gray-600 hover:text-red-600 transition-colors"
                     >
-                      Cancel this transaction
+                      Cancel this vault
                     </button>
                   </div>
                 </>
@@ -928,7 +928,7 @@ export function EscrowDetailPanel({
                 {/* Cancel dialog */}
                 {showCancelDialog && (escrow.status === 'INITIATED' || escrow.status === 'ACCEPTED') && (
                   <div className="border border-red-200 bg-red-50 rounded-lg p-4">
-                    <p className="text-sm font-medium text-gray-900 mb-3">Cancel this escrow?</p>
+                    <p className="text-sm font-medium text-gray-900 mb-3">Cancel this vault?</p>
                     <p className="text-xs text-gray-600 mb-4">
                       {escrow.status === 'INITIATED' 
                         ? "This will cancel the invitation. No funds have been added yet."
@@ -1129,7 +1129,7 @@ export function EscrowDetailPanel({
                   <div className="space-y-3">
                     <div className="border border-gray-200 rounded-lg p-4">
                       <p className="text-sm text-gray-700">
-                        Waiting for {escrow.client_email} to fund the transaction.
+                        Waiting for {escrow.client_email} to fund the vault.
                       </p>
                     </div>
                     
@@ -1237,8 +1237,8 @@ export function EscrowDetailPanel({
         </div>
       </div>
 
-      {/* Terms Modal */}
-      {showTermsModal && (
+{/* Terms Modal */}
+{showTermsModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -1256,35 +1256,35 @@ export function EscrowDetailPanel({
               <div>
                 <p className="font-semibold text-gray-900 mb-2">Vault Security</p>
                 <ul className="space-y-1.5 list-disc pl-5">
-                  <li>Each transaction has its own secure vault on Polygon</li>
-                  <li>Funds locked in immutable smart contract</li>
-                  <li>No admin functions - escrowhaven cannot access the vault</li>
-                  <li>Vault address provided after deployment</li>
+                  <li>Each vault is secured by a dedicated smart contract on Polygon</li>
+                  <li>Funds are locked and protected by immutable blockchain code</li>
+                  <li>Zero admin access - escrowhaven cannot touch vault funds</li>
+                  <li>Unique vault address provided upon creation</li>
                 </ul>
               </div>
               
               <div>
                 <p className="font-semibold text-gray-900 mb-2">Payment Control</p>
                 <ul className="space-y-1.5 list-disc pl-5">
-                  <li>Full Release: Sender approves payment from vault to receiver</li>
-                  <li>Settlement: Both parties can propose partial releases from vault</li>
-                  <li>Refund: Receiver can refund full vault amount to sender</li>
+                  <li>Full Release: Sender approves complete vault release to receiver</li>
+                  <li>Settlement: Both parties can propose custom vault distributions</li>
+                  <li>Refund: Receiver can return entire vault balance to sender</li>
                 </ul>
               </div>
               
               <div>
                 <p className="font-semibold text-gray-900 mb-2">Complete Transparency</p>
                 <ul className="space-y-1.5 list-disc pl-5">
-                  <li>All vault transactions viewable on Polygon blockchain</li>
-                  <li>1.99% platform fee only on successful release</li>
-                  <li>Digital signatures ensure authenticity</li>
-                  <li>Non-custodial: you control your vault</li>
+                  <li>All vault activity is publicly verifiable on Polygon blockchain</li>
+                  <li>1.99% platform fee only charged on successful vault release</li>
+                  <li>Digital signatures ensure all vault actions are authentic</li>
+                  <li>Non-custodial: you maintain full control of your vault</li>
                 </ul>
               </div>
               
               <div className="pt-3 mt-3 border-t border-gray-200">
                 <p className="text-xs text-gray-500">
-                  By using this service, you acknowledge that blockchain transactions are irreversible
+                  By creating a vault, you acknowledge that blockchain transactions are irreversible
                   and escrowhaven acts only as a technology provider, not as a custodian or arbitrator.
                 </p>
               </div>

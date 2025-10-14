@@ -14,7 +14,7 @@ interface CreateEscrowWizardProps {
 // Progress indicator - 5 steps
 const ProgressIndicator = ({ currentStep }: { currentStep: number }) => {
   const steps = [
-    { id: 1, label: 'Start' },
+    { id: 1, label: 'Create' },
     { id: 2, label: 'Accept' },
     { id: 3, label: 'Fund' },
     { id: 4, label: 'Work' },
@@ -327,7 +327,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
       const data = await response.json();
       
       // Premium link is now generated server-side
-      console.log('✅ Escrow created with premium link:', data.premiumLink);
+      console.log('✅ Vault created with premium link:', data.premiumLink);
       
       setEscrowData({
         escrowId: data.escrowId,
@@ -337,8 +337,8 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
       setDeploymentStatus('complete');
       
     } catch (error: any) {
-      console.error('Error creating transaction:', error);
-      setError(error.message || 'Failed to start transaction');
+      console.error('Error creating vault:', error);
+      setError(error.message || 'Failed to start vault');
       setDeploymentStatus('idle');
       setDeploymentSteps([]);
     } finally {
@@ -390,7 +390,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
                   <span className="text-blue-600 text-sm font-medium">1</span>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">You're starting the transaction</p>
+                  <p className="text-sm font-medium text-gray-900">You're creating the vault</p>
                   <p className="text-xs text-gray-600 mt-1">
                     Next, they'll accept terms, then {role === 'payer' ? 'you' : 'they'} will fund the transaction's vault.
                   </p>
@@ -426,7 +426,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
                         : 'border-gray-300 text-gray-700 hover:border-gray-400'
                     )}
                   >
-                    Receiver (working)
+                    Receiver (service provider)
                   </button>
                 </div>
               </div>
@@ -559,7 +559,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
             
             <div className="bg-blue-50 rounded-lg p-4">
               <p className="text-sm text-blue-900">
-                Creating your secure transaction...
+                Creating your secure vault...
               </p>
               <p className="text-xs text-blue-700 mt-1">
                 The transaction vault will be deployed when funded
