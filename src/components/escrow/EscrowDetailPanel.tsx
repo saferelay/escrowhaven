@@ -986,7 +986,14 @@ export function EscrowDetailPanel({
                           disabled={!user}
                         />
                         <label htmlFor="accept-terms" className="text-sm text-gray-900 cursor-pointer">
-                          I understand and accept the escrowhaven blockchain-secured terms
+                          I understand and accept the{' '}
+                          <button
+                            onClick={() => setShowTermsModal(true)}
+                            className="text-[#2962FF] hover:underline"
+                            type="button"
+                          >
+                            vault protection terms
+                          </button>
                         </label>
                       </div>
                     </div>
@@ -1041,7 +1048,7 @@ export function EscrowDetailPanel({
                               : "bg-gray-100 text-gray-400 cursor-not-allowed"
                           )}
                         >
-                          {!user ? 'Loading...' : processing ? 'Processing...' : 'Accept Terms'}
+                          {!user ? 'Loading...' : processing ? 'Processing...' : 'Accept Vault'}
                         </button>
                         <button
                           onClick={() => setShowDeclineForm(true)}
