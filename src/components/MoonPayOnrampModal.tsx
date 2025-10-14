@@ -44,7 +44,7 @@ export function MoonPayOnrampModal({
 
     const setupMoonPay = async () => {
       try {
-        console.log('Opening MoonPay modal');
+        console.log('Opening MoonPay modal with:', { vaultAddress, amount, escrowId });
 
         const mode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
         const apiKey = mode === 'production'
@@ -55,20 +55,23 @@ export function MoonPayOnrampModal({
           throw new Error('MoonPay API key not configured');
         }
 
+        console.log('Setting up MoonPay SDK');
         console.log('MoonPay Environment:', mode);
 
-        // For sandbox approval: Don't pre-fill wallet, let user enter it
-        // For production: Pre-fill the vault address
+        // Currency selection based on environment
         const isSandbox = mode === 'sandbox';
-
+        
+        // Build parameters - SDK format (camelCase)
         const params: any = {
           apiKey: apiKey,
-          currencyCode: 'usdc_polygon',
+          // Sandbox: Use ETH for testing (works everywhere)
+          // Production: Use USDC on Polygon (once enabled by MoonPay)
+          currencyCode: isSandbox ? 'eth' : 'usdc_polygon',
           baseCurrencyCode: 'usd',
           baseCurrencyAmount: amount.toString(),
           colorCode: '2962FF',
           externalTransactionId: escrowId,
-          lockAmount: true, // Lock the amount so user can't change it
+          lockAmount: true,
         };
 
         // Only add wallet address in production mode
@@ -76,10 +79,9 @@ export function MoonPayOnrampModal({
           params.walletAddress = vaultAddress;
           params.showWalletAddressForm = false;
         } else {
-          // In sandbox, show wallet form and let reviewer enter test address
+          // In sandbox, show wallet form so tester can use their own test wallet
           params.showWalletAddressForm = true;
-          // Optionally pre-fill for convenience (reviewer can change it)
-          params.walletAddress = vaultAddress;
+          params.walletAddress = vaultAddress; // Pre-fill but allow change
         }
         
         if (user?.email) {
@@ -87,6 +89,12 @@ export function MoonPayOnrampModal({
         }
 
         console.log('Full params:', params);
+
+        if (isSandbox) {
+          console.log('🧪 Sandbox mode - using ETH for testing');
+        } else {
+          console.log('🚀 Production mode - using USDC on Polygon');
+        }
 
         // Load and initialize MoonPay SDK
         const moonPay = await loadMoonPay();
@@ -158,6 +166,7 @@ export function MoonPayOnrampModal({
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-[#E0E2E7] border-t-[#2962FF] rounded-full animate-spin mx-auto" />
             <p className="mt-4 font-medium text-black">Loading MoonPay...</p>
+            <p className="mt-2 text-sm text-[#787B86]">Securing your payment...</p>
           </div>
         </div>
       )}
