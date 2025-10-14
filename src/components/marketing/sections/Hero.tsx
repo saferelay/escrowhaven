@@ -68,6 +68,41 @@ escrowhaven locks funds in a secure vault until both sides approve — no ghosti
             </p>
           </div>
           
+          {/* Trust bar - between CTA and dashboard */}
+<div className="mt-8 sm:mt-10 lg:mt-12 mb-8 sm:mb-10 lg:mb-12">
+  <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 px-4 text-sm text-[#787B86]">
+    <div className="flex items-center gap-2">
+      <svg className="w-4 h-4 text-[#26A69A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      </svg>
+      <span>We never hold your funds</span>
+    </div>
+    <div className="hidden sm:block w-px h-4 bg-[#E0E2E7]" />
+    <div className="flex items-center gap-2">
+      <svg className="w-4 h-4 text-[#26A69A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+      <span>Instant payouts</span>
+    </div>
+    <div className="hidden sm:block w-px h-4 bg-[#E0E2E7]" />
+    <div className="flex items-center gap-2">
+      <svg className="w-4 h-4 text-[#26A69A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>1.99% flat fee</span>
+    </div>
+    <div className="hidden sm:block w-px h-4 bg-[#E0E2E7]" />
+    <div className="flex items-center gap-2">
+      <svg className="w-4 h-4 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+      <span>Powered by MoonPay</span>
+    </div>
+  </div>
+</div>
+
+
+
           {/* Mobile: Simplified dashboard preview */}
           {isMobile ? (
             <div className="px-4 mt-8">
