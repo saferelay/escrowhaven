@@ -57,8 +57,8 @@ export function HowItWorks() {
     },
     {
       number: "3",
-      title: "Secure Payment",
-      description: "Client funds the vault, money locks in escrow",
+      title: "Fund Securely with MoonPay",
+      description: "Pay with card or bank → funds convert to USDC and lock in your vault.",
       visual: (
         <div className="w-full h-full flex items-center justify-center">
           <div className="relative">

@@ -41,7 +41,7 @@ export function Hero() {
 </h1>
 
 <p className="text-base sm:text-lg lg:text-xl text-[#787B86] max-w-xl lg:max-w-2xl mx-auto mb-8 sm:mb-10 lg:mb-12 px-4 sm:px-0">
-  escrowhaven protects both sides with a neutral vault until the job's done. No more chasing clients. No more paying for undelivered work. 
+escrowhaven locks funds in a secure vault until both sides approve — no ghosting, no chargebacks, no excuses.
 </p>
 
 {/* Email signup - slightly bigger for better mobile UX */}
@@ -57,7 +57,7 @@ export function Hero() {
     onClick={handleSignup}
     className="px-6 sm:px-8 py-3 bg-[#2962FF] text-white rounded-lg text-base font-medium hover:bg-[#1E53E5] transition-all w-full sm:w-auto transform hover:translate-y-[-1px] hover:shadow-lg active:translate-y-0"
   >
-    Create a Vault
+    Create a Vault – Free to Start
   </button>
   <span className="text-[#787B86] text-sm hidden lg:inline">
     takes 2 minutes

@@ -223,13 +223,13 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-xs text-[#787B86] leading-relaxed space-y-4">
             <p>
-              <strong className="text-[#787B86]">1. Technology Service, Not a Financial Institution.</strong> escrowhaven is a technology platform that facilitates non-custodial transactions. We are not a bank, money transmitter, or financial institution.
+              <strong className="text-[#787B86]">1. Technology Service, Not a Financial Institution.</strong> EscrowHaven is a technology platform that facilitates non-custodial transactions. We are not a bank, money transmitter, or financial institution.
             </p>
             <p>
-              <strong className="text-[#787B86]">2. Non-Custodial Transaction Vaults.</strong> escrowhaven never holds, controls, or has access to your funds. All funds are secured in autonomous transaction vaults (smart contracts) on the Polygon blockchain and can only be released with mutual approval from both parties.
+              <strong className="text-[#787B86]">2. Non-Custodial Transaction Vaults.</strong> EscrowHaven never holds, controls, or has access to your funds. All funds are secured in autonomous vaults (smart contracts) on the Polygon blockchain and can only be released with mutual approval from both parties.
             </p>
             <p>
-              <strong className="text-[#787B86]">3. No Government Insurance.</strong> Funds in transaction vaults are not covered by the Federal Deposit Insurance Corporation (FDIC), the Securities Investor Protection Corporation (SIPC), or any other government insurance program.
+              <strong className="text-[#787B86]">3. No Government Insurance.</strong> Funds in vaults are not covered by the Federal Deposit Insurance Corporation (FDIC), the Securities Investor Protection Corporation (SIPC), or any other government insurance program.
             </p>
             <p>
               <strong className="text-[#787B86]">4. Transaction Vault Risks.</strong> Transaction vaults are immutable once deployed. While we conduct code audits and testing, blockchain transactions are irreversible and carry inherent risks, including potential vulnerabilities, exploits, or network issues.
@@ -238,28 +238,28 @@ export function Footer() {
               <strong className="text-[#787B86]">5. Payment Processing.</strong> All fiat-to-crypto conversions are provided by third-party payment partners. KYC/AML verification may be required. Standard processing fees apply.
             </p>
             <p>
-              <strong className="text-[#787B86]">6. Platform Fees.</strong> escrowhaven charges a 1.99% fee on successful transaction releases. This fee is automatically deducted from the released amount via our smart contract splitter.
+              <strong className="text-[#787B86]">6. Platform Fees.</strong> EscrowHaven charges a 1.99% fee on successful vault releases. This fee is automatically deducted from the released amount via our smart contract splitter.
             </p>
             <p>
               <strong className="text-[#787B86]">7. Blockchain Network Dependency.</strong> Service performance depends on the Polygon blockchain network. Network congestion, outages, or gas price spikes may affect transaction speed and costs.
             </p>
             <p>
-              <strong className="text-[#787B86]">8. Gasless Transactions.</strong> escrowhaven pays blockchain gas fees on behalf of users. This service is provided at our discretion and may be modified or discontinued.
+              <strong className="text-[#787B86]">8. Gasless Transactions.</strong> EscrowHaven pays blockchain gas fees on behalf of users. This service is provided at our discretion and may be modified or discontinued.
             </p>
             <p>
-              <strong className="text-[#787B86]">9. Settlement Resolution.</strong> Our transaction vaults support partial settlements through mutual agreement. If parties cannot reach agreement, funds will remain locked in the vault until resolved through mutual consent.
+              <strong className="text-[#787B86]">9. Settlement Resolution.</strong> Our vaults support partial settlements through mutual agreement. If parties cannot reach agreement, funds will remain locked in the vault until resolved through mutual consent.
             </p>
             <p>
               <strong className="text-[#787B86]">10. User Compliance Responsibilities.</strong> Users are solely responsible for understanding and complying with all applicable laws, tax obligations, and reporting requirements related to cryptocurrency transactions in their jurisdiction.
             </p>
             <p>
-              <strong className="text-[#787B86]">11. Account Security.</strong> escrowhaven uses email-based authentication via Magic.link. You are responsible for maintaining the security of your email account. Loss of access to your email may result in loss of access to your transactions.
+              <strong className="text-[#787B86]">11. Account Security.</strong> EscrowHaven uses email-based authentication via Magic.link. You are responsible for maintaining the security of your email account. Loss of access to your email may result in loss of access to your transactions.
             </p>
             <p>
-              <strong className="text-[#787B86]">12. No Financial, Legal, or Tax Advice.</strong> escrowhaven does not provide financial, legal, or tax advice. You should consult with qualified professionals before making any decisions related to your transactions.
+              <strong className="text-[#787B86]">12. No Financial, Legal, or Tax Advice.</strong> EscrowHaven does not provide financial, legal, or tax advice. You should consult with qualified professionals before making any decisions related to your transactions.
             </p>
             <p>
-              <strong className="text-[#787B86]">13. Forward-Looking Statements.</strong> Any forward-looking statements in escrowhaven materials are based on current expectations and assumptions. Actual results may differ due to market, regulatory, technological, or operational factors.
+              <strong className="text-[#787B86]">13. Forward-Looking Statements.</strong> Any forward-looking statements in EscrowHaven materials are based on current expectations and assumptions. Actual results may differ due to market, regulatory, technological, or operational factors.
             </p>
           </div>
           

@@ -62,7 +62,7 @@ export function Transparency() {
       <div className="max-w-screen-xl mx-auto px-6 md:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-normal text-[#000000] mb-4">
-            Real-time transparency
+            Live Vault Activity
           </h2>
           <p className="text-lg text-[#787B86] max-w-2xl mx-auto">
             Every transaction protected. Every payment secured. Live stats you can trust.
