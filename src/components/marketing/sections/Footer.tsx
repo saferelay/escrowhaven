@@ -44,7 +44,7 @@ export function Footer() {
                     onClick={() => handleNavigation('/signup')} 
                     className="hover:text-black transition-colors text-left"
                   >
-                    Start Transaction
+                    Create a Vault
                   </button>
                 </li>
                 <li>
@@ -194,7 +194,7 @@ export function Footer() {
                     onClick={() => handleNavigation('/signup')} 
                     className="hover:text-black transition-colors text-left"
                   >
-                    New Transaction
+                    New Vault
                   </button>
                 </li>
                 <li>

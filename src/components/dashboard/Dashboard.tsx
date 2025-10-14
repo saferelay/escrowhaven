@@ -977,7 +977,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   id="search-input"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search transactions…"
+                  placeholder="Search vaults…"
                   className="w-full rounded-md border border-[#E2E8F0] bg-white pl-9 pr-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-[#DBEAFE]"
                 />
                 <span className="pointer-events-none absolute left-2.5 top-1.5 text-[#94A3B8]">
@@ -1031,9 +1031,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       <div className="text-[13px] font-medium text-black truncate">{user?.email}</div>
                     </div>
                     <button
-                      onClick={() => {
-                        setProfileDropdownOpen(false);
-                        signOut();
+                      onMouseDown={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Sign out mousedown');
+                        await supabase.auth.signOut();
+                        window.location.href = '/';
                       }}
                       className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
                     >
@@ -1099,14 +1102,17 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     <div className="text-[12px] font-medium text-black truncate">{user?.email}</div>
                   </div>
                   <button
-                    onClick={() => {
-                      setProfileDropdownOpen(false);
-                      signOut();
-                    }}
-                    className="w-full text-left px-4 py-2 text-[12px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
-                  >
-                    Sign Out
-                  </button>
+                  onMouseDown={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Sign out mousedown');
+                    await supabase.auth.signOut();
+                    window.location.href = '/';
+                  }}
+                  className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
+                >
+                  Sign Out
+                </button>
                 </div>
               )}
             </div>
@@ -1121,13 +1127,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           <div className="p-3">
             <button onClick={openCreate} className={btn.primary + ' w-full gap-2'}>
               <Plus size={16} />
-              New Transaction
+              New Vault
             </button>
           </div>
           <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
             {(
               [
-                { id: 'all', label: 'All Transactions', icon: FileText },
+                { id: 'all', label: 'All Vaults', icon: FileText },
                 { id: 'needs', label: 'Action Required', icon: AlertCircle },
                 { id: 'sent', label: 'Sent', icon: Send },
                 { id: 'received', label: 'Received', icon: Download },
@@ -1207,7 +1213,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 <div className="border-b border-[#E5E7EB] bg-white px-4 md:px-6 pt-3 pb-3 flex-shrink-0">
             <div className="hidden md:grid grid-cols-2 gap-3">
               <div className="rounded-md border border-[#E2E8F0] p-3">
-                <div className="text-[12px] text-[#64748B]">Active Transactions</div>
+                <div className="text-[12px] text-[#64748B]">Active Vaults</div>
                 <div className="mt-1 text-[20px] font-semibold">
                   ${metrics.protectedInEscrow.toFixed(2)}
                   {!isProduction && metrics.protectedInEscrow > 0 && (
@@ -1278,24 +1284,24 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
               {/* Mobile list header */}
               <div className="md:hidden h-9 border-b border-[#E5E7EB] bg-white px-4 flex items-center text-[12px] text-[#64748B]">
-                Transactions ({displayCount})
+                Vaults ({displayCount})
               </div>
 
               {/* List */}
               <div className="min-h-0 flex-1 overflow-y-auto bg-white">
                 {sortedEscrows.length === 0 && !isLoadingMore ? (
                   <div className="flex h-full flex-col items-center justify-center px-4">
-                    <div className="mb-1 text-[16px]">No transactions found</div>
+                    <div className="mb-1 text-[16px]">No vaults found</div>
                     <div className="mb-4 text-[13px] text-[#64748B] text-center">
                       {activeFolder !== 'all' 
-                        ? `No transactions in "${activeFolder}" folder`
+                        ? `No vaults in "${activeFolder}" folder`
                         : isProduction 
-                          ? 'Start your first transaction to get going' 
-                          : 'Create a test transaction to try it out'}
+                          ? 'Start your first vault to get going' 
+                          : 'Create a test vault to try it out'}
                     </div>
                     <button onClick={openCreate} className={btn.primary + ' gap-2'}>
                       <Plus size={16} />
-                      Start Transaction
+                      Create a Vault
                     </button>
                   </div>
                 ) : (
@@ -1314,7 +1320,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     
                     {!hasMore && sortedEscrows.length > 0 && (
                       <div className="text-center py-4 text-[13px] text-[#64748B]">
-                        All {sortedEscrows.length} transactions loaded
+                        All {sortedEscrows.length} vaults loaded
                       </div>
                     )}
                   </div>
@@ -1377,13 +1383,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             <div className="p-3">
               <button onClick={() => { setMobileNavOpen(false); openCreate(); }} className={btn.primary + ' w-full gap-2'}>
                 <Plus size={16} />
-                Start Transaction
+                Create a Vault
               </button>
             </div>
             <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
               {(
                 [
-                  { id: 'all', label: 'All Transactions', icon: FileText },
+                  { id: 'all', label: 'All Vaults', icon: FileText },
                   { id: 'needs', label: 'Action Required', icon: AlertCircle },
                   { id: 'sent', label: 'Sent', icon: Send },
                   { id: 'received', label: 'Received', icon: Download },

@@ -5,7 +5,7 @@ export function HowItWorks() {
   const steps = [
     {
       number: "1",
-      title: "Start a Transaction",
+      title: "Create a Vault",
       description: "Enter job details and invite the other party",
       visual: (
         <div className="w-full h-full flex items-center justify-center">
@@ -92,7 +92,7 @@ export function HowItWorks() {
     {
       number: "4",
       title: "Deliver Work",
-      description: "Freelancer completes work with payment secured",
+      description: "Seller completes work with payment secured",
       visual: (
         <div className="w-full h-full flex items-center justify-center">
           <div className="relative">
@@ -116,7 +116,7 @@ export function HowItWorks() {
     {
       number: "5",
       title: "Instant Release",
-      description: "Client approves, freelancer gets paid instantly",
+      description: "Client approves, seller gets paid instantly",
       visual: (
         <div className="w-full h-full flex items-center justify-center">
           <div className="relative">
@@ -228,11 +228,11 @@ export function HowItWorks() {
             onClick={() => window.location.href = '/signup'}
             className="px-[32px] py-[12px] bg-[#2962FF] text-white rounded-[8px] font-medium text-[16px] hover:bg-[#1E53E5] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_4px_8px_rgba(41,98,255,0.25)]"
           >
-            Start Your First Transaction
+            Create Your First Vault
           </button>
           <div className="mt-4">
             <a href="/learn/how-escrow-protects-you" className="text-[#2962FF] text-[14px] hover:underline">
-              Learn how escrow protection works →
+              Learn more about escrow protection →
             </a>
           </div>
         </div>

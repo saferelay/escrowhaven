@@ -20,7 +20,7 @@ export function CTA() {
           onClick={handleSignup}
           className="px-8 py-3 bg-[#2962FF] text-white rounded-lg font-medium hover:bg-[#1E53E5] transition-colors text-base"
         >
-          Start an Escrow
+          Create a Vault
         </button>
       </div>
     </div>

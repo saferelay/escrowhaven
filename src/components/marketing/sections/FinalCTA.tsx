@@ -30,7 +30,7 @@ export function FinalCTA() {
                   <span className="text-sm font-medium text-[#000000]">Ready to go</span>
                 </div>
                 <p className="text-xs text-[#787B86]">
-                  Create your first escrow in under 60 seconds
+                  Create your first escrow vault in under 2 minutes
                 </p>
               </div>
               

@@ -18,7 +18,7 @@ export function PainHook() {
                 <span className="font-medium">No chargebacks.</span>
                 <span className="text-[#787B86] ml-1">Keep 98%+ of your pay.</span>
               </p>
-              <p className="text-xs text-[#787B86] mt-1">For freelancers</p>
+              <p className="text-xs text-[#787B86] mt-1">For Sellers</p>
             </div>
           </div>
 
@@ -34,7 +34,7 @@ export function PainHook() {
                 <span className="font-medium">Only pay when work is delivered.</span>
                 <span className="text-[#787B86] ml-1">100% protected.</span>
               </p>
-              <p className="text-xs text-[#787B86] mt-1">For clients</p>
+              <p className="text-xs text-[#787B86] mt-1">For Buyers</p>
             </div>
           </div>
         </div>

@@ -35,13 +35,13 @@ export function Hero() {
           {/* Hero content with responsive padding */}
           <div className="text-center mb-8 sm:mb-10 lg:mb-12 px-4 sm:px-6">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-normal text-black mb-6 sm:mb-8 tracking-tight leading-[1.1]">
-  Protect Your Freelance Payment.
+  Online deals shouldn't 
   <br />
-  Before you Start.
+  feel like gambling.
 </h1>
 
 <p className="text-base sm:text-lg lg:text-xl text-[#787B86] max-w-xl lg:max-w-2xl mx-auto mb-8 sm:mb-10 lg:mb-12 px-4 sm:px-0">
-  No more chasing clients. No more paying for undelivered work. escrowhaven protects both sides until the job's done.
+  escrowhaven protects both sides with a neutral vault until the job's done. No more chasing clients. No more paying for undelivered work. 
 </p>
 
 {/* Email signup - slightly bigger for better mobile UX */}
@@ -57,7 +57,7 @@ export function Hero() {
     onClick={handleSignup}
     className="px-6 sm:px-8 py-3 bg-[#2962FF] text-white rounded-lg text-base font-medium hover:bg-[#1E53E5] transition-all w-full sm:w-auto transform hover:translate-y-[-1px] hover:shadow-lg active:translate-y-0"
   >
-    Start a Transaction
+    Create a Vault
   </button>
   <span className="text-[#787B86] text-sm hidden lg:inline">
     takes 2 minutes
@@ -74,7 +74,7 @@ export function Hero() {
               <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-[#E5E7EB] max-w-md mx-auto">
                 {/* Mobile header */}
                 <div className="h-12 border-b border-[#E5E7EB] bg-white px-4 flex items-center justify-between">
-                  <span className="text-sm font-medium text-[#0F172A]">escrowhaven</span>
+                  <span className="text-sm font-medium text-[#0F172A]">Dashboard</span>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-[#787B86]">sarah@design.co</span>
                     <div className="h-7 w-7 flex items-center justify-center rounded-full bg-[#F3F4F6]">
@@ -87,7 +87,7 @@ export function Hero() {
                 <div className="bg-[#F8F9FD] border-b border-[#E5E7EB] px-4 py-2">
                   <div className="flex items-center justify-between">
                     <button className="px-3 py-1.5 bg-[#2962FF] text-white rounded-md text-xs font-medium">
-                      + New Transaction
+                      + New Vault
                     </button>
                     <div className="flex gap-2">
                       <span className="px-2 py-1 bg-white border border-[#E0E2E7] rounded text-xs">
@@ -243,7 +243,7 @@ export function Hero() {
                     <div className="w-52 border-r border-[#E5E7EB] bg-white hidden lg:block">
                       <div className="p-2">
                         <button className="w-full px-2 py-1.5 bg-[#2962FF] text-white rounded-md text-xs">
-                          + New Transaction
+                          + New Vault
                         </button>
                       </div>
                       <nav className="px-2">
@@ -252,7 +252,7 @@ export function Hero() {
                             <svg className="w-3 h-3 text-[#475569]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                             </svg>
-                            All Transactions
+                            All Vaults
                           </span>
                           <span className="bg-[#E2E8F0] text-[#475569] rounded-full px-1.5 py-0.5 text-[9px]">16</span>
                         </button>
@@ -310,7 +310,7 @@ export function Hero() {
                       <div className="border-b border-[#E5E7EB] bg-white px-3 lg:px-4 pt-2 pb-2">
                         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                           <div className="rounded-md border border-[#E2E8F0] p-2">
-                            <div className="text-[9px] lg:text-[10px] text-[#64748B]">Active Transactions</div>
+                            <div className="text-[9px] lg:text-[10px] text-[#64748B]">Active Vaults</div>
                             <div className="mt-0.5 text-[14px] lg:text-[16px] font-semibold">$1,950</div>
                             <div className="text-[9px] lg:text-[10px] text-[#2962FF]">3 in progress</div>
                           </div>

@@ -91,7 +91,7 @@ export function HowItWorksIllustrated() {
               <PaymentIllustration />
             </div>
             <h3 className="mt-5 text-xl md:text-2xl font-semibold">Client pays</h3>
-            <p className="mt-2 text-[#5A5F6A]">Client funds the project up front with a familiar checkout.</p>
+            <p className="mt-2 text-[#5A5F6A]">Buyer funds the project up front with a familiar checkout.</p>
           </div>
           
           <div className="rounded-2xl border border-black/5 p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] bg-white">
