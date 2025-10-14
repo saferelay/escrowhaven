@@ -1110,7 +1110,7 @@ export function EscrowDetailPanel({
                       disabled={processing}
                       className="w-full py-2.5 rounded-lg transition-all text-sm font-medium bg-[#2962FF] text-white hover:bg-[#1d4ed8] disabled:opacity-50"
                     >
-                      {processing ? 'Starting payment…' : 'Fund Escrow'}
+                      {processing ? 'Starting payment…' : 'Fund Vault'}
                     </button>
 
                     <PaymentIcons />
@@ -1119,7 +1119,7 @@ export function EscrowDetailPanel({
                       onClick={() => setShowCancelDialog(true)}
                       className="w-full mt-2 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
                     >
-                      Cancel Transaction
+                      Cancel Transaction Vault
                     </button>
                   </>
                 )}  
@@ -1137,7 +1137,7 @@ export function EscrowDetailPanel({
                       onClick={() => setShowCancelDialog(true)}
                       className="w-full py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
                     >
-                      Cancel Transaction
+                      Cancel Transaction Vault
                     </button>
                   </div>
                 )}
@@ -1242,7 +1242,7 @@ export function EscrowDetailPanel({
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Transaction Vault Protection</h3>
+              <h3 className="text-lg font-semibold">Vault Protection</h3>
               <button
                 onClick={() => setShowTermsModal(false)}
                 className="p-1 hover:bg-gray-100 rounded"
@@ -1254,7 +1254,7 @@ export function EscrowDetailPanel({
             </div>
             <div className="p-6 space-y-4 text-sm text-gray-600">
               <div>
-                <p className="font-semibold text-gray-900 mb-2">Transaction Vault Security</p>
+                <p className="font-semibold text-gray-900 mb-2">Vault Security</p>
                 <ul className="space-y-1.5 list-disc pl-5">
                   <li>Each transaction has its own secure vault on Polygon</li>
                   <li>Funds locked in immutable smart contract</li>

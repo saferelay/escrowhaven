@@ -487,7 +487,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
             {role === 'recipient' && amountUsd && parseFloat(amountUsd) >= 1 && (
               <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Transaction amount</span>
+                  <span className="text-gray-600">Transaction Vault amount</span>
                   <span className="font-mono">${parseFloat(amountUsd || '0').toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -544,7 +544,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
             >
               {!termsAccepted ? 'Accept vault protection to continue' : 
                otherPartyEmail === user?.email ? 'Cannot transact with yourself' :
-               'Create Transaction'}
+               'Create a Vault'}
             </button>
           </div>
         )}
@@ -575,7 +575,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CheckIcon className="w-6 h-6 text-green-600" />
               </div>
-              <h3 className="text-base font-medium text-gray-900 mb-1">Transaction Created</h3>
+              <h3 className="text-base font-medium text-gray-900 mb-1">Vault Created</h3>
               <p className="text-sm text-gray-600">
                 {otherPartyEmail} has been notified
               </p>
@@ -652,7 +652,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
                 }}
                 className="flex-1 py-2 bg-[#2962FF] text-white rounded-lg text-sm font-medium hover:bg-[#1d4ed8]"
               >
-                View Transaction Status
+                View Vault Status
               </button>
               <button
                 onClick={handleReset}
