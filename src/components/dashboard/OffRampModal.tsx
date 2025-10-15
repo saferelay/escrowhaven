@@ -2,8 +2,8 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { createMoonPayOfframp } from '@/lib/moonpay';
 import { useAuth } from '@/contexts/AuthContext';
+// ✅ NO MOONPAY IMPORT - Loaded dynamically when needed
 
 interface OffRampModalProps {
   isOpen: boolean;
@@ -60,6 +60,10 @@ export function OffRampModal({
 
         // Small delay for UX
         await new Promise(resolve => setTimeout(resolve, 800));
+
+        // ✅ DYNAMIC IMPORT: Only loads createMoonPayOfframp (and MoonPay SDK) when modal opens
+        console.log('🚀 Dynamically loading MoonPay off-ramp...');
+        const { createMoonPayOfframp } = await import('@/lib/moonpay');
 
         // Step 2: Initialize MoonPay sell widget
         const moonPayWidget = await createMoonPayOfframp({

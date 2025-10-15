@@ -1,5 +1,5 @@
 // src/lib/moonpay.ts
-import { loadMoonPay } from '@moonpay/moonpay-js';
+// ✅ NO TOP-LEVEL IMPORTS - Dynamic loading only when needed
 
 interface MoonPayOnrampConfig {
   email?: string;
@@ -62,8 +62,11 @@ export async function createMoonPayOnramp({
       throw new Error('Escrow ID is required');
     }
     
+    // ✅ DYNAMIC IMPORT: Only loads MoonPay SDK when this function is called
+    console.log('🚀 Dynamically loading MoonPay SDK...');
+    const { loadMoonPay } = await import('@moonpay/moonpay-js');
     const moonPay = await loadMoonPay();
-    console.log('MoonPay SDK loaded:', !!moonPay);
+    console.log('✅ MoonPay SDK loaded on-demand');
     
     // Check MoonPay mode specifically (not general app environment)
     const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
@@ -159,7 +162,11 @@ export async function createMoonPayOfframp({
   withdrawalId,
   isTestMode = false
 }: MoonPayOfframpConfig) {
+  // ✅ DYNAMIC IMPORT: Only loads MoonPay SDK when this function is called
+  console.log('🚀 Dynamically loading MoonPay SDK for off-ramp...');
+  const { loadMoonPay } = await import('@moonpay/moonpay-js');
   const moonPay = await loadMoonPay();
+  console.log('✅ MoonPay SDK loaded on-demand');
   
   const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
   const useMoonPayProduction = moonPayMode === 'production';
