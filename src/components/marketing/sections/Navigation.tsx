@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import Image from 'next/image';
 
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -54,17 +55,24 @@ export function Navigation() {
     }`}>
       <div className="w-full px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-{/* Logo with more weight */}
-<div className="flex items-center">
-  <button 
-    onClick={() => router.push('/')}
-    className="hover:opacity-80 transition-opacity"
-  >
-    <span className="text-xl md:text-2xl font-medium tracking-tight text-black">
-      escrowhaven<span className="text-[#2962FF]">.io</span>
-    </span>
-  </button>
-</div>
+          {/* Logo with icon */}
+          <div className="flex items-center">
+            <button 
+              onClick={() => router.push('/')}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <Image 
+                src="/logo.svg" 
+                alt="EscrowHaven Logo" 
+                width={32} 
+                height={32}
+                className="w-8 h-8"
+              />
+              <span className="text-xl md:text-2xl font-medium tracking-tight text-black">
+                escrowhaven<span className="text-[#2962FF]">.io</span>
+              </span>
+            </button>
+          </div>
           
           {/* Centered menu with smooth scrolling */}
           <div className="hidden lg:flex items-center space-x-6 absolute left-1/2 transform -translate-x-1/2">
