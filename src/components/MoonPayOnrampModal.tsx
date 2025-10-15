@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { loadMoonPay } from '@moonpay/moonpay-js';
+// ✅ NO MOONPAY IMPORT - Loaded dynamically in useEffect
 
 interface MoonPayOnrampModalProps {
   isOpen: boolean;
@@ -46,6 +46,10 @@ export function MoonPayOnrampModal({
       try {
         console.log('Opening MoonPay modal with:', { vaultAddress, amount, escrowId });
 
+        // ✅ DYNAMIC IMPORT: Only loads MoonPay SDK when modal opens
+        console.log('🚀 Dynamically loading MoonPay SDK...');
+        const { loadMoonPay } = await import('@moonpay/moonpay-js');
+        
         const mode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
         const apiKey = mode === 'production'
           ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY
@@ -98,6 +102,7 @@ export function MoonPayOnrampModal({
 
         // Load and initialize MoonPay SDK
         const moonPay = await loadMoonPay();
+        console.log('✅ MoonPay SDK loaded on-demand');
         
         console.log('Creating SDK instance...');
         
