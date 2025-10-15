@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx
+// FILE: src/contexts/AuthContext.tsx
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -12,6 +12,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   signIn: (email: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   ensureWallet: () => Promise<string | null>;
   supabase: SupabaseClient<any, "public", any>;
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   error: null,
   signIn: async () => ({ error: null }),
+  signInWithGoogle: async () => ({ error: null }),
   signOut: async () => {},
   ensureWallet: async () => null,
   supabase: null as any,
@@ -195,6 +197,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      setError(null);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+      if (error) {
+        setError(error.message);
+      }
+      return { error };
+    } catch (err: any) {
+      setError(err.message || 'Google sign in failed');
+      return { error: err };
+    }
+  };
+
   const signOut = async () => {
     try {
       setError(null);
@@ -210,7 +235,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, error, signIn, signOut, ensureWallet, supabase }}>
+    <AuthContext.Provider value={{ user, session, loading, error, signIn, signInWithGoogle, signOut, ensureWallet, supabase }}>
       {children}
     </AuthContext.Provider>
   );
