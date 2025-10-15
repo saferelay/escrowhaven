@@ -200,21 +200,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     try {
       setError(null);
+      
+      // Get the current origin (works for both localhost and production)
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${origin}/auth/callback`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
           },
         },
       });
+      
       if (error) {
+        console.error('Google OAuth error:', error);
         setError(error.message);
       }
       return { error };
     } catch (err: any) {
+      console.error('Google sign in failed:', err);
       setError(err.message || 'Google sign in failed');
       return { error: err };
     }
