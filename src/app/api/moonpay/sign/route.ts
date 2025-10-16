@@ -63,7 +63,13 @@ export async function POST(req: NextRequest) {
     console.log('✅ Signature generated');
     console.log('Signature preview:', signature.substring(0, 20) + '...');
     
-    return NextResponse.json({ signature });
+    // ✅ CRITICAL FIX: Return signedParams (params + signature) not just signature
+    const signedParams = {
+      ...params,
+      signature
+    };
+    
+    return NextResponse.json({ signedParams });
     
   } catch (error: any) {
     console.error('❌ Signing error:', error);
