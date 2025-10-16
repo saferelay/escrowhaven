@@ -166,7 +166,6 @@ export async function createMoonPayOfframp({
     console.log('=== createMoonPayOfframp called ===');
     console.log('Input params:', { email, walletAddress, amount, withdrawalId, isTestMode });
     
-    // Validate required parameters
     if (!walletAddress) {
       throw new Error('Wallet address is required');
     }
@@ -177,7 +176,6 @@ export async function createMoonPayOfframp({
       throw new Error('Withdrawal ID is required');
     }
     
-    // ✅ DYNAMIC IMPORT: Only loads MoonPay SDK when this function is called
     console.log('🚀 Dynamically loading MoonPay SDK for off-ramp...');
     const { loadMoonPay } = await import('@moonpay/moonpay-js');
     const moonPay = await loadMoonPay();
@@ -194,27 +192,19 @@ export async function createMoonPayOfframp({
       throw new Error(`MoonPay API key not found for ${useMoonPayProduction ? 'production' : 'sandbox'} mode`);
     }
     
-    // Get the current origin for redirect URL
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     
-    const baseParams: Record<string, any> = {
+    // Build params matching MoonPay's expected structure for sell flow
+    const baseParams = {
       apiKey: apiKey,
-      currencyCode: 'usdc_polygon',
+      baseCurrencyCode: 'usdc',
+      quoteCurrencyCode: 'usd',
       baseCurrencyAmount: amount.toFixed(2),
       walletAddress: walletAddress,
-      colorCode: '2962FF',
       externalTransactionId: withdrawalId,
-      lockAmount: 'true',
-      showWalletAddressForm: 'false',
-      
-      // ✅ CRITICAL: Redirect back to our app with MoonPay's deposit details
-      // MoonPay will append: transactionId, depositWalletAddress, baseCurrencyAmount, baseCurrencyCode
       redirectURL: `${origin}/api/moonpay/offramp-callback?withdrawalId=${withdrawalId}`,
+      ...(email && { email })
     };
-    
-    if (email) {
-      baseParams.email = email;
-    }
     
     console.log('=== MoonPay Offramp Configuration ===');
     console.log('Environment:', useMoonPayProduction ? 'PRODUCTION' : 'SANDBOX');
@@ -222,19 +212,29 @@ export async function createMoonPayOfframp({
     console.log('Wallet:', walletAddress);
     console.log('Redirect URL:', baseParams.redirectURL);
     
-    // Sign params if in production or using wallet address
-    let finalParams = baseParams;
+    // Sign params - always sign when using walletAddress
+    let finalParams: any = { ...baseParams };
+    
     if (useMoonPayProduction || walletAddress) {
       console.log('⚠️  Signing URL parameters...');
       try {
-        finalParams = await signParams(baseParams);
+        const signed = await signParams(baseParams);
+        // Ensure apiKey is preserved after signing
+        finalParams = {
+          ...signed,
+          apiKey: apiKey // Explicitly preserve apiKey
+        };
         console.log('✅ URL signed successfully');
+        console.log('🔍 Final params keys:', Object.keys(finalParams));
       } catch (error) {
         console.error('❌ Failed to sign MoonPay parameters:', error);
         throw new Error('Security signature required for MoonPay');
       }
     }
     
+    console.log('🔵 Creating SDK instance with flow: sell');
+    
+    // Use 'as any' to bypass TypeScript strict checking since we've ensured apiKey exists
     const moonPaySdk = moonPay({
       flow: 'sell',
       environment: useMoonPayProduction ? 'production' : 'sandbox',
@@ -242,7 +242,8 @@ export async function createMoonPayOfframp({
       params: finalParams as any
     });
     
-    console.log('MoonPay Offramp SDK instance created:', !!moonPaySdk);
+    console.log('✅ MoonPay Offramp SDK instance created:', !!moonPaySdk);
+    
     return moonPaySdk;
     
   } catch (error) {
