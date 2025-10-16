@@ -194,10 +194,10 @@ export async function createMoonPayOfframp({
     
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     
-    // Build params matching MoonPay's expected structure for sell flow
+    // ✅ CORRECTED: Use usdc_polygon for Polygon USDC
     const baseParams = {
       apiKey: apiKey,
-      baseCurrencyCode: 'usdc',
+      baseCurrencyCode: 'usdc_polygon',  // ✅ Changed from 'usdc'
       quoteCurrencyCode: 'usd',
       baseCurrencyAmount: amount.toFixed(2),
       walletAddress: walletAddress,
@@ -210,9 +210,10 @@ export async function createMoonPayOfframp({
     console.log('Environment:', useMoonPayProduction ? 'PRODUCTION' : 'SANDBOX');
     console.log('Amount (USDC):', amount);
     console.log('Wallet:', walletAddress);
+    console.log('Currency Code:', 'usdc_polygon');
     console.log('Redirect URL:', baseParams.redirectURL);
     
-    // Sign params - always sign when using walletAddress
+    // Sign params - always sign when using walletAddress or in production
     let finalParams: any = { ...baseParams };
     
     if (useMoonPayProduction || walletAddress) {
