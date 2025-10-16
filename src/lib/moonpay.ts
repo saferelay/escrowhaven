@@ -154,7 +154,7 @@ export async function createMoonPayOnramp({
   }
 }
 
-// Off-ramp: Withdraw to bank
+// Off-ramp: Withdraw to bank (with programmatic transfer support)
 export async function createMoonPayOfframp({
   email,
   walletAddress,
@@ -162,48 +162,93 @@ export async function createMoonPayOfframp({
   withdrawalId,
   isTestMode = false
 }: MoonPayOfframpConfig) {
-  // ✅ DYNAMIC IMPORT: Only loads MoonPay SDK when this function is called
-  console.log('🚀 Dynamically loading MoonPay SDK for off-ramp...');
-  const { loadMoonPay } = await import('@moonpay/moonpay-js');
-  const moonPay = await loadMoonPay();
-  console.log('✅ MoonPay SDK loaded on-demand');
-  
-  const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
-  const useMoonPayProduction = moonPayMode === 'production';
-  
-  const baseParams: Record<string, any> = {
-    apiKey: useMoonPayProduction
-      ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY!
-      : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY!,
-    currencyCode: 'usdc_polygon',
-    baseCurrencyAmount: amount.toFixed(2),
-    walletAddress: walletAddress,
-    colorCode: '2962FF',
-    externalTransactionId: withdrawalId,
-    lockAmount: 'true',
-    showWalletAddressForm: 'false',
-  };
-  
-  if (email) {
-    baseParams.email = email;
-  }
-  
-  let finalParams = baseParams;
-  if (useMoonPayProduction) {
-    try {
-      finalParams = await signParams(baseParams);
-    } catch (error) {
-      console.error('❌ Failed to sign MoonPay parameters:', error);
-      throw new Error('Security signature required for MoonPay production');
+  try {
+    console.log('=== createMoonPayOfframp called ===');
+    console.log('Input params:', { email, walletAddress, amount, withdrawalId, isTestMode });
+    
+    // Validate required parameters
+    if (!walletAddress) {
+      throw new Error('Wallet address is required');
     }
+    if (!amount || amount <= 0) {
+      throw new Error('Valid amount is required');
+    }
+    if (!withdrawalId) {
+      throw new Error('Withdrawal ID is required');
+    }
+    
+    // ✅ DYNAMIC IMPORT: Only loads MoonPay SDK when this function is called
+    console.log('🚀 Dynamically loading MoonPay SDK for off-ramp...');
+    const { loadMoonPay } = await import('@moonpay/moonpay-js');
+    const moonPay = await loadMoonPay();
+    console.log('✅ MoonPay SDK loaded on-demand');
+    
+    const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
+    const useMoonPayProduction = moonPayMode === 'production';
+    
+    const apiKey = useMoonPayProduction
+      ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY
+      : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY;
+    
+    if (!apiKey) {
+      throw new Error(`MoonPay API key not found for ${useMoonPayProduction ? 'production' : 'sandbox'} mode`);
+    }
+    
+    // Get the current origin for redirect URL
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    
+    const baseParams: Record<string, any> = {
+      apiKey: apiKey,
+      currencyCode: 'usdc_polygon',
+      baseCurrencyAmount: amount.toFixed(2),
+      walletAddress: walletAddress,
+      colorCode: '2962FF',
+      externalTransactionId: withdrawalId,
+      lockAmount: 'true',
+      showWalletAddressForm: 'false',
+      
+      // ✅ CRITICAL: Redirect back to our app with MoonPay's deposit details
+      // MoonPay will append: transactionId, depositWalletAddress, baseCurrencyAmount, baseCurrencyCode
+      redirectURL: `${origin}/api/moonpay/offramp-callback?withdrawalId=${withdrawalId}`,
+    };
+    
+    if (email) {
+      baseParams.email = email;
+    }
+    
+    console.log('=== MoonPay Offramp Configuration ===');
+    console.log('Environment:', useMoonPayProduction ? 'PRODUCTION' : 'SANDBOX');
+    console.log('Amount (USDC):', amount);
+    console.log('Wallet:', walletAddress);
+    console.log('Redirect URL:', baseParams.redirectURL);
+    
+    // Sign params if in production or using wallet address
+    let finalParams = baseParams;
+    if (useMoonPayProduction || walletAddress) {
+      console.log('⚠️  Signing URL parameters...');
+      try {
+        finalParams = await signParams(baseParams);
+        console.log('✅ URL signed successfully');
+      } catch (error) {
+        console.error('❌ Failed to sign MoonPay parameters:', error);
+        throw new Error('Security signature required for MoonPay');
+      }
+    }
+    
+    const moonPaySdk = moonPay({
+      flow: 'sell',
+      environment: useMoonPayProduction ? 'production' : 'sandbox',
+      variant: 'overlay',
+      params: finalParams as any
+    });
+    
+    console.log('MoonPay Offramp SDK instance created:', !!moonPaySdk);
+    return moonPaySdk;
+    
+  } catch (error) {
+    console.error('=== createMoonPayOfframp ERROR ===');
+    console.error('Error:', error);
+    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
+    throw error;
   }
-  
-  const moonPaySdk = moonPay({
-    flow: 'sell',
-    environment: useMoonPayProduction ? 'production' : 'sandbox',
-    variant: 'overlay',
-    params: finalParams as any
-  });
-  
-  return moonPaySdk;
 }
