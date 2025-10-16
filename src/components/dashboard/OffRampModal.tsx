@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-// ✅ NO MOONPAY IMPORT - Loaded dynamically when needed
 
 interface OffRampModalProps {
   isOpen: boolean;
@@ -50,22 +49,32 @@ export function OffRampModal({
 
     const initMoonPay = async () => {
       try {
+        console.log('🔵 [OffRamp] Starting initialization...');
+        console.log('🔵 [OffRamp] Available amount:', availableAmount);
+        console.log('🔵 [OffRamp] User email:', userEmail);
+        console.log('🔵 [OffRamp] Withdrawal ID:', withdrawalId);
+        
         // Step 1: Ensure Magic wallet is connected
         setFlowStep('connecting');
+        console.log('🔵 [OffRamp] Ensuring wallet connection...');
         const userWalletAddress = await ensureWallet();
         
         if (!userWalletAddress) {
           throw new Error('Failed to connect wallet');
         }
+        
+        console.log('✅ [OffRamp] Wallet connected:', userWalletAddress);
 
         // Small delay for UX
         await new Promise(resolve => setTimeout(resolve, 800));
 
         // ✅ DYNAMIC IMPORT: Only loads createMoonPayOfframp (and MoonPay SDK) when modal opens
-        console.log('🚀 Dynamically loading MoonPay off-ramp...');
+        console.log('🚀 [OffRamp] Dynamically loading MoonPay off-ramp...');
         const { createMoonPayOfframp } = await import('@/lib/moonpay');
+        console.log('✅ [OffRamp] MoonPay module loaded');
 
         // Step 2: Initialize MoonPay sell widget
+        console.log('🔵 [OffRamp] Creating MoonPay widget...');
         const moonPayWidget = await createMoonPayOfframp({
           email: userEmail,
           walletAddress: userWalletAddress,
@@ -73,17 +82,19 @@ export function OffRampModal({
           withdrawalId: withdrawalId,
         });
 
+        console.log('✅ [OffRamp] MoonPay widget created:', !!moonPayWidget);
         moonPayInstanceRef.current = moonPayWidget;
 
         // Show widget
+        console.log('🔵 [OffRamp] Showing MoonPay widget...');
         setFlowStep('widget');
         moonPayWidget.show();
-
-        // Note: MoonPay will handle the transaction flow internally
-        // User will see success/failure in the widget itself
+        console.log('✅ [OffRamp] Widget shown successfully');
 
       } catch (error: any) {
-        console.error('MoonPay init failed:', error);
+        console.error('❌ [OffRamp] Initialization failed:', error);
+        console.error('❌ [OffRamp] Error message:', error.message);
+        console.error('❌ [OffRamp] Error stack:', error.stack);
         setErrorMsg(error.message || 'Failed to load withdrawal');
         setFlowStep('error');
       }
