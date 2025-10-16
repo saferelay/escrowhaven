@@ -36,22 +36,25 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // CRITICAL: Sort parameters alphabetically
-    // MoonPay requires exact alphabetical order for signature validation
-    const sortedKeys = Object.keys(params).sort();
-    const queryParts: string[] = [];
+    console.log('Secret key present:', !!secretKey);
+    console.log('Secret key length:', secretKey?.length);
     
-    console.log('Parameters (sorted):', sortedKeys);
+    // ✅ CRITICAL FIX: Build query string using URLSearchParams (handles encoding correctly)
+    // Sort keys alphabetically as MoonPay requires
+    const sortedKeys = Object.keys(params).sort();
+    const searchParams = new URLSearchParams();
     
     for (const key of sortedKeys) {
       const value = params[key];
-      // URL encode both key and value
-      queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value));
+      }
     }
     
-    const queryString = queryParts.join('&');
+    const queryString = searchParams.toString();
     
-    console.log('Query string to sign:', queryString.substring(0, 120) + '...');
+    console.log('Parameters being signed (sorted):', sortedKeys);
+    console.log('Query string:', queryString);
     console.log('Query string length:', queryString.length);
     
     // Create HMAC SHA256 signature - MoonPay expects base64
@@ -61,13 +64,15 @@ export async function POST(req: NextRequest) {
       .digest('base64');
     
     console.log('✅ Signature generated');
-    console.log('Signature preview:', signature.substring(0, 20) + '...');
+    console.log('Signature:', signature);
     
-    // ✅ CRITICAL FIX: Return signedParams (params + signature) not just signature
+    // Return params with signature added
     const signedParams = {
       ...params,
       signature
     };
+    
+    console.log('✅ Returning signed params');
     
     return NextResponse.json({ signedParams });
     
