@@ -239,7 +239,7 @@ const BlockchainTimeline = ({
             rel="noopener noreferrer"
             className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
           >
-            View transaction
+            View vault
             <ArrowUpRightIcon className="w-3 h-3" />
           </a>
         )
@@ -260,7 +260,7 @@ const BlockchainTimeline = ({
                 rel="noopener noreferrer"
                 className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
               >
-                View transaction
+                View vault
                 <ArrowUpRightIcon className="w-3 h-3" />
               </a>
             )}
@@ -290,7 +290,7 @@ const BlockchainTimeline = ({
             rel="noopener noreferrer"
             className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
           >
-            View transaction
+            View vault
             <ArrowUpRightIcon className="w-3 h-3" />
           </a>
         )
@@ -781,7 +781,7 @@ export function EscrowDetailPanel({
         <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium text-[#64748B]">
-              TRANSACTION DETAILS
+              VAULT DETAILS
             </span>
             {escrow && (
               <div className={clsx(
@@ -861,7 +861,7 @@ export function EscrowDetailPanel({
               {isInitiator && escrow.status === 'INITIATED' && (
                 <>
                   <div className="border border-gray-200 rounded-lg p-4 mb-6">
-                    <p className="text-sm font-medium text-gray-900 mb-3">Share this transaction link</p>
+                    <p className="text-sm font-medium text-gray-900 mb-3">Share this vault link</p>
                     <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                       <div className="flex gap-2 mb-2">
                         <input
@@ -1119,7 +1119,7 @@ export function EscrowDetailPanel({
                       onClick={() => setShowCancelDialog(true)}
                       className="w-full mt-2 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
                     >
-                      Cancel Transaction Vault
+                      Cancel Vault
                     </button>
                   </>
                 )}  
@@ -1137,7 +1137,7 @@ export function EscrowDetailPanel({
                       onClick={() => setShowCancelDialog(true)}
                       className="w-full py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
                     >
-                      Cancel Transaction Vault
+                      Cancel Vault
                     </button>
                   </div>
                 )}
@@ -1227,7 +1227,7 @@ export function EscrowDetailPanel({
                     </button>
                     
                     <p className="text-xs text-center text-gray-500 mt-2">
-                      Share verified proof of this successful transaction
+                      Share verified proof of this completed escrow transaction
                     </p>
                   </div>
                 )}
