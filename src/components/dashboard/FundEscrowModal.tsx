@@ -14,7 +14,7 @@ interface FundEscrowModalProps {
   escrowId: string;
   vaultAddress: string;
   onSuccess: () => void;
-  onDeposit: () => void; // Opens deposit modal
+  onDeposit: (suggestedAmount?: number) => void;
 }
 
 export function FundEscrowModal({
@@ -190,14 +190,14 @@ export function FundEscrowModal({
                 </div>
 
                 <button
-                onClick={() => {
-                    onClose();
-                    onDeposit();
-                }}
-                className="w-full py-3 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] transition-colors font-medium"
-                >
-                Add Funds
-                </button>
+                    onClick={() => {
+                        onClose();
+                        onDeposit(Math.ceil(shortfall)); // Pass the amount needed
+                    }}
+                    className="w-full py-3 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] transition-colors font-medium"
+                    >
+                    Deposit
+                    </button>
             </div>
             )}
 

@@ -138,6 +138,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [showOffRampModal, setShowOffRampModal] = useState(false);
   const [currentWithdrawalId, setCurrentWithdrawalId] = useState<string | null>(null);
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depositSuggestedAmount, setDepositSuggestedAmount] = useState<number | undefined>();
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   // Add after the state declaration
@@ -1402,10 +1403,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       onClose={closePanel}
                       onUpdate={handleRefresh}
                       onShowMoonPay={handleShowMoonPay}
-                      onShowDeposit={() => {
+                      onShowDeposit={(amount) => {
                         setRightPanelOpen(false);
+                        setDepositSuggestedAmount(amount);
                         setShowDepositModal(true);
-                      }}  
+                      }}
                     />
                   ) : null}
                 </div>
@@ -1551,9 +1553,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 isOpen
                 onClose={closePanel}
                 onUpdate={handleRefresh}
-                onShowMoonPay={handleShowMoonPay}  
-                onShowDeposit={() => {
+                onShowMoonPay={handleShowMoonPay}
+                onShowDeposit={(amount) => {
                   setRightPanelOpen(false);
+                  setDepositSuggestedAmount(amount);
                   setShowDepositModal(true);
                 }}
               />
@@ -1692,7 +1695,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       {/* Deposit Modal */}
       <DepositModal
         isOpen={showDepositModal}
-        onClose={() => setShowDepositModal(false)}
+        onClose={() => {
+          setShowDepositModal(false);
+          setDepositSuggestedAmount(undefined);
+        }}
+        suggestedAmount={depositSuggestedAmount}
       />
 
       {/* Withdraw Modal */}

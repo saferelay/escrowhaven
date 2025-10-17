@@ -10,14 +10,19 @@ const USDC_ABI = ['function balanceOf(address owner) view returns (uint256)'];
 interface DepositModalProps {
   isOpen: boolean;
   onClose: () => void;
+  suggestedAmount?: number; // Optional pre-fill amount
 }
 
-export function DepositModal({ isOpen, onClose }: DepositModalProps) {
+export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalProps) {
   const { user, supabase, ensureWallet } = useAuth();
   const [walletAddress, setWalletAddress] = useState<string>('');
   const [balance, setBalance] = useState<string>('0');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  
+  // Form state
+  const [amount, setAmount] = useState<string>(suggestedAmount?.toString() || '');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank'>('card');
 
   // Fetch wallet address
   useEffect(() => {
@@ -67,23 +72,37 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
     fetchBalance();
   }, [walletAddress, isOpen]);
 
+  // Pre-fill suggested amount
+  useEffect(() => {
+    if (suggestedAmount && suggestedAmount > 0) {
+      setAmount(suggestedAmount.toString());
+    }
+  }, [suggestedAmount]);
+
   const handleDeposit = async () => {
     try {
+      const depositAmount = parseFloat(amount);
+      
+      if (!depositAmount || depositAmount < 10) {
+        alert('Minimum deposit is $10');
+        return;
+      }
+
       setProcessing(true);
       await ensureWallet();
       
       if (!walletAddress) {
-        alert('Please connect your wallet first');
+        alert('Please connect first');
         return;
       }
       
-      // Use MoonPay for deposits
+      // Use MoonPay with the specified amount and payment preference
       const { createMoonPayOnramp } = await import('@/lib/moonpay');
       
       const moonPayWidget = await createMoonPayOnramp({
         email: user?.email || '',
         walletAddress: walletAddress,
-        amount: 10,
+        amount: depositAmount,
         escrowId: `deposit-${Date.now()}`,
       });
 
@@ -99,9 +118,12 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
 
   if (!isOpen) return null;
 
+  const isValidAmount = parseFloat(amount) >= 10;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
+        
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#E0E2E7] px-6 py-4">
           <h3 className="text-lg font-medium text-black">Deposit Cash</h3>
@@ -117,29 +139,111 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
 
         {/* Content */}
         <div className="p-6">
+          
           {/* Current Balance */}
           <div className="bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg p-4 mb-6">
             <div className="text-xs text-[#787B86] mb-1">Current Balance</div>
             {loading ? (
-              <div className="text-2xl font-medium text-black">Loading...</div>
+              <div className="text-xl font-medium text-black">Loading...</div>
             ) : (
-              <div className="text-2xl font-medium text-black">${balance}</div>
+              <div className="text-xl font-medium text-black">${balance}</div>
             )}
-            <div className="text-xs text-[#787B86] mt-1">USDC on Polygon</div>
+            <div className="text-xs text-[#787B86] mt-1">USDC</div>
           </div>
 
-          {/* Info */}
+          {/* Amount Input */}
           <div className="mb-6">
-            <p className="text-sm text-[#787B86] mb-4">
-              Add funds to your wallet using MoonPay. Supports credit cards, bank transfers, Apple Pay, and Google Pay.
-            </p>
-            
-            <div className="flex items-start gap-2 p-3 bg-[#F8F9FD] rounded-lg">
-              <svg className="w-4 h-4 text-[#2962FF] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-xs text-[#787B86]">
-                Funds are added to your secure wallet, then you can use them to fund escrow vaults.
+            <label className="block text-sm font-medium text-black mb-2">
+              Amount
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#787B86] text-base">
+                $
+              </span>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="10.00"
+                min="10"
+                step="0.01"
+                className="w-full bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg pl-8 pr-4 py-3 text-base text-black focus:bg-white focus:border-[#2962FF] focus:outline-none focus:ring-2 focus:ring-[#2962FF]/10 transition-all"
+              />
+            </div>
+            <p className="text-xs text-[#787B86] mt-2">Minimum $10</p>
+          </div>
+
+          {/* Payment Method */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-black mb-3">
+              Payment Method
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              
+              {/* Credit/Debit Card */}
+              <button
+                onClick={() => setPaymentMethod('card')}
+                className={`
+                  border rounded-lg p-4 text-left transition-all
+                  ${paymentMethod === 'card' 
+                    ? 'border-[#2962FF] bg-[#F8F9FD]' 
+                    : 'border-[#E0E2E7] bg-white hover:border-[#787B86]'
+                  }
+                `}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <svg className="w-6 h-6 text-[#787B86]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                  {paymentMethod === 'card' && (
+                    <div className="w-4 h-4 rounded-full bg-[#2962FF] flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div className="text-sm font-medium text-black">Card</div>
+                <div className="text-xs text-[#787B86] mt-1">Credit or Debit</div>
+              </button>
+
+              {/* Bank Transfer */}
+              <button
+                onClick={() => setPaymentMethod('bank')}
+                className={`
+                  border rounded-lg p-4 text-left transition-all
+                  ${paymentMethod === 'bank' 
+                    ? 'border-[#2962FF] bg-[#F8F9FD]' 
+                    : 'border-[#E0E2E7] bg-white hover:border-[#787B86]'
+                  }
+                `}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <svg className="w-6 h-6 text-[#787B86]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                  </svg>
+                  {paymentMethod === 'bank' && (
+                    <div className="w-4 h-4 rounded-full bg-[#2962FF] flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div className="text-sm font-medium text-black">Bank</div>
+                <div className="text-xs text-[#787B86] mt-1">ACH Transfer</div>
+              </button>
+            </div>
+          </div>
+
+          {/* Info Box */}
+          <div className="flex items-start gap-3 p-4 bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg mb-6">
+            <svg className="w-5 h-5 text-[#2962FF] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="text-xs text-[#787B86] leading-relaxed">
+                Powered by MoonPay. Funds arrive instantly and can be used immediately for escrow transactions.
               </p>
             </div>
           </div>
@@ -147,10 +251,10 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
           {/* Action Button */}
           <button
             onClick={handleDeposit}
-            disabled={processing}
+            disabled={processing || !isValidAmount}
             className="w-full py-3 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {processing ? 'Opening MoonPay...' : 'Continue to MoonPay'}
+            {processing ? 'Opening MoonPay...' : `Deposit $${amount || '0'}`}
           </button>
         </div>
       </div>

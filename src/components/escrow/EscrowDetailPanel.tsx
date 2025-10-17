@@ -428,7 +428,7 @@ interface EscrowDetailPanelProps {
   onUpdate?: () => void;
   autoCloseOnFund?: boolean;
   onShowMoonPay?: (data: { vaultAddress: string; amount: number; escrowId: string }) => void;
-  onShowDeposit?: () => void; 
+  onShowDeposit?: (suggestedAmount?: number) => void; 
 }
 
 export function EscrowDetailPanel({ 
