@@ -36,24 +36,24 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    console.log('Secret key present:', !!secretKey);
-    console.log('Secret key length:', secretKey?.length);
+    console.log('✅ Secret key found');
+    console.log('Secret key length:', secretKey.length);
     
-    // ✅ CRITICAL FIX: Build query string using URLSearchParams (handles encoding correctly)
-    // Sort keys alphabetically as MoonPay requires
-    const sortedKeys = Object.keys(params).sort();
+    // ✅ Build query string using URLSearchParams (automatically handles URL encoding)
+    // Sort alphabetically as required by MoonPay
+    const sortedEntries = Object.entries(params)
+      .filter(([_, value]) => value !== undefined && value !== null)
+      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
+    
     const searchParams = new URLSearchParams();
-    
-    for (const key of sortedKeys) {
-      const value = params[key];
-      if (value !== undefined && value !== null) {
-        searchParams.append(key, String(value));
-      }
+    for (const [key, value] of sortedEntries) {
+      searchParams.append(key, String(value));
     }
     
+    // This creates the query string in the format: key1=value1&key2=value2
     const queryString = searchParams.toString();
     
-    console.log('Parameters being signed (sorted):', sortedKeys);
+    console.log('Parameters (sorted):', sortedEntries.map(([k]) => k));
     console.log('Query string:', queryString);
     console.log('Query string length:', queryString.length);
     
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       .digest('base64');
     
     console.log('✅ Signature generated');
-    console.log('Signature:', signature);
+    console.log('Signature (full):', signature);
     
     // Return params with signature added
     const signedParams = {
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     };
     
     console.log('✅ Returning signed params');
+    console.log('Signed params keys:', Object.keys(signedParams));
     
     return NextResponse.json({ signedParams });
     
