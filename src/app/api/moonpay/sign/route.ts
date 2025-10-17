@@ -66,14 +66,20 @@ export async function POST(req: NextRequest) {
     console.log('✅ Signature generated');
     console.log('Signature (full):', signature);
     
-    // Return params with signature added
-    const signedParams = {
-      ...params,
-      signature
-    };
+    // ✅ CRITICAL: Return params in SORTED order (alphabetically)
+    // Create a new object with sorted keys + signature at the end
+    const signedParams: Record<string, any> = {};
+    
+    // Add all params in alphabetical order
+    for (const [key, value] of sortedEntries) {
+      signedParams[key] = value;
+    }
+    
+    // Add signature at the end
+    signedParams.signature = signature;
     
     console.log('✅ Returning signed params');
-    console.log('Signed params keys:', Object.keys(signedParams));
+    console.log('Signed params keys (should be alphabetical + signature):', Object.keys(signedParams));
     
     return NextResponse.json({ signedParams });
     
