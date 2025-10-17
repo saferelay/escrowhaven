@@ -7,6 +7,7 @@ import TransactionSuccessModal from '@/components/escrow/TransactionSuccessModal
 import { SettlementActions } from '@/components/SettlementActions';
 import clsx from 'clsx';
 import { PaymentMethodModal } from '@/components/PaymentMethodModal';
+import { FundEscrowModal } from '@/components/dashboard/FundEscrowModal';
 
 // Icon components
 const CheckIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -744,10 +745,11 @@ export function EscrowDetailPanel({
     }
   };
 
+  const [showFundModal, setShowFundModal] = useState(false);
+
   const handleFund = async () => {
-    setProcessing(true);
-    
     try {
+      // Prepare vault address
       const response = await fetch('/api/escrow/prepare-funding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -761,22 +763,11 @@ export function EscrowDetailPanel({
       
       const { vaultAddress } = await response.json();
       
-      if (onShowMoonPay) {
-        if (autoCloseOnFund) {
-          onClose();
-        }
-        
-        onShowMoonPay({
-          vaultAddress,
-          amount: escrow.amount_cents / 100,
-          escrowId: escrow.id
-        });
-      }
+      // Show fund modal (checks balance, etc.)
+      setShowFundModal(true);
       
     } catch (error: any) {
-      alert(`Failed to initiate payment: ${error.message || 'Unknown error'}`);
-    } finally {
-      setProcessing(false);
+      alert(`Failed to prepare vault: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -1306,6 +1297,26 @@ export function EscrowDetailPanel({
           escrow={escrow}
           role={role}
           onClose={() => setShowSuccessModal(false)}
+        />
+      )}
+
+            {/* Fund Escrow Modal */}
+            {showFundModal && escrow.vault_address && (
+        <FundEscrowModal
+          isOpen={showFundModal}
+          onClose={() => setShowFundModal(false)}
+          escrowAmount={escrow.amount_cents / 100}
+          escrowId={escrow.id}
+          vaultAddress={escrow.vault_address}
+          onSuccess={() => {
+            if (onUpdate) onUpdate();
+          }}
+          onDeposit={() => {
+            setShowFundModal(false);
+            // This will trigger the parent to open deposit modal
+            // For now, alert user to use Transfer button
+            alert('Please use the Transfer button in the header to deposit funds to your wallet');
+          }}
         />
       )}
 
