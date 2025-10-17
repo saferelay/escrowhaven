@@ -20,7 +20,7 @@ interface MoonPayOfframpConfig {
 // Sign parameters server-side - returns just the signature string
 async function signParams(params: Record<string, any>): Promise<string> {
   try {
-    const response = await fetch('/api/moonpay/sign', {
+    const response = await fetch('/api/moonpay/sign-official', {  // Changed route
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ params })
