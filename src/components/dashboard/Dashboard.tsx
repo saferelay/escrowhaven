@@ -7,9 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams } from 'next/navigation';
 import { CreateEscrowWizard } from '@/components/escrow/CreateEscrowWizard';
 import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
-import { OffRampModal } from '@/components/dashboard/OffRampModal';
 import { MoonPayOnrampModal } from '@/components/MoonPayOnrampModal';
-import { OnrampSDKTest } from '@/components/dashboard/OnrampSDKTest';
+import { DepositModal } from '@/components/dashboard/DepositModal';
+import { WithdrawModal } from '@/components/dashboard/WithdrawModal';
 import { TransferPage } from '@/components/dashboard/TransferPage';
 
 // Icons
@@ -109,6 +109,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   // Profile dropdown
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const [transferDropdownOpen, setTransferDropdownOpen] = useState(false);
+  const transferRef = useRef<HTMLDivElement>(null);
 
   // Feedback
   const [showFeedbackForEscrow, setShowFeedbackForEscrow] = useState<string | null>(null);
@@ -135,6 +137,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [urlEscrowProcessed, setUrlEscrowProcessed] = useState(false);
   const [showOffRampModal, setShowOffRampModal] = useState(false);
   const [currentWithdrawalId, setCurrentWithdrawalId] = useState<string | null>(null);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   // Add after the state declaration
   const fetchPromises = useRef<Map<string, Promise<any>>>(new Map());
@@ -766,6 +770,23 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     };
   }, [profileDropdownOpen]);
 
+  // Click outside to close transfer dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (transferRef.current && !transferRef.current.contains(event.target as Node)) {
+        setTransferDropdownOpen(false);
+      }
+    };
+    
+    if (transferDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [transferDropdownOpen]);
+
   // Actions
   const openCreate = () => {
     setRightPanelView('create');
@@ -1004,6 +1025,50 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 </div>
               )}
               
+              {/* Transfer Dropdown */}
+              <div className="relative" ref={transferRef}>
+                <button
+                  onClick={() => setTransferDropdownOpen(!transferDropdownOpen)}
+                  className={clsx(
+                    "inline-flex items-center justify-center rounded-md px-3 py-2 transition shadow-sm gap-1.5",
+                    "bg-[#2962FF] text-white hover:bg-[#1E53E5]"
+                  )}
+                >
+                  <DollarSign size={16} />
+                  <span>Transfer</span>
+                  <ChevronDown size={14} className={clsx('transition-transform', transferDropdownOpen && 'rotate-180')} />
+                </button>
+                
+                {transferDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-48 bg-white border border-[#E0E2E7] rounded-lg shadow-lg py-1 z-50">
+                    <button
+                      onClick={() => {
+                        setTransferDropdownOpen(false);
+                        setShowDepositModal(true);
+                      }}
+                      className="w-full text-left px-4 py-2 text-[13px] text-[#0F172A] hover:bg-[#F8F9FD] transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Deposit Cash
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTransferDropdownOpen(false);
+                        setShowWithdrawModal(true);
+                      }}
+                      className="w-full text-left px-4 py-2 text-[13px] text-[#0F172A] hover:bg-[#F8F9FD] transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m0 0l-4-4m4 4l4-4" />
+                      </svg>
+                      Withdraw Cash
+                    </button>
+                  </div>
+                )}
+              </div>
+              
               {/* Profile Dropdown */}
               <div className="relative" ref={profileRef}>
                 <button
@@ -1112,45 +1177,22 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           </div>
           <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
           {(
-              [
-                { id: 'all', label: 'All Vaults', icon: FileText },
-                { id: 'needs', label: 'Action Required', icon: AlertCircle },
-                { id: 'transfer', label: 'Transfer', icon: DollarSign, isSpecial: true },
-                { id: 'sent', label: 'Sent', icon: Send },
-                { id: 'received', label: 'Received', icon: Download },
-                { id: 'active', label: 'In Progress', icon: DollarSign },
-                { id: 'completed', label: 'Completed', icon: CheckCircle },
-              ] as { id: Folder | 'transfer'; label: string; icon: React.ComponentType<any>; isSpecial?: boolean }[]
-            ).map((f) => {
-              // Handle Transfer button specially
-              if (f.isSpecial && f.id === 'transfer') {
-                return (
-                  <button
-                    key={f.id}
-                    onClick={() => {
-                      setRightPanelView('transfer');
-                      setRightPanelOpen(true);
-                      if (!isMobile && gridRef.current && !userSetWidth) {
-                        const w = gridRef.current.getBoundingClientRect().width;
-                        setRightPanelWidth(Math.max(420, Math.floor(w * 0.5)));
-                      }
-                    }}
-                    className="mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] transition text-[#334155] hover:bg-[#F8FAFC]"
-                  >
-                    <span className="flex items-center gap-2">
-                      <f.icon size={16} className="text-[#475569]" />
-                      {f.label}
-                    </span>
-                  </button>
-                );
-              }
+  [
+    { id: 'all', label: 'All Vaults', icon: FileText },
+    { id: 'needs', label: 'Action Required', icon: AlertCircle },
+    { id: 'sent', label: 'Sent', icon: Send },
+    { id: 'received', label: 'Received', icon: Download },
+    { id: 'active', label: 'In Progress', icon: DollarSign },
+    { id: 'completed', label: 'Completed', icon: CheckCircle },
+  ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
+).map((f) => {
               const Icon = f.icon;
               const active = activeFolder === f.id;
-              const count = f.id === 'transfer' ? 0 : getFolderCount(f.id as Folder);
+              const count = getFolderCount(f.id);
               return (
                 <button
                   key={f.id}
-                  onClick={() => f.id !== 'transfer' && handleFolderChange(f.id as Folder)}
+                  onClick={() => handleFolderChange(f.id)}
                   className={clsx(
                     'mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] transition',
                     active ? 'bg-[#EFF6FF] text-[#2962FF]' : 'text-[#334155] hover:bg-[#F8FAFC]'
@@ -1406,39 +1448,19 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 [
                   { id: 'all', label: 'All Vaults', icon: FileText },
                   { id: 'needs', label: 'Action Required', icon: AlertCircle },
-                  { id: 'transfer', label: 'Transfer', icon: DollarSign, isSpecial: true },
                   { id: 'sent', label: 'Sent', icon: Send },
                   { id: 'received', label: 'Received', icon: Download },
                   { id: 'active', label: 'In Progress', icon: DollarSign },
                   { id: 'completed', label: 'Completed', icon: CheckCircle },
-                ] as { id: Folder | 'transfer'; label: string; icon: React.ComponentType<any>; isSpecial?: boolean }[]
+                ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
               ).map((f) => {
-                // Handle Transfer button specially
-                if (f.isSpecial && f.id === 'transfer') {
-                  return (
-                    <button
-                      key={f.id}
-                      onClick={() => {
-                        setMobileNavOpen(false);
-                        setRightPanelView('transfer');
-                        setRightPanelOpen(true);
-                      }}
-                      className="mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[14px] transition text-[#334155] hover:bg-[#F8FAFC]"
-                    >
-                      <span className="flex items-center gap-2">
-                        <f.icon size={18} className="text-[#475569]" />
-                        {f.label}
-                      </span>
-                    </button>
-                  );
-                }
                 const Icon = f.icon;
                 const active = activeFolder === f.id;
-                const count = f.id === 'transfer' ? 0 : getFolderCount(f.id as Folder);
+                const count = getFolderCount(f.id);
                 return (
                   <button
                     key={f.id}
-                    onClick={() => { f.id !== 'transfer' && handleFolderChange(f.id as Folder); setMobileNavOpen(false); }}
+                    onClick={() => { handleFolderChange(f.id); setMobileNavOpen(false); }}
                     className={clsx(
                       'mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[14px] transition',
                       active ? 'bg-[#EFF6FF] text-[#2962FF]' : 'text-[#334155] hover:bg-[#F8FAFC]'
@@ -1633,30 +1655,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </div>
       )}
 
-      <OffRampModal
-        isOpen={showOffRampModal}
-        onClose={() => {
-          setShowOffRampModal(false);
-          setCurrentWithdrawalId(null);
-        }}
-        availableAmount={metrics.availableToWithdraw}
-        userEmail={user?.email || ''}
-        walletAddress={''}
-        withdrawalId={currentWithdrawalId || ''}
-      />
-
-
-      <OffRampModal
-        isOpen={showOffRampModal}
-        onClose={() => {
-          setShowOffRampModal(false);
-          setCurrentWithdrawalId(null);
-        }}
-        availableAmount={metrics.availableToWithdraw}
-        userEmail={user?.email || ''}
-        walletAddress={''}
-        withdrawalId={currentWithdrawalId || ''}
-      />
 
       {/* MoonPay Modal - Add this */}
       {moonPayData && (
@@ -1669,6 +1667,31 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           onSuccess={handleMoonPaySuccess}
         />
       )}
+
+
+      {/* MoonPay Modal */}
+      {moonPayData && (
+        <MoonPayOnrampModal
+          isOpen={true}
+          onClose={handleMoonPayClose}
+          vaultAddress={moonPayData.vaultAddress}
+          amount={moonPayData.amount}
+          escrowId={moonPayData.escrowId}
+          onSuccess={handleMoonPaySuccess}
+        />
+      )}
+
+      {/* Deposit Modal */}
+      <DepositModal
+        isOpen={showDepositModal}
+        onClose={() => setShowDepositModal(false)}
+      />
+
+      {/* Withdraw Modal */}
+      <WithdrawModal
+        isOpen={showWithdrawModal}
+        onClose={() => setShowWithdrawModal(false)}
+      />
 
     </div>
   );
