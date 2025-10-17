@@ -10,6 +10,7 @@ import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
 import { OffRampModal } from '@/components/dashboard/OffRampModal';
 import { MoonPayOnrampModal } from '@/components/MoonPayOnrampModal';
 import { OnrampSDKTest } from '@/components/dashboard/OnrampSDKTest';
+import { TransferPage } from '@/components/dashboard/TransferPage';
 
 // Icons
 import {
@@ -31,6 +32,7 @@ type ViewType = 'marketing' | 'dashboard' | 'transparency' | 'escrow' | 'login' 
 type SortColumn = 'party' | 'amount' | 'action' | 'updated';
 type SortOrder = 'asc' | 'desc';
 type Folder = 'all' | 'needs' | 'sent' | 'received' | 'active' | 'completed';
+type RightPanelView = 'detail' | 'create' | 'transfer' | null;
 
 interface DashboardProps {
   onNavigate: (view: ViewType) => void;
@@ -92,7 +94,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // Right panel
-  const [rightPanelView, setRightPanelView] = useState<'detail' | 'create' | null>(null);
+  const [rightPanelView, setRightPanelView] = useState<RightPanelView>(null);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [rightPanelWidth, setRightPanelWidth] = useState<number | null>(null);
   const [userSetWidth, setUserSetWidth] = useState(false);
@@ -1001,17 +1003,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   {isStaging ? 'STAGING' : 'TEST'} MODE
                 </div>
               )}
-              <button 
-                onClick={handleWithdraw}
-                disabled={metrics.availableToWithdraw === 0}
-                className={clsx(
-                  btn.primary,
-                  'gap-1.5',
-                  metrics.availableToWithdraw === 0 && 'opacity-50 cursor-not-allowed'
-                )}
-              >
-                Withdraw ${metrics.availableToWithdraw.toFixed(2)}
-              </button>
               
               {/* Profile Dropdown */}
               <div className="relative" ref={profileRef}>
@@ -1072,17 +1063,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             )}
             
-            {/* Mobile Withdraw Button */}
-            <button 
-              onClick={handleWithdraw}
-              disabled={metrics.availableToWithdraw === 0}
-              className={clsx(
-                'inline-flex items-center justify-center rounded-md px-2.5 py-1.5 bg-[#2962FF] text-white hover:bg-[#1E53E5] transition shadow-sm text-[11px] font-medium',
-                metrics.availableToWithdraw === 0 && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              Withdraw
-            </button>
             
             {/* Mobile Profile Dropdown */}
             <div className="relative" ref={profileRef}>
@@ -1131,23 +1111,46 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             </button>
           </div>
           <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
-            {(
+          {(
               [
                 { id: 'all', label: 'All Vaults', icon: FileText },
                 { id: 'needs', label: 'Action Required', icon: AlertCircle },
+                { id: 'transfer', label: 'Transfer', icon: DollarSign, isSpecial: true },
                 { id: 'sent', label: 'Sent', icon: Send },
                 { id: 'received', label: 'Received', icon: Download },
                 { id: 'active', label: 'In Progress', icon: DollarSign },
                 { id: 'completed', label: 'Completed', icon: CheckCircle },
-              ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
+              ] as { id: Folder | 'transfer'; label: string; icon: React.ComponentType<any>; isSpecial?: boolean }[]
             ).map((f) => {
+              // Handle Transfer button specially
+              if (f.isSpecial && f.id === 'transfer') {
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => {
+                      setRightPanelView('transfer');
+                      setRightPanelOpen(true);
+                      if (!isMobile && gridRef.current && !userSetWidth) {
+                        const w = gridRef.current.getBoundingClientRect().width;
+                        setRightPanelWidth(Math.max(420, Math.floor(w * 0.5)));
+                      }
+                    }}
+                    className="mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] transition text-[#334155] hover:bg-[#F8FAFC]"
+                  >
+                    <span className="flex items-center gap-2">
+                      <f.icon size={16} className="text-[#475569]" />
+                      {f.label}
+                    </span>
+                  </button>
+                );
+              }
               const Icon = f.icon;
               const active = activeFolder === f.id;
-              const count = getFolderCount(f.id);
+              const count = f.id === 'transfer' ? 0 : getFolderCount(f.id as Folder);
               return (
                 <button
                   key={f.id}
-                  onClick={() => handleFolderChange(f.id)}
+                  onClick={() => f.id !== 'transfer' && handleFolderChange(f.id as Folder)}
                   className={clsx(
                     'mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] transition',
                     active ? 'bg-[#EFF6FF] text-[#2962FF]' : 'text-[#334155] hover:bg-[#F8FAFC]'
@@ -1335,9 +1338,21 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   className="absolute inset-y-0 left-0 w-1 cursor-col-resize hover:bg-[#2962FF] z-10"
                   onMouseDown={() => setIsResizing(true)}
                 />
-                <div className="h-full">
+                  <div className="h-full overflow-hidden">
                   {rightPanelView === 'create' ? (
                     <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
+                  ) : rightPanelView === 'transfer' ? (
+                    <div className="h-full overflow-y-auto">
+                      <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
+                        <span className="text-[11px] font-medium text-[#64748B]">TRANSFER</span>
+                        <button onClick={closePanel} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <TransferPage />
+                    </div>
                   ) : rightPanelView === 'detail' && selectedEscrowId ? (
                     <EscrowDetailPanel
                       escrowId={selectedEscrowId}
@@ -1387,23 +1402,43 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </button>
             </div>
             <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
-              {(
+            {(
                 [
                   { id: 'all', label: 'All Vaults', icon: FileText },
                   { id: 'needs', label: 'Action Required', icon: AlertCircle },
+                  { id: 'transfer', label: 'Transfer', icon: DollarSign, isSpecial: true },
                   { id: 'sent', label: 'Sent', icon: Send },
                   { id: 'received', label: 'Received', icon: Download },
                   { id: 'active', label: 'In Progress', icon: DollarSign },
                   { id: 'completed', label: 'Completed', icon: CheckCircle },
-                ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
+                ] as { id: Folder | 'transfer'; label: string; icon: React.ComponentType<any>; isSpecial?: boolean }[]
               ).map((f) => {
+                // Handle Transfer button specially
+                if (f.isSpecial && f.id === 'transfer') {
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => {
+                        setMobileNavOpen(false);
+                        setRightPanelView('transfer');
+                        setRightPanelOpen(true);
+                      }}
+                      className="mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[14px] transition text-[#334155] hover:bg-[#F8FAFC]"
+                    >
+                      <span className="flex items-center gap-2">
+                        <f.icon size={18} className="text-[#475569]" />
+                        {f.label}
+                      </span>
+                    </button>
+                  );
+                }
                 const Icon = f.icon;
                 const active = activeFolder === f.id;
-                const count = getFolderCount(f.id);
+                const count = f.id === 'transfer' ? 0 : getFolderCount(f.id as Folder);
                 return (
                   <button
                     key={f.id}
-                    onClick={() => { handleFolderChange(f.id); setMobileNavOpen(false); }}
+                    onClick={() => { f.id !== 'transfer' && handleFolderChange(f.id as Folder); setMobileNavOpen(false); }}
                     className={clsx(
                       'mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[14px] transition',
                       active ? 'bg-[#EFF6FF] text-[#2962FF]' : 'text-[#334155] hover:bg-[#F8FAFC]'
@@ -1471,6 +1506,18 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <div className="fixed inset-0 z-50 bg-white flex flex-col">
           {rightPanelView === 'create' ? (
             <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
+          ) : rightPanelView === 'transfer' ? (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-3 bg-[#F8FAFC]">
+                <span className="text-sm font-medium text-black">Transfer</span>
+                <button onClick={closePanel} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <TransferPage />
+            </div>
           ) : rightPanelView === 'detail' && selectedEscrowId ? (
             <div className="flex-1 min-h-0 overflow-y-auto">
               <EscrowDetailPanel
