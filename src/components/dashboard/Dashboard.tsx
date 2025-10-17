@@ -1401,7 +1401,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       isOpen
                       onClose={closePanel}
                       onUpdate={handleRefresh}
-                      onShowMoonPay={handleShowMoonPay}  // <-- ADD THIS LINE
+                      onShowMoonPay={handleShowMoonPay}
+                      onShowDeposit={() => {
+                        setRightPanelOpen(false);
+                        setShowDepositModal(true);
+                      }}  
                     />
                   ) : null}
                 </div>
@@ -1547,7 +1551,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 isOpen
                 onClose={closePanel}
                 onUpdate={handleRefresh}
-                onShowMoonPay={handleShowMoonPay}  // <-- ADD THIS LINE
+                onShowMoonPay={handleShowMoonPay}  
+                onShowDeposit={() => {
+                  setRightPanelOpen(false);
+                  setShowDepositModal(true);
+                }}
               />
             </div>
           ) : null}

@@ -428,6 +428,7 @@ interface EscrowDetailPanelProps {
   onUpdate?: () => void;
   autoCloseOnFund?: boolean;
   onShowMoonPay?: (data: { vaultAddress: string; amount: number; escrowId: string }) => void;
+  onShowDeposit?: () => void; 
 }
 
 export function EscrowDetailPanel({ 
@@ -436,7 +437,8 @@ export function EscrowDetailPanel({
   onClose, 
   onUpdate,
   autoCloseOnFund = true,
-  onShowMoonPay
+  onShowMoonPay,
+  onShowDeposit
 }: EscrowDetailPanelProps) {
   const { user, supabase, ensureWallet } = useAuth();
   const [escrow, setEscrow] = useState<any>(null);
@@ -1300,8 +1302,8 @@ export function EscrowDetailPanel({
         />
       )}
 
-            {/* Fund Escrow Modal */}
-            {showFundModal && escrow.vault_address && (
+      {/* Fund Escrow Modal */}
+      {showFundModal && escrow.vault_address && (
         <FundEscrowModal
           isOpen={showFundModal}
           onClose={() => setShowFundModal(false)}
@@ -1311,12 +1313,7 @@ export function EscrowDetailPanel({
           onSuccess={() => {
             if (onUpdate) onUpdate();
           }}
-          onDeposit={() => {
-            setShowFundModal(false);
-            // This will trigger the parent to open deposit modal
-            // For now, alert user to use Transfer button
-            alert('Please use the Transfer button in the header to deposit funds to your wallet');
-          }}
+          onDeposit={onShowDeposit}
         />
       )}
 
