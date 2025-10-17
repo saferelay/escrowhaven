@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get secret key based on environment
     const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
     const isProduction = moonPayMode === 'production';
     
@@ -29,7 +28,6 @@ export async function POST(req: NextRequest) {
     
     if (!secretKey) {
       console.error('❌ Secret key not found');
-      console.error('Looking for:', isProduction ? 'MOONPAY_SECRET_KEY_LIVE' : 'MOONPAY_TEST_SECRET_KEY');
       return NextResponse.json(
         { error: `MoonPay secret key not configured for ${moonPayMode}` },
         { status: 500 }
@@ -37,55 +35,44 @@ export async function POST(req: NextRequest) {
     }
     
     console.log('✅ Secret key found');
-    console.log('Secret key length:', secretKey.length);
     
-    // ✅ Build query string using URLSearchParams (automatically handles URL encoding)
-    // Sort alphabetically as required by MoonPay
-    const sortedEntries = Object.entries(params)
-      .filter(([_, value]) => value !== undefined && value !== null)
-      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
+    // ✅ Build query string exactly as MoonPay expects
+    // Create a proper URL object to get the search params
+    const baseUrl = isProduction 
+      ? 'https://sell.moonpay.com'
+      : 'https://sell-sandbox.moonpay.com';
     
-    const searchParams = new URLSearchParams();
-    for (const [key, value] of sortedEntries) {
-      searchParams.append(key, String(value));
+    const url = new URL(baseUrl);
+    
+    // Add params in alphabetical order
+    const sortedKeys = Object.keys(params).sort();
+    for (const key of sortedKeys) {
+      const value = params[key];
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
     }
     
-    // This creates the query string in the format: key1=value1&key2=value2
-    const queryString = searchParams.toString();
+    // Get the search string (this is what we sign)
+    const queryString = url.search.substring(1); // Remove the leading '?'
     
-    console.log('Parameters (sorted):', sortedEntries.map(([k]) => k));
-    console.log('Query string:', queryString);
+    console.log('Query string to sign:', queryString);
     console.log('Query string length:', queryString.length);
     
-    // Create HMAC SHA256 signature - MoonPay expects base64
+    // Create signature exactly as MoonPay docs specify
     const signature = crypto
       .createHmac('sha256', secretKey)
       .update(queryString)
       .digest('base64');
     
-    console.log('✅ Signature generated');
-    console.log('Signature (full):', signature);
+    console.log('✅ Signature generated:', signature);
     
-    // ✅ CRITICAL: Return params in SORTED order (alphabetically)
-    // Create a new object with sorted keys + signature at the end
-    const signedParams: Record<string, any> = {};
-    
-    // Add all params in alphabetical order
-    for (const [key, value] of sortedEntries) {
-      signedParams[key] = value;
-    }
-    
-    // Add signature at the end
-    signedParams.signature = signature;
-    
-    console.log('✅ Returning signed params');
-    console.log('Signed params keys (should be alphabetical + signature):', Object.keys(signedParams));
-    
-    return NextResponse.json({ signedParams });
+    // Return ONLY the signature (not the full params)
+    // The SDK will add it to the params
+    return NextResponse.json({ signature });
     
   } catch (error: any) {
     console.error('❌ Signing error:', error);
-    console.error('Stack:', error.stack);
     return NextResponse.json(
       { error: error.message || 'Failed to generate signature' },
       { status: 500 }

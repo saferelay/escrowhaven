@@ -17,8 +17,8 @@ interface MoonPayOfframpConfig {
   isTestMode?: boolean;
 }
 
-// Sign parameters server-side (only for production)
-async function signParams(params: Record<string, any>): Promise<Record<string, any>> {
+// Sign parameters server-side - returns just the signature string
+async function signParams(params: Record<string, any>): Promise<string> {
   try {
     const response = await fetch('/api/moonpay/sign', {
       method: 'POST',
@@ -31,8 +31,8 @@ async function signParams(params: Record<string, any>): Promise<Record<string, a
       throw new Error(errorData.error || 'Failed to sign parameters');
     }
     
-    const { signedParams } = await response.json();
-    return signedParams;
+    const { signature } = await response.json();
+    return signature;
   } catch (error) {
     console.error('Parameter signing failed:', error);
     throw error;
@@ -51,7 +51,6 @@ export async function createMoonPayOnramp({
     console.log('=== createMoonPayOnramp called ===');
     console.log('Input params:', { email, walletAddress, amount, escrowId, isTestMode });
     
-    // Validate required parameters
     if (!walletAddress) {
       throw new Error('Wallet address is required');
     }
@@ -62,13 +61,11 @@ export async function createMoonPayOnramp({
       throw new Error('Escrow ID is required');
     }
     
-    // ✅ DYNAMIC IMPORT: Only loads MoonPay SDK when this function is called
     console.log('🚀 Dynamically loading MoonPay SDK...');
     const { loadMoonPay } = await import('@moonpay/moonpay-js');
     const moonPay = await loadMoonPay();
     console.log('✅ MoonPay SDK loaded on-demand');
     
-    // Check MoonPay mode specifically (not general app environment)
     const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
     const useMoonPayProduction = moonPayMode === 'production';
     
@@ -83,7 +80,6 @@ export async function createMoonPayOnramp({
       throw new Error(`MoonPay API key not found for ${useMoonPayProduction ? 'production' : 'sandbox'} mode`);
     }
     
-    // Build base parameters - Based on MoonPay official docs
     const baseParams: Record<string, any> = {
       apiKey: apiKey,
       currencyCode: 'usdc_polygon',
@@ -96,7 +92,6 @@ export async function createMoonPayOnramp({
       debug: !useMoonPayProduction,
     };
     
-    // Add email if provided
     if (email) {
       baseParams.email = email;
     }
@@ -105,19 +100,15 @@ export async function createMoonPayOnramp({
     console.log('Environment:', useMoonPayProduction ? 'PRODUCTION' : 'SANDBOX');
     console.log('Amount (USDC):', amount);
     console.log('Wallet:', walletAddress);
-    console.log('Base params:', baseParams);
     
-    console.log('Creating MoonPay SDK instance...');
-    
-    // CRITICAL: When using walletAddress, signature is MANDATORY (even in sandbox)
-    // MoonPay will not load the widget without it
     let finalParams = baseParams;
     const signatureRequired = !!baseParams.walletAddress;
     
     if (signatureRequired) {
       console.log('⚠️  Wallet address provided - URL signing REQUIRED');
       try {
-        finalParams = await signParams(baseParams);
+        const signature = await signParams(baseParams);
+        finalParams = { ...baseParams, signature };
         console.log('✅ URL signed successfully');
       } catch (error) {
         console.error('❌ URL signing failed:', error);
@@ -126,7 +117,8 @@ export async function createMoonPayOnramp({
     } else if (useMoonPayProduction) {
       console.log('Production mode - signing URL');
       try {
-        finalParams = await signParams(baseParams);
+        const signature = await signParams(baseParams);
+        finalParams = { ...baseParams, signature };
         console.log('✅ MoonPay parameters signed for production');
       } catch (error) {
         console.error('❌ Failed to sign MoonPay parameters:', error);
@@ -194,17 +186,19 @@ export async function createMoonPayOfframp({
     
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     
-    // ✅ CORRECTED: Use usdc_polygon for Polygon USDC
-    const baseParams = {
+    const baseParams: Record<string, any> = {
       apiKey: apiKey,
-      baseCurrencyCode: 'usdc_polygon',  // ✅ Changed from 'usdc'
+      baseCurrencyCode: 'usdc_polygon',
       quoteCurrencyCode: 'usd',
       baseCurrencyAmount: amount.toFixed(2),
       walletAddress: walletAddress,
       externalTransactionId: withdrawalId,
       redirectURL: `${origin}/api/moonpay/offramp-callback?withdrawalId=${withdrawalId}`,
-      ...(email && { email })
     };
+    
+    if (email) {
+      baseParams.email = email;
+    }
     
     console.log('=== MoonPay Offramp Configuration ===');
     console.log('Environment:', useMoonPayProduction ? 'PRODUCTION' : 'SANDBOX');
@@ -213,20 +207,18 @@ export async function createMoonPayOfframp({
     console.log('Currency Code:', 'usdc_polygon');
     console.log('Redirect URL:', baseParams.redirectURL);
     
-    // Sign params - always sign when using walletAddress or in production
     let finalParams: any = { ...baseParams };
     
     if (useMoonPayProduction || walletAddress) {
       console.log('⚠️  Signing URL parameters...');
       try {
-        const signed = await signParams(baseParams);
-        // Ensure apiKey is preserved after signing
+        const signature = await signParams(baseParams);
         finalParams = {
-          ...signed,
-          apiKey: apiKey // Explicitly preserve apiKey
+          ...baseParams,
+          signature
         };
         console.log('✅ URL signed successfully');
-        console.log('🔍 Final params keys:', Object.keys(finalParams));
+        console.log('🔍 Signature:', signature);
       } catch (error) {
         console.error('❌ Failed to sign MoonPay parameters:', error);
         throw new Error('Security signature required for MoonPay');
@@ -235,7 +227,6 @@ export async function createMoonPayOfframp({
     
     console.log('🔵 Creating SDK instance with flow: sell');
     
-    // Use 'as any' to bypass TypeScript strict checking since we've ensured apiKey exists
     const moonPaySdk = moonPay({
       flow: 'sell',
       environment: useMoonPayProduction ? 'production' : 'sandbox',
