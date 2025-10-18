@@ -176,10 +176,12 @@ export async function createMoonPayOfframp({
     
     // For SDK integration, just pass apiKey and params
     // The SDK handles signing internally when using sensitive params
+    // For SELL flow, quoteCurrencyCode is the fiat currency (what you receive)
+    // and the main currencyCode is the crypto you're selling
     const sdkParams: Record<string, any> = {
       apiKey: apiKey,
-      currencyCode: currencyCode,
-      baseCurrencyCode: 'usd',
+      currencyCode: currencyCode, // The crypto being sold (eth)
+      quoteCurrencyCode: 'usd', // The fiat currency you receive
       baseCurrencyAmount: amount.toFixed(2),
       walletAddress: walletAddress,
       externalTransactionId: withdrawalId,
