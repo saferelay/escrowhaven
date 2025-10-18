@@ -45,7 +45,7 @@ export function MoonPayOnrampModal({
       try {
         console.log('🌙 MoonPay Setup Starting:', { vaultAddress, amount, escrowId });
 
-        // ✅ STEP 1: Load MoonPay SDK dynamically
+        // Load MoonPay SDK dynamically
         console.log('📦 Loading MoonPay SDK...');
         const { loadMoonPay } = await import('@moonpay/moonpay-js');
         
@@ -60,9 +60,11 @@ export function MoonPayOnrampModal({
 
         console.log('✅ MoonPay Environment:', mode);
 
-        // ✅ STEP 2: Build base params
         const isSandbox = mode === 'sandbox';
         
+        // Build base params
+        // CRITICAL: In sandbox, use 'eth' (Ethereum)
+        // In production, use 'usdc_polygon' (USDC on Polygon)
         const baseParams: any = {
           apiKey: apiKey,
           currencyCode: isSandbox ? 'eth' : 'usdc_polygon',
@@ -77,6 +79,7 @@ export function MoonPayOnrampModal({
           baseParams.walletAddress = vaultAddress;
           baseParams.showWalletAddressForm = false;
         } else {
+          // In sandbox, show form so user can test with their own address
           baseParams.showWalletAddressForm = true;
           baseParams.walletAddress = vaultAddress;
         }
@@ -87,7 +90,7 @@ export function MoonPayOnrampModal({
 
         console.log('📝 Base params:', baseParams);
 
-        // ✅ STEP 3: Get signature from your backend
+        // Get signature from backend
         console.log('🔐 Requesting signature from /api/moonpay/sign...');
         
         const signResponse = await fetch('/api/moonpay/sign', {
@@ -108,7 +111,7 @@ export function MoonPayOnrampModal({
         const { signature } = await signResponse.json();
         console.log('✅ Signature received:', signature.substring(0, 20) + '...');
 
-        // ✅ STEP 4: Add signature to params
+        // Add signature to params
         const paramsWithSignature = {
           ...baseParams,
           signature: signature
@@ -116,7 +119,7 @@ export function MoonPayOnrampModal({
 
         console.log('📋 Full params with signature ready');
 
-        // ✅ STEP 5: Initialize MoonPay SDK
+        // Initialize MoonPay SDK
         console.log('🚀 Initializing MoonPay SDK...');
         const moonPay = await loadMoonPay();
         
@@ -139,7 +142,6 @@ export function MoonPayOnrampModal({
       } catch (err: any) {
         console.error('❌ MoonPay Setup Error:', err);
         console.error('Error message:', err.message);
-        console.error('Full error:', err);
         
         setError(err.message || 'Failed to load MoonPay');
         setStatus('error');
