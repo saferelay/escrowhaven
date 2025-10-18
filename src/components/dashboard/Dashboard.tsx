@@ -10,7 +10,6 @@ import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
 import { MoonPayOnrampModal } from '@/components/MoonPayOnrampModal';
 import { DepositModal } from '@/components/dashboard/DepositModal';
 import { WithdrawModal } from '@/components/dashboard/WithdrawModal';
-import { TransferPage } from '@/components/dashboard/TransferPage';
 
 // Icons
 import {

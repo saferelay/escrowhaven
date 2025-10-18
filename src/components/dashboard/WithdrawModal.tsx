@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ethers } from 'ethers';
-import { DepositModal } from '@/components/dashboard/DepositModal';
+
 
 const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359';
 const USDC_ABI = ['function balanceOf(address owner) view returns (uint256)'];
