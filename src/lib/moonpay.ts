@@ -88,11 +88,12 @@ export async function createMoonPayOnramp({
       currencyCode: currencyCode,
       baseCurrencyCode: 'usd',
       baseCurrencyAmount: amount.toFixed(2),
-      walletAddress: walletAddress,
       colorCode: '2962FF',
       externalTransactionId: escrowId,
       lockAmount: true,
-      showWalletAddressForm: useMoonPayProduction ? 'false' : 'true',
+      // TESTING: Temporarily disable wallet address to test if that's the issue
+      // walletAddress: walletAddress,
+      // showWalletAddressForm: useMoonPayProduction ? 'false' : 'true',
     };
     
     if (email) {
