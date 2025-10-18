@@ -30,10 +30,10 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    console.log('🔐 Signing MoonPay URL');
+    console.log('\n=== 🔐 MOONPAY SIGNING DEBUG ===');
     console.log('Flow:', flow);
     console.log('Environment:', isProduction ? 'PRODUCTION' : 'SANDBOX');
-    console.log('Params received:', Object.keys(params));
+    console.log('Params received:', JSON.stringify(params, null, 2));
     
     // Get API key from environment
     const apiKey = isProduction
@@ -69,14 +69,19 @@ export async function POST(req: NextRequest) {
     ).toString();
     
     const fullUrl = `${baseUrl}?${queryString}`;
-    console.log('Full URL (before signature):', fullUrl);
+    console.log('\n📝 Full URL to sign:');
+    console.log(fullUrl);
+    console.log('\n📝 Query string:');
+    console.log(queryString);
     
     // Use official MoonPay SDK to generate signature
     const moonPay = new MoonPay(secretKey);
     const signature = moonPay.url.generateSignature(fullUrl);
     
-    console.log('✅ Signature generated successfully');
-    console.log('Signature (first 20 chars):', signature.substring(0, 20) + '...');
+    console.log('\n✅ Signature generated:');
+    console.log('Full signature:', signature);
+    console.log('First 40 chars:', signature.substring(0, 40) + '...');
+    console.log('=== END DEBUG ===\n');
     
     return NextResponse.json({ signature });
     
