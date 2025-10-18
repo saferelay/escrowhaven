@@ -20,7 +20,7 @@ interface MoonPayOfframpConfig {
 // Sign parameters server-side - returns just the signature string
 async function signParams(params: Record<string, any>): Promise<string> {
   try {
-    const response = await fetch('/api/moonpay/sign-official', {  // Changed route
+    const response = await fetch('/api/moonpay/sign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ params })
@@ -80,16 +80,19 @@ export async function createMoonPayOnramp({
       throw new Error(`MoonPay API key not found for ${useMoonPayProduction ? 'production' : 'sandbox'} mode`);
     }
     
+    // ✅ CRITICAL: Use 'eth' for sandbox, 'usdc_polygon' for production
+    const currencyCode = useMoonPayProduction ? 'usdc_polygon' : 'eth';
+    
     const baseParams: Record<string, any> = {
       apiKey: apiKey,
-      currencyCode: 'usdc_polygon',
-      quoteCurrencyAmount: amount.toFixed(2),
+      currencyCode: currencyCode,
       baseCurrencyCode: 'usd',
+      baseCurrencyAmount: amount.toFixed(2),
       walletAddress: walletAddress,
       colorCode: '2962FF',
       externalTransactionId: escrowId,
-      showWalletAddressForm: 'false',
-      debug: !useMoonPayProduction,
+      lockAmount: true,
+      showWalletAddressForm: useMoonPayProduction ? 'false' : 'true',
     };
     
     if (email) {
@@ -98,7 +101,8 @@ export async function createMoonPayOnramp({
     
     console.log('=== MoonPay Configuration ===');
     console.log('Environment:', useMoonPayProduction ? 'PRODUCTION' : 'SANDBOX');
-    console.log('Amount (USDC):', amount);
+    console.log('Currency:', currencyCode);
+    console.log('Amount:', amount);
     console.log('Wallet:', walletAddress);
     
     let finalParams = baseParams;
@@ -125,7 +129,7 @@ export async function createMoonPayOnramp({
         throw new Error('Security signature required for MoonPay production');
       }
     } else {
-      console.log('ℹ️ MoonPay sandbox mode - no wallet address, skipping signature');
+      console.log('ℹ️ MoonPay sandbox mode - skipping signature');
     }
     
     const moonPaySdk = moonPay({
@@ -146,7 +150,7 @@ export async function createMoonPayOnramp({
   }
 }
 
-// Off-ramp: Withdraw to bank (with programmatic transfer support)
+// Off-ramp: Withdraw to bank
 export async function createMoonPayOfframp({
   email,
   walletAddress,
@@ -186,14 +190,17 @@ export async function createMoonPayOfframp({
     
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     
+    // ✅ CRITICAL: Use 'eth' for sandbox, 'usdc_polygon' for production
+    const currencyCode = useMoonPayProduction ? 'usdc_polygon' : 'eth';
+    
     const baseParams: Record<string, any> = {
       apiKey: apiKey,
-      baseCurrencyCode: 'usdc_polygon',
-      quoteCurrencyCode: 'usd',
+      currencyCode: currencyCode,
+      baseCurrencyCode: 'usd',
       baseCurrencyAmount: amount.toFixed(2),
       walletAddress: walletAddress,
       externalTransactionId: withdrawalId,
-      redirectURL: `${origin}/api/moonpay/offramp-callback?withdrawalId=${withdrawalId}`,
+      lockAmount: true,
     };
     
     if (email) {
@@ -202,10 +209,9 @@ export async function createMoonPayOfframp({
     
     console.log('=== MoonPay Offramp Configuration ===');
     console.log('Environment:', useMoonPayProduction ? 'PRODUCTION' : 'SANDBOX');
-    console.log('Amount (USDC):', amount);
+    console.log('Currency:', currencyCode);
+    console.log('Amount:', amount);
     console.log('Wallet:', walletAddress);
-    console.log('Currency Code:', 'usdc_polygon');
-    console.log('Redirect URL:', baseParams.redirectURL);
     
     let finalParams: any = { ...baseParams };
     
@@ -218,14 +224,11 @@ export async function createMoonPayOfframp({
           signature
         };
         console.log('✅ URL signed successfully');
-        console.log('🔍 Signature:', signature);
       } catch (error) {
         console.error('❌ Failed to sign MoonPay parameters:', error);
         throw new Error('Security signature required for MoonPay');
       }
     }
-    
-    console.log('🔵 Creating SDK instance with flow: sell');
     
     const moonPaySdk = moonPay({
       flow: 'sell',
