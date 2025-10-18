@@ -155,14 +155,13 @@ export async function createMoonPayOfframp({
     
     const currencyCode = useMoonPayProduction ? 'usdc_polygon' : 'eth';
     
-    // Build params WITHOUT apiKey initially (will be added when building URL)
+    // Build params for offramp - only include supported parameters
     const paramsForSigning: Record<string, any> = {
       currencyCode: currencyCode,
       baseCurrencyCode: 'usd',
       baseCurrencyAmount: amount.toFixed(2),
       walletAddress: walletAddress,
       externalTransactionId: withdrawalId,
-      lockAmount: true,
     };
     
     if (email) {
