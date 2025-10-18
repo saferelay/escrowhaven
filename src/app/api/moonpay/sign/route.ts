@@ -1,21 +1,9 @@
 // src/app/api/moonpay/sign/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
+import { MoonPay } from '@moonpay/moonpay-node';
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('=== MoonPay Signature Generation ===');
-    
-    const body = await req.json();
-    const params = body.params;
-    
-    if (!params || typeof params !== 'object') {
-      return NextResponse.json(
-        { error: 'Parameters object is required' },
-        { status: 400 }
-      );
-    }
-
     const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
     const isProduction = moonPayMode === 'production';
     
@@ -30,37 +18,25 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const sortedKeys = Object.keys(params)
-      .filter(key => params[key] !== undefined && params[key] !== null && params[key] !== '')
-      .sort();
-
-    const queryParts: string[] = [];
+    const body = await req.json();
+    const { params } = body;
     
-    for (const key of sortedKeys) {
-      const value = params[key];
-      const stringValue = typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value);
-      const encodedValue = encodeURIComponent(stringValue);
-      queryParts.push(`${key}=${encodedValue}`);
-    }
+    // Build full URL from params
+    const baseUrl = isProduction 
+      ? 'https://buy.moonpay.com/'
+      : 'https://buy-sandbox.moonpay.com/';
     
-    const queryString = '?' + queryParts.join('&');
+    const queryString = new URLSearchParams(params).toString();
+    const fullUrl = `${baseUrl}?${queryString}`;
     
-    // ✅ Log FULL query string without truncation
-    console.log('FULL QUERY STRING:');
-    console.log(queryString);
-    console.log('END QUERY STRING');
-    
-    const signature = crypto
-      .createHmac('sha256', secretKey)
-      .update(queryString)
-      .digest('base64');
-    
-    console.log('Signature:', signature);
+    // Use official MoonPay SDK to sign
+    const moonPay = new MoonPay(secretKey);
+    const signature = moonPay.url.generateSignature(fullUrl);
     
     return NextResponse.json({ signature });
     
   } catch (error: any) {
-    console.error('Error:', error.message);
+    console.error('Signing error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to generate signature' },
       { status: 500 }
