@@ -1,5 +1,7 @@
 // src/lib/moonpay.ts
-// ✅ Fixed: Proper flow detection and signature handling with event handlers
+// ✅ Complete implementation with Magic.link wallet integration
+
+import { transferUSDCForOfframp } from './offramp-magic-transfer';
 
 interface MoonPayOnrampConfig {
   email?: string;
@@ -196,10 +198,38 @@ export async function createMoonPayOfframp({
         onInitiateDeposit: (async (depositInfo: any) => {
           console.log('✅ User initiated deposit');
           console.log('Deposit info:', depositInfo);
-          alert(`Send ${depositInfo?.cryptoAmount || 'crypto'} ${depositInfo?.cryptoCurrencyCode || 'ETH'} to: ${depositInfo?.depositWalletAddress || 'address not provided'}`);
+          
+          const { depositWalletAddress, cryptoAmount, cryptoCurrencyCode } = depositInfo;
+          
+          try {
+            console.log(`Sending ${cryptoAmount} ${cryptoCurrencyCode} to ${depositWalletAddress}...`);
+            
+            // Use Magic.link to send USDC to MoonPay's deposit address
+            const result = await transferUSDCForOfframp(
+              depositWalletAddress,
+              parseFloat(cryptoAmount)
+            );
+            
+            if (result.success) {
+              console.log('✅ Transaction successful:', result.txHash);
+              
+              // Return transaction hash to MoonPay
+              return {
+                transactionHash: result.txHash
+              };
+            } else {
+              console.error('❌ Transaction failed:', result.error);
+              throw new Error(result.error || 'Transaction failed');
+            }
+          } catch (error: any) {
+            console.error('❌ Transfer error:', error);
+            alert(`Transaction failed: ${error.message}`);
+            throw error;
+          }
         }) as any,
         onTransactionCompleted: (async (transaction: any) => {
-          console.log('✅ Transaction completed:', transaction);
+          console.log('✅ MoonPay transaction completed:', transaction);
+          alert('Withdrawal successful! Funds will arrive in your bank account soon.');
         }) as any,
         onClose: (async () => {
           console.log('Widget closed');
