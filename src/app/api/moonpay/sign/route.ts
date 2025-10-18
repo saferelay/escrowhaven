@@ -48,10 +48,17 @@ export async function POST(req: NextRequest) {
     }
     
     // CRITICAL: Add apiKey to params before signing
-    const paramsWithApiKey = {
+    // Convert all values to strings (MoonPay requirement)
+    const paramsWithApiKey: Record<string, string> = {
       apiKey,
-      ...params
     };
+    
+    // Convert all param values to strings
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== null && value !== undefined) {
+        paramsWithApiKey[key] = String(value);
+      }
+    }
     
     // Choose correct base URL based on flow
     const baseUrl = flow === 'sell'
@@ -61,12 +68,7 @@ export async function POST(req: NextRequest) {
     console.log('Base URL:', baseUrl);
     
     // CRITICAL: URL-encode ALL parameters before signing (MoonPay requirement)
-    const queryString = new URLSearchParams(
-      Object.entries(paramsWithApiKey).map(([key, value]) => [
-        key,
-        String(value)
-      ])
-    ).toString();
+    const queryString = new URLSearchParams(paramsWithApiKey).toString();
     
     const fullUrl = `${baseUrl}?${queryString}`;
     console.log('\n📝 Full URL to sign:');
