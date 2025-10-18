@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams } from 'next/navigation';
 import { CreateEscrowWizard } from '@/components/escrow/CreateEscrowWizard';
 import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
-import { MoonPayOnrampModal } from '@/components/MoonPayOnrampModal';
 import { DepositModal } from '@/components/dashboard/DepositModal';
 import { WithdrawModal } from '@/components/dashboard/WithdrawModal';
 
@@ -1639,32 +1638,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             </div>
           </div>
         </div>
-      )}
-
-
-      {/* MoonPay Modal - Add this */}
-      {moonPayData && (
-        <MoonPayOnrampModal
-          isOpen={true}
-          onClose={handleMoonPayClose}
-          vaultAddress={moonPayData.vaultAddress}
-          amount={moonPayData.amount}
-          escrowId={moonPayData.escrowId}
-          onSuccess={handleMoonPaySuccess}
-        />
-      )}
-
-
-      {/* MoonPay Modal */}
-      {moonPayData && (
-        <MoonPayOnrampModal
-          isOpen={true}
-          onClose={handleMoonPayClose}
-          vaultAddress={moonPayData.vaultAddress}
-          amount={moonPayData.amount}
-          escrowId={moonPayData.escrowId}
-          onSuccess={handleMoonPaySuccess}
-        />
       )}
 
       {/* Deposit Modal */}
