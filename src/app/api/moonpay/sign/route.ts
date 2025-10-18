@@ -35,44 +35,49 @@ export async function POST(req: NextRequest) {
     }
     
     console.log('✅ Secret key found');
+    console.log('Params to sign:', params);
     
-    // ✅ Build query string exactly as MoonPay expects
-    // Create a proper URL object to get the search params
-    const baseUrl = isProduction 
-      ? 'https://sell.moonpay.com'
-      : 'https://sell-sandbox.moonpay.com';
+    // ✅ CRITICAL: Build query string EXACTLY as MoonPay expects
+    // Sort keys alphabetically, encode properly, build as query string
     
-    const url = new URL(baseUrl);
+    const sortedKeys = Object.keys(params)
+      .filter(key => params[key] !== undefined && params[key] !== null)
+      .sort();
     
-    // Add params in alphabetical order
-    const sortedKeys = Object.keys(params).sort();
+    console.log('Sorted keys:', sortedKeys);
+    
+    // Build query string manually (NOT using URL object - it adds extra encoding)
+    const queryParts: string[] = [];
+    
     for (const key of sortedKeys) {
       const value = params[key];
-      if (value !== undefined && value !== null) {
-        url.searchParams.append(key, String(value));
-      }
+      // Proper URL encoding: encodeURIComponent handles special chars correctly
+      const encodedKey = encodeURIComponent(key);
+      const encodedValue = encodeURIComponent(String(value));
+      queryParts.push(`${encodedKey}=${encodedValue}`);
     }
     
-    // Get the search string (this is what we sign)
-    const queryString = url.search.substring(1); // Remove the leading '?'
+    const queryString = queryParts.join('&');
     
     console.log('Query string to sign:', queryString);
     console.log('Query string length:', queryString.length);
     
-    // Create signature exactly as MoonPay docs specify
+    // Create signature using HMAC-SHA256
+    // MoonPay docs: https://docs.moonpay.com/api-reference/widget-parameters
+    // Signature = base64(hmac-sha256(secret_key, query_string))
     const signature = crypto
       .createHmac('sha256', secretKey)
       .update(queryString)
       .digest('base64');
     
-    console.log('✅ Signature generated:', signature);
+    console.log('✅ Signature generated:', signature.substring(0, 30) + '...');
     
-    // Return ONLY the signature (not the full params)
-    // The SDK will add it to the params
+    // Return signature
     return NextResponse.json({ signature });
     
   } catch (error: any) {
     console.error('❌ Signing error:', error);
+    console.error('Stack:', error.stack);
     return NextResponse.json(
       { error: error.message || 'Failed to generate signature' },
       { status: 500 }
