@@ -174,22 +174,28 @@ export async function createMoonPayOfframp({
     console.log('Amount:', amount);
     console.log('Wallet:', walletAddress);
     
-    // Get signature from backend (backend will add apiKey before signing)
-    const signature = await signUrl(paramsForSigning, 'sell');
-    console.log('✅ URL signed successfully');
-    
-    // Now add apiKey AND signature for the SDK
-    const paramsWithSignature = {
+    // For SDK integration, just pass apiKey and params
+    // The SDK handles signing internally when using sensitive params
+    const sdkParams: Record<string, any> = {
       apiKey: apiKey,
-      ...paramsForSigning,
-      signature
+      currencyCode: currencyCode,
+      baseCurrencyCode: 'usd',
+      baseCurrencyAmount: amount.toFixed(2),
+      walletAddress: walletAddress,
+      externalTransactionId: withdrawalId,
     };
+    
+    if (email) {
+      sdkParams.email = email;
+    }
+    
+    console.log('✅ SDK params prepared (no manual signing needed)');
     
     const moonPaySdk = moonPay({
       flow: 'sell',
       environment: useMoonPayProduction ? 'production' : 'sandbox',
       variant: 'overlay',
-      params: paramsWithSignature as any
+      params: sdkParams as any
     });
     
     console.log('✅ MoonPay Offramp SDK instance created');
