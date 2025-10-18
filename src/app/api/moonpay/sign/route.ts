@@ -1,5 +1,5 @@
 // src/app/api/moonpay/sign/route.ts
-// ✅ Correct MoonPay signature generation per official docs
+// ✅ Exact MoonPay specification from official docs
 // https://dev.moonpay.com/docs/on-ramp-enhance-security-using-signed-urls
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Determine environment and get secret key
     const moonPayMode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
     const isProduction = moonPayMode === 'production';
     
@@ -37,50 +36,50 @@ export async function POST(req: NextRequest) {
     }
     
     console.log('Environment:', moonPayMode);
-    console.log('Params keys:', Object.keys(params).sort());
 
-    // ✅ CRITICAL: Build query string per MoonPay spec
-    // 1. Filter out undefined/null values
+    // ✅ Build query string per OFFICIAL MoonPay spec
+    // 1. Filter out undefined/null/empty values
     // 2. Sort keys alphabetically
-    // 3. URL-encode each key=value pair
-    // 4. Join with &
+    // 3. URL-encode INDIVIDUAL values (not whole string)
+    // 4. Build with ? prefix
     
     const sortedKeys = Object.keys(params)
-      .filter(key => params[key] !== undefined && params[key] !== null)
-      .sort(); // Alphabetical order
+      .filter(key => params[key] !== undefined && params[key] !== null && params[key] !== '')
+      .sort();
 
     console.log('Sorted keys:', sortedKeys);
     
-    // Build query string with proper encoding
+    // Build query parts with proper encoding
     const queryParts: string[] = [];
     
     for (const key of sortedKeys) {
       const value = params[key];
-      // Encode both key and value properly
-      const encodedKey = encodeURIComponent(key);
-      const encodedValue = encodeURIComponent(String(value));
-      queryParts.push(`${encodedKey}=${encodedValue}`);
+      // Convert booleans to lowercase strings before encoding
+      const stringValue = typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value);
+      // URL-encode each value individually
+      const encodedValue = encodeURIComponent(stringValue);
+      queryParts.push(`${key}=${encodedValue}`);
     }
     
-    const queryString = queryParts.join('&');
+    // ✅ CRITICAL: Include the ? prefix as MoonPay expects
+    const queryString = '?' + queryParts.join('&');
     
-    console.log('Query string to sign:', queryString.substring(0, 100) + '...');
+    console.log('Query string to sign (with ?):', queryString.substring(0, 100) + '...');
+    console.log('Query string length:', queryString.length);
     
-    // ✅ Generate HMAC-SHA256 signature
-    // Per MoonPay docs: signature = base64(hmac-sha256(secret_key, query_string))
+    // ✅ Generate HMAC-SHA256 signature exactly as MoonPay docs specify
     const signature = crypto
       .createHmac('sha256', secretKey)
       .update(queryString)
       .digest('base64');
     
-    console.log('✅ Signature generated:', signature.substring(0, 20) + '...');
+    console.log('✅ Signature generated successfully');
+    console.log('Signature:', signature.substring(0, 30) + '...');
     
-    // ✅ Return signature only (NOT URL-encoded for SDK)
-    // SDK will handle URL encoding when building the widget
     return NextResponse.json({ signature });
     
   } catch (error: any) {
-    console.error('❌ Signature generation error:', error.message);
+    console.error('❌ Error:', error.message);
     return NextResponse.json(
       { error: error.message || 'Failed to generate signature' },
       { status: 500 }
