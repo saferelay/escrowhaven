@@ -1,5 +1,5 @@
 // src/lib/moonpay.ts
-// ✅ NO TOP-LEVEL IMPORTS - Dynamic loading only when needed
+// ✅ Proper signing implementation - wallet address included and signed
 
 interface MoonPayOnrampConfig {
   email?: string;
@@ -17,8 +17,8 @@ interface MoonPayOfframpConfig {
   isTestMode?: boolean;
 }
 
-// Sign parameters server-side - returns just the signature string
-async function signParams(params: Record<string, any>): Promise<string> {
+// Sign URL by having backend generate the full signed URL
+async function signUrl(params: Record<string, any>): Promise<string> {
   try {
     const response = await fetch('/api/moonpay/sign', {
       method: 'POST',
@@ -28,13 +28,13 @@ async function signParams(params: Record<string, any>): Promise<string> {
     
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to sign parameters');
+      throw new Error(errorData.error || 'Failed to sign URL');
     }
     
     const { signature } = await response.json();
     return signature;
   } catch (error) {
-    console.error('Parameter signing failed:', error);
+    console.error('URL signing failed:', error);
     throw error;
   }
 }
@@ -49,7 +49,7 @@ export async function createMoonPayOnramp({
 }: MoonPayOnrampConfig) {
   try {
     console.log('=== createMoonPayOnramp called ===');
-    console.log('Input params:', { email, walletAddress, amount, escrowId, isTestMode });
+    console.log('Input params:', { email, walletAddress, amount, escrowId });
     
     if (!walletAddress) {
       throw new Error('Wallet address is required');
@@ -73,27 +73,24 @@ export async function createMoonPayOnramp({
       ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY
       : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY;
     
-    console.log('API Key present:', !!apiKey);
-    console.log('API Key prefix:', apiKey?.substring(0, 10));
-    
     if (!apiKey) {
       throw new Error(`MoonPay API key not found for ${useMoonPayProduction ? 'production' : 'sandbox'} mode`);
     }
     
-    // ✅ CRITICAL: Use 'eth' for sandbox, 'usdc_polygon' for production
+    // Use 'eth' for sandbox, 'usdc_polygon' for production
     const currencyCode = useMoonPayProduction ? 'usdc_polygon' : 'eth';
     
+    // Build parameters with wallet address (will be signed)
     const baseParams: Record<string, any> = {
       apiKey: apiKey,
       currencyCode: currencyCode,
       baseCurrencyCode: 'usd',
       baseCurrencyAmount: amount.toFixed(2),
+      walletAddress: walletAddress,
       colorCode: '2962FF',
       externalTransactionId: escrowId,
       lockAmount: true,
-      // TESTING: Temporarily disable wallet address to test if that's the issue
-      // walletAddress: walletAddress,
-      // showWalletAddressForm: useMoonPayProduction ? 'false' : 'true',
+      showWalletAddressForm: 'false', // Hide form in production, show in sandbox
     };
     
     if (email) {
@@ -105,48 +102,32 @@ export async function createMoonPayOnramp({
     console.log('Currency:', currencyCode);
     console.log('Amount:', amount);
     console.log('Wallet:', walletAddress);
+    console.log('⚠️  Wallet address provided - URL signing required');
     
-    let finalParams = baseParams;
-    const signatureRequired = !!baseParams.walletAddress;
+    // Get signature from backend
+    const signature = await signUrl(baseParams);
+    console.log('✅ URL signed successfully');
     
-    if (signatureRequired) {
-      console.log('⚠️  Wallet address provided - URL signing REQUIRED');
-      try {
-        const signature = await signParams(baseParams);
-        finalParams = { ...baseParams, signature };
-        console.log('✅ URL signed successfully');
-      } catch (error) {
-        console.error('❌ URL signing failed:', error);
-        throw new Error('URL signing required when using wallet address');
-      }
-    } else if (useMoonPayProduction) {
-      console.log('Production mode - signing URL');
-      try {
-        const signature = await signParams(baseParams);
-        finalParams = { ...baseParams, signature };
-        console.log('✅ MoonPay parameters signed for production');
-      } catch (error) {
-        console.error('❌ Failed to sign MoonPay parameters:', error);
-        throw new Error('Security signature required for MoonPay production');
-      }
-    } else {
-      console.log('ℹ️ MoonPay sandbox mode - skipping signature');
-    }
+    // Add signature to params
+    const paramsWithSignature = {
+      ...baseParams,
+      signature
+    };
     
+    // Initialize MoonPay SDK with signed parameters
     const moonPaySdk = moonPay({
       flow: 'buy',
       environment: useMoonPayProduction ? 'production' : 'sandbox',
       variant: 'overlay',
-      params: finalParams as any
+      params: paramsWithSignature as any
     });
     
-    console.log('MoonPay SDK instance created:', !!moonPaySdk);
+    console.log('✅ MoonPay SDK instance created');
     return moonPaySdk;
     
   } catch (error) {
     console.error('=== createMoonPayOnramp ERROR ===');
     console.error('Error:', error);
-    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
     throw error;
   }
 }
@@ -161,7 +142,6 @@ export async function createMoonPayOfframp({
 }: MoonPayOfframpConfig) {
   try {
     console.log('=== createMoonPayOfframp called ===');
-    console.log('Input params:', { email, walletAddress, amount, withdrawalId, isTestMode });
     
     if (!walletAddress) {
       throw new Error('Wallet address is required');
@@ -189,9 +169,7 @@ export async function createMoonPayOfframp({
       throw new Error(`MoonPay API key not found for ${useMoonPayProduction ? 'production' : 'sandbox'} mode`);
     }
     
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    
-    // ✅ CRITICAL: Use 'eth' for sandbox, 'usdc_polygon' for production
+    // Use 'eth' for sandbox, 'usdc_polygon' for production
     const currencyCode = useMoonPayProduction ? 'usdc_polygon' : 'eth';
     
     const baseParams: Record<string, any> = {
@@ -214,38 +192,28 @@ export async function createMoonPayOfframp({
     console.log('Amount:', amount);
     console.log('Wallet:', walletAddress);
     
-    let finalParams: any = { ...baseParams };
+    // Get signature from backend
+    const signature = await signUrl(baseParams);
+    console.log('✅ URL signed successfully');
     
-    if (useMoonPayProduction || walletAddress) {
-      console.log('⚠️  Signing URL parameters...');
-      try {
-        const signature = await signParams(baseParams);
-        finalParams = {
-          ...baseParams,
-          signature
-        };
-        console.log('✅ URL signed successfully');
-      } catch (error) {
-        console.error('❌ Failed to sign MoonPay parameters:', error);
-        throw new Error('Security signature required for MoonPay');
-      }
-    }
+    const paramsWithSignature = {
+      ...baseParams,
+      signature
+    };
     
     const moonPaySdk = moonPay({
       flow: 'sell',
       environment: useMoonPayProduction ? 'production' : 'sandbox',
       variant: 'overlay',
-      params: finalParams as any
+      params: paramsWithSignature as any
     });
     
-    console.log('✅ MoonPay Offramp SDK instance created:', !!moonPaySdk);
-    
+    console.log('✅ MoonPay Offramp SDK instance created');
     return moonPaySdk;
     
   } catch (error) {
     console.error('=== createMoonPayOfframp ERROR ===');
     console.error('Error:', error);
-    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
     throw error;
   }
 }
