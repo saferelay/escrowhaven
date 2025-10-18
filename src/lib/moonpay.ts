@@ -80,17 +80,16 @@ export async function createMoonPayOnramp({
     // Use 'eth' for sandbox, 'usdc_polygon' for production
     const currencyCode = useMoonPayProduction ? 'usdc_polygon' : 'eth';
     
-    // Build parameters with wallet address (will be signed)
+    // Build parameters WITHOUT wallet address (no signing needed)
+    // User will enter wallet address in MoonPay widget
     const baseParams: Record<string, any> = {
       apiKey: apiKey,
       currencyCode: currencyCode,
       baseCurrencyCode: 'usd',
       baseCurrencyAmount: amount.toFixed(2),
-      walletAddress: walletAddress,
       colorCode: '2962FF',
       externalTransactionId: escrowId,
       lockAmount: true,
-      showWalletAddressForm: 'false', // Hide form in production, show in sandbox
     };
     
     if (email) {
@@ -101,18 +100,9 @@ export async function createMoonPayOnramp({
     console.log('Environment:', useMoonPayProduction ? 'PRODUCTION' : 'SANDBOX');
     console.log('Currency:', currencyCode);
     console.log('Amount:', amount);
-    console.log('Wallet:', walletAddress);
-    console.log('⚠️  Wallet address provided - URL signing required');
+    console.log('✅ No wallet pre-fill - user will enter in widget');
     
-    // Get signature from backend
-    const signature = await signUrl(baseParams);
-    console.log('✅ URL signed successfully');
-    
-    // Add signature to params
-    const paramsWithSignature = {
-      ...baseParams,
-      signature
-    };
+    const paramsWithSignature = baseParams;
     
     // Initialize MoonPay SDK with signed parameters
     const moonPaySdk = moonPay({
