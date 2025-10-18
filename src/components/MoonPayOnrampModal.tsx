@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-// ✅ NO MOONPAY IMPORT - Loaded dynamically in useEffect
 
 interface MoonPayOnrampModalProps {
   isOpen: boolean;
@@ -44,10 +43,10 @@ export function MoonPayOnrampModal({
 
     const setupMoonPay = async () => {
       try {
-        console.log('Opening MoonPay modal with:', { vaultAddress, amount, escrowId });
+        console.log('🌙 MoonPay Setup Starting:', { vaultAddress, amount, escrowId });
 
-        // ✅ DYNAMIC IMPORT: Only loads MoonPay SDK when modal opens
-        console.log('🚀 Dynamically loading MoonPay SDK...');
+        // ✅ STEP 1: Load MoonPay SDK dynamically
+        console.log('📦 Loading MoonPay SDK...');
         const { loadMoonPay } = await import('@moonpay/moonpay-js');
         
         const mode = process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox';
@@ -59,17 +58,13 @@ export function MoonPayOnrampModal({
           throw new Error('MoonPay API key not configured');
         }
 
-        console.log('Setting up MoonPay SDK');
-        console.log('MoonPay Environment:', mode);
+        console.log('✅ MoonPay Environment:', mode);
 
-        // Currency selection based on environment
+        // ✅ STEP 2: Build base params
         const isSandbox = mode === 'sandbox';
         
-        // Build parameters - SDK format (camelCase)
-        const params: any = {
+        const baseParams: any = {
           apiKey: apiKey,
-          // Sandbox: Use ETH for testing (works everywhere)
-          // Production: Use USDC on Polygon (once enabled by MoonPay)
           currencyCode: isSandbox ? 'eth' : 'usdc_polygon',
           baseCurrencyCode: 'usd',
           baseCurrencyAmount: amount.toString(),
@@ -78,53 +73,74 @@ export function MoonPayOnrampModal({
           lockAmount: true,
         };
 
-        // Only add wallet address in production mode
         if (!isSandbox) {
-          params.walletAddress = vaultAddress;
-          params.showWalletAddressForm = false;
+          baseParams.walletAddress = vaultAddress;
+          baseParams.showWalletAddressForm = false;
         } else {
-          // In sandbox, show wallet form so tester can use their own test wallet
-          params.showWalletAddressForm = true;
-          params.walletAddress = vaultAddress; // Pre-fill but allow change
+          baseParams.showWalletAddressForm = true;
+          baseParams.walletAddress = vaultAddress;
         }
         
         if (user?.email) {
-          params.email = user.email;
+          baseParams.email = user.email;
         }
 
-        console.log('Full params:', params);
+        console.log('📝 Base params:', baseParams);
 
-        if (isSandbox) {
-          console.log('🧪 Sandbox mode - using ETH for testing');
-        } else {
-          console.log('🚀 Production mode - using USDC on Polygon');
-        }
-
-        // Load and initialize MoonPay SDK
-        const moonPay = await loadMoonPay();
-        console.log('✅ MoonPay SDK loaded on-demand');
+        // ✅ STEP 3: Get signature from your backend
+        console.log('🔐 Requesting signature from /api/moonpay/sign...');
         
-        console.log('Creating SDK instance...');
+        const signResponse = await fetch('/api/moonpay/sign', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            params: baseParams
+          })
+        });
+
+        if (!signResponse.ok) {
+          const errorData = await signResponse.json();
+          throw new Error(`Signature failed: ${errorData.error || signResponse.statusText}`);
+        }
+
+        const { signature } = await signResponse.json();
+        console.log('✅ Signature received:', signature.substring(0, 20) + '...');
+
+        // ✅ STEP 4: Add signature to params
+        const paramsWithSignature = {
+          ...baseParams,
+          signature: signature
+        };
+
+        console.log('📋 Full params with signature ready');
+
+        // ✅ STEP 5: Initialize MoonPay SDK
+        console.log('🚀 Initializing MoonPay SDK...');
+        const moonPay = await loadMoonPay();
         
         const sdk = moonPay({
           flow: 'buy',
           environment: mode === 'production' ? 'production' : 'sandbox',
           variant: 'overlay',
-          params: params
+          params: paramsWithSignature
         });
 
-        console.log('✅ MoonPay SDK initialized');
+        console.log('✅ SDK instance created');
         
         setMoonPaySdk(sdk);
         setStatus('ready');
 
         // Show the widget
+        console.log('💫 Displaying MoonPay widget...');
         sdk.show();
-        console.log('✅ MoonPay widget displayed');
 
       } catch (err: any) {
-        console.error('❌ MoonPay error:', err);
-        console.error('Stack:', err.stack);
+        console.error('❌ MoonPay Setup Error:', err);
+        console.error('Error message:', err.message);
+        console.error('Full error:', err);
+        
         setError(err.message || 'Failed to load MoonPay');
         setStatus('error');
       }
@@ -155,8 +171,6 @@ export function MoonPayOnrampModal({
   };
 
   if (!isOpen) return null;
-
-  const isSandbox = (process.env.NEXT_PUBLIC_MOONPAY_MODE || 'sandbox') === 'sandbox';
 
   // When MoonPay widget is ready, don't show backdrop - MoonPay SDK handles the overlay
   if (status === 'ready') {
@@ -196,8 +210,6 @@ export function MoonPayOnrampModal({
           </div>
         </div>
       )}
-
-      {/* No ready state UI - MoonPay SDK handles its own overlay */}
     </div>
   );
 }

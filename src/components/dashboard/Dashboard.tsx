@@ -1373,45 +1373,33 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             </div>
 
-            {/* Right panel - Desktop */}
-            {rightPanelOpen && !isMobile && (
-              <div className="relative border-l border-[#E5E7EB] bg-white min-h-0 overflow-hidden">
-                <div
-                  className="absolute inset-y-0 left-0 w-1 cursor-col-resize hover:bg-[#2962FF] z-10"
-                  onMouseDown={() => setIsResizing(true)}
-                />
+              {/* Right panel - Desktop */}
+              {rightPanelOpen && !isMobile && (
+                <div className="relative border-l border-[#E5E7EB] bg-white min-h-0 overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 left-0 w-1 cursor-col-resize hover:bg-[#2962FF] z-10"
+                    onMouseDown={() => setIsResizing(true)}
+                  />
                   <div className="h-full overflow-hidden">
-                  {rightPanelView === 'create' ? (
-                    <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
-                  ) : rightPanelView === 'transfer' ? (
-                    <div className="h-full overflow-y-auto">
-                      <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-2 bg-[#F8FAFC]">
-                        <span className="text-[11px] font-medium text-[#64748B]">TRANSFER</span>
-                        <button onClick={closePanel} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
-                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                      <TransferPage />
-                    </div>
-                  ) : rightPanelView === 'detail' && selectedEscrowId ? (
-                    <EscrowDetailPanel
-                      escrowId={selectedEscrowId}
-                      isOpen
-                      onClose={closePanel}
-                      onUpdate={handleRefresh}
-                      onShowMoonPay={handleShowMoonPay}
-                      onShowDeposit={(amount) => {
-                        setRightPanelOpen(false);
-                        setDepositSuggestedAmount(amount);
-                        setShowDepositModal(true);
-                      }}
-                    />
-                  ) : null}
+                    {rightPanelView === 'create' ? (
+                      <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
+                    ) : rightPanelView === 'detail' && selectedEscrowId ? (
+                      <EscrowDetailPanel
+                        escrowId={selectedEscrowId}
+                        isOpen
+                        onClose={closePanel}
+                        onUpdate={handleRefresh}
+                        onShowMoonPay={handleShowMoonPay}
+                        onShowDeposit={(amount) => {
+                          setRightPanelOpen(false);
+                          setDepositSuggestedAmount(amount);
+                          setShowDepositModal(true);
+                        }}
+                      />
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       </div>
@@ -1528,41 +1516,29 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </div>
       )}
 
-      {/* Mobile panel */}
-      {rightPanelOpen && isMobile && (
-        <div className="fixed inset-0 z-50 bg-white flex flex-col">
-          {rightPanelView === 'create' ? (
-            <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
-          ) : rightPanelView === 'transfer' ? (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-3 bg-[#F8FAFC]">
-                <span className="text-sm font-medium text-black">Transfer</span>
-                <button onClick={closePanel} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
-                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <TransferPage />
-            </div>
-          ) : rightPanelView === 'detail' && selectedEscrowId ? (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <EscrowDetailPanel
-                escrowId={selectedEscrowId}
-                isOpen
-                onClose={closePanel}
-                onUpdate={handleRefresh}
-                onShowMoonPay={handleShowMoonPay}
-                onShowDeposit={(amount) => {
-                  setRightPanelOpen(false);
-                  setDepositSuggestedAmount(amount);
-                  setShowDepositModal(true);
-                }}
-              />
-            </div>
-          ) : null}
-        </div>
-      )}
+{/* Mobile panel */}
+{rightPanelOpen && isMobile && (
+  <div className="fixed inset-0 z-50 bg-white flex flex-col">
+    {rightPanelView === 'create' ? (
+      <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
+    ) : rightPanelView === 'detail' && selectedEscrowId ? (
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <EscrowDetailPanel
+          escrowId={selectedEscrowId}
+          isOpen
+          onClose={closePanel}
+          onUpdate={handleRefresh}
+          onShowMoonPay={handleShowMoonPay}
+          onShowDeposit={(amount) => {
+            setRightPanelOpen(false);
+            setDepositSuggestedAmount(amount);
+            setShowDepositModal(true);
+          }}
+        />
+      </div>
+    ) : null}
+  </div>
+)}
 
       {/* NPS Feedback Modal */}
       {showFeedbackForEscrow && (
