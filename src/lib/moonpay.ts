@@ -1,5 +1,5 @@
 // src/lib/moonpay.ts
-// ✅ Fixed: Proper flow detection and signature handling
+// ✅ Fixed: Proper flow detection and signature handling with event handlers
 
 interface MoonPayOnrampConfig {
   email?: string;
@@ -155,11 +155,12 @@ export async function createMoonPayOfframp({
     
     const currencyCode = useMoonPayProduction ? 'usdc_polygon' : 'eth';
     
-    // Build params for offramp - only include supported parameters
+    // Build params for offramp following MoonPay's sell flow documentation
+    // baseCurrencyCode = fiat (usd), defaultCurrencyCode = crypto being sold (eth)
     const paramsForSigning: Record<string, any> = {
-      currencyCode: currencyCode,
       baseCurrencyCode: 'usd',
       baseCurrencyAmount: amount.toFixed(2),
+      defaultCurrencyCode: currencyCode,
       walletAddress: walletAddress,
       externalTransactionId: withdrawalId,
     };
@@ -170,34 +171,40 @@ export async function createMoonPayOfframp({
     
     console.log('=== MoonPay Offramp Configuration ===');
     console.log('Environment:', useMoonPayProduction ? 'PRODUCTION' : 'SANDBOX');
-    console.log('Currency:', currencyCode);
+    console.log('Crypto (defaultCurrencyCode):', currencyCode);
+    console.log('Fiat (baseCurrencyCode):', 'usd');
     console.log('Amount:', amount);
     console.log('Wallet:', walletAddress);
     
-    // For SDK integration, just pass apiKey and params
-    // The SDK handles signing internally when using sensitive params
-    // For SELL flow, quoteCurrencyCode is the fiat currency (what you receive)
-    // and the main currencyCode is the crypto you're selling
-    const sdkParams: Record<string, any> = {
+    // Get signature from backend (backend will add apiKey before signing)
+    const signature = await signUrl(paramsForSigning, 'sell');
+    console.log('✅ URL signed successfully');
+    
+    // Now add apiKey AND signature for the SDK
+    const paramsWithSignature = {
       apiKey: apiKey,
-      currencyCode: currencyCode, // The crypto being sold (eth)
-      quoteCurrencyCode: 'usd', // The fiat currency you receive
-      baseCurrencyAmount: amount.toFixed(2),
-      walletAddress: walletAddress,
-      externalTransactionId: withdrawalId,
+      ...paramsForSigning,
+      signature
     };
-    
-    if (email) {
-      sdkParams.email = email;
-    }
-    
-    console.log('✅ SDK params prepared (no manual signing needed)');
     
     const moonPaySdk = moonPay({
       flow: 'sell',
       environment: useMoonPayProduction ? 'production' : 'sandbox',
       variant: 'overlay',
-      params: sdkParams as any
+      params: paramsWithSignature as any,
+      handlers: {
+        onInitiateDeposit: (async (depositInfo: any) => {
+          console.log('✅ User initiated deposit');
+          console.log('Deposit info:', depositInfo);
+          alert(`Send ${depositInfo?.cryptoAmount || 'crypto'} ${depositInfo?.cryptoCurrencyCode || 'ETH'} to: ${depositInfo?.depositWalletAddress || 'address not provided'}`);
+        }) as any,
+        onTransactionCompleted: (async (transaction: any) => {
+          console.log('✅ Transaction completed:', transaction);
+        }) as any,
+        onClose: (async () => {
+          console.log('Widget closed');
+        }) as any
+      }
     });
     
     console.log('✅ MoonPay Offramp SDK instance created');
@@ -208,4 +215,4 @@ export async function createMoonPayOfframp({
     console.error('Error:', error);
     throw error;
   }
-}// Updated Sat Oct 18 16:09:29 EST 2025
+}
