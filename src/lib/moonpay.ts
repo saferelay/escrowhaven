@@ -1,5 +1,5 @@
 // src/lib/moonpay.ts
-// ✅ Working version that gets to "Send with escrowhaven.io" button
+// ✅ FIXED: Exposes Magic globally so MoonPay handlers can access it
 
 import { transferUSDCForOfframp } from './offramp-magic-transfer';
 
@@ -116,6 +116,27 @@ export async function createMoonPayOfframp({
     if (!withdrawalId) {
       throw new Error('Withdrawal ID is required');
     }
+
+    // 🔥 CRITICAL FIX: Make Magic globally available BEFORE opening widget
+    console.log('🔧 Exposing Magic globally for MoonPay handlers...');
+    const { getMagicInstance } = await import('./magic');
+    const magicInstance = getMagicInstance();
+    
+    if (!magicInstance) {
+      throw new Error('Magic wallet not initialized. Please connect your wallet first.');
+    }
+    
+    // Check if user is logged in BEFORE opening the widget
+    const isLoggedIn = await magicInstance.user.isLoggedIn();
+    if (!isLoggedIn) {
+      throw new Error('Please connect your wallet before withdrawing.');
+    }
+    
+    // ✅ Make Magic globally accessible for the handler
+    if (typeof window !== 'undefined') {
+      (window as any).escrowhavenMagic = magicInstance;
+      console.log('✅ Magic instance attached to window.escrowhavenMagic');
+    }
     
     console.log('🚀 Dynamically loading MoonPay SDK for off-ramp...');
     const { loadMoonPay } = await import('@moonpay/moonpay-js');
@@ -135,8 +156,6 @@ export async function createMoonPayOfframp({
     
     const currencyCode = useMoonPayProduction ? 'usdc_polygon' : 'eth';
     
-    // Use the simpler parameter format that worked before
-    // Just pass apiKey directly without manual signing
     const sdkParams: Record<string, any> = {
       apiKey: apiKey,
       currencyCode: currencyCode,
@@ -164,13 +183,23 @@ export async function createMoonPayOfframp({
       params: sdkParams as any,
       handlers: {
         onInitiateDeposit: (async (depositInfo: any) => {
-          console.log('✅ User initiated deposit');
+          console.log('✅ User clicked "Send with escrowhaven.io"');
           console.log('Deposit info:', depositInfo);
           
           const { depositWalletAddress, cryptoAmount, cryptoCurrencyCode } = depositInfo;
           
           try {
-            console.log(`Sending ${cryptoAmount} ${cryptoCurrencyCode} to ${depositWalletAddress}...`);
+            console.log(`Preparing to send ${cryptoAmount} ${cryptoCurrencyCode} to ${depositWalletAddress}...`);
+            
+            // Access Magic from global window object
+            const magic = (window as any).escrowhavenMagic;
+            
+            if (!magic) {
+              throw new Error('Magic wallet not found. Please refresh and try again.');
+            }
+            
+            console.log('✅ Magic instance retrieved from window');
+            console.log('Calling transferUSDCForOfframp...');
             
             // Use Magic.link to send USDC to MoonPay's deposit address
             const result = await transferUSDCForOfframp(
@@ -180,6 +209,7 @@ export async function createMoonPayOfframp({
             
             if (result.success) {
               console.log('✅ Transaction successful:', result.txHash);
+              alert(`Transaction sent successfully!\n\nHash: ${result.txHash}\n\nYour withdrawal will be processed shortly.`);
               
               // Return transaction hash to MoonPay
               return {
@@ -197,10 +227,15 @@ export async function createMoonPayOfframp({
         }) as any,
         onTransactionCompleted: (async (transaction: any) => {
           console.log('✅ MoonPay transaction completed:', transaction);
-          alert('Withdrawal successful! Funds will arrive in your bank account soon.');
+          alert('🎉 Withdrawal successful! Funds will arrive in your bank account soon.');
         }) as any,
         onClose: (async () => {
           console.log('Widget closed');
+          // Clean up global Magic reference
+          if (typeof window !== 'undefined') {
+            delete (window as any).escrowhavenMagic;
+            console.log('🧹 Cleaned up Magic instance from window');
+          }
         }) as any
       }
     });
@@ -211,6 +246,10 @@ export async function createMoonPayOfframp({
   } catch (error) {
     console.error('=== createMoonPayOfframp ERROR ===');
     console.error('Error:', error);
+    // Clean up on error
+    if (typeof window !== 'undefined') {
+      delete (window as any).escrowhavenMagic;
+    }
     throw error;
   }
 }
