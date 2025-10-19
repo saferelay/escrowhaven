@@ -1,7 +1,8 @@
 import { getMagicInstance } from './magic';
 import { ethers } from 'ethers';
 
-const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359';
+// Polygon mainnet USDC
+const USDC_ADDRESS_POLYGON = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359';
 
 const ERC20_ABI = [
   'function transfer(address to, uint256 amount) returns (bool)',
@@ -17,16 +18,39 @@ interface TransferResult {
 
 export async function transferUSDCForOfframp(
   recipientAddress: string,
-  usdcAmount: number,
-  magicInstance?: any,  // Accept Magic instance as optional parameter
-  userEmail?: string     // Add email parameter for re-authentication if needed
+  amount: number,
+  magicInstance?: any,
+  userEmail?: string
 ): Promise<TransferResult> {
   try {
     console.log('🔄 transferUSDCForOfframp called');
     console.log('Recipient:', recipientAddress);
-    console.log('Amount:', usdcAmount);
+    console.log('Amount:', amount);
     
-    // Use passed instance first, then try global window, then getMagicInstance
+    // Check if we're in sandbox mode
+    const isSandbox = process.env.NEXT_PUBLIC_MOONPAY_MODE !== 'production';
+    
+    if (isSandbox) {
+      console.log('🧪 SANDBOX MODE: Simulating transaction...');
+      
+      // In sandbox, MoonPay uses ETH/testnet, not USDC
+      // Just return a mock transaction hash
+      const mockTxHash = '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+      
+      console.log('✅ Sandbox transaction simulated:', mockTxHash);
+      
+      // Simulate a delay like a real transaction
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      return { 
+        success: true, 
+        txHash: mockTxHash 
+      };
+    }
+    
+    // PRODUCTION MODE: Real USDC transfer on Polygon
+    console.log('🔴 PRODUCTION MODE: Executing real USDC transfer...');
+    
     let magic = magicInstance;
     
     if (!magic && typeof window !== 'undefined') {
@@ -44,54 +68,25 @@ export async function transferUSDCForOfframp(
     
     console.log('✅ Magic instance obtained');
     
-    // CRITICAL FIX: Check if Magic session is active and re-authenticate if needed
-    try {
-      const provider = new ethers.providers.Web3Provider(magic.rpcProvider as any);
-      const signer = provider.getSigner();
-      
-      // Try to get address - this will fail if not authenticated
-      const userAddress = await signer.getAddress();
-      console.log('✅ Active Magic session found, user address:', userAddress);
-      
-    } catch (error: any) {
-      console.log('⚠️ No active Magic session, need to authenticate...');
-      
-      // If we have user email, trigger re-authentication
-      if (userEmail) {
-        console.log('🔐 Requesting Magic authentication for:', userEmail);
-        alert('Please check your email to confirm this transaction with Magic.link');
-        
-        await magic.auth.loginWithMagicLink({ 
-          email: userEmail,
-          showUI: true 
-        });
-        
-        console.log('✅ Magic authentication completed');
-      } else {
-        throw new Error('Your session has expired. Please refresh the page and try again.');
-      }
-    }
-    
-    // Now proceed with the transfer
     const provider = new ethers.providers.Web3Provider(magic.rpcProvider as any);
     const signer = provider.getSigner();
     const userAddress = await signer.getAddress();
     console.log('✅ User address:', userAddress);
     
-    const usdcContract = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
+    const usdcContract = new ethers.Contract(USDC_ADDRESS_POLYGON, ERC20_ABI, signer);
 
     const balance = await usdcContract.balanceOf(userAddress);
     const decimals = await usdcContract.decimals();
-    const amountWei = ethers.utils.parseUnits(usdcAmount.toString(), decimals);
+    const amountWei = ethers.utils.parseUnits(amount.toString(), decimals);
 
     console.log('Balance check:', {
       balance: ethers.utils.formatUnits(balance, decimals),
-      required: usdcAmount,
+      required: amount,
       hasEnough: balance.gte(amountWei)
     });
 
     if (balance.lt(amountWei)) {
-      throw new Error(`Insufficient USDC balance. You have ${ethers.utils.formatUnits(balance, decimals)} USDC but need ${usdcAmount} USDC`);
+      throw new Error(`Insufficient USDC balance. You have ${ethers.utils.formatUnits(balance, decimals)} USDC but need ${amount} USDC`);
     }
 
     console.log('💸 Transferring USDC to:', recipientAddress);
@@ -106,7 +101,7 @@ export async function transferUSDCForOfframp(
 
     return { success: true, txHash: receipt.transactionHash };
   } catch (error: any) {
-    console.error('❌ USDC transfer failed:', error);
+    console.error('❌ Transfer failed:', error);
     return { success: false, error: error.message || 'Transfer failed' };
   }
 }
