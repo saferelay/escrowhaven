@@ -10,8 +10,17 @@ if (typeof window !== 'undefined') {
   if (!key || key.includes('YOUR_MAGIC_KEY')) {
     console.error('CRITICAL: NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY not configured');
   } else {
+    // Determine network based on MoonPay mode
+    const isSandbox = process.env.NEXT_PUBLIC_MOONPAY_MODE !== 'production';
+    
+    // Sandbox: Sepolia testnet (for ETH testing)
+    // Production: Polygon mainnet (for USDC)
+    const network = isSandbox ? 'sepolia' : 'matic';
+    
+    console.log(`🔧 Initializing Magic with network: ${network} (${isSandbox ? 'sandbox' : 'production'} mode)`);
+    
     magic = new Magic(key, {
-      network: 'mainnet'
+      network: network as any
     });
   }
 }
@@ -21,7 +30,7 @@ export async function connectMagicWallet(email: string): Promise<{ wallet: strin
   if (!magic) {
     throw new Error('Magic wallet not configured. Please set NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY');
   }
-
+  
   try {
     // Check if already logged in
     const isLoggedIn = await magic.user.isLoggedIn();
