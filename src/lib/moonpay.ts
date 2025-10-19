@@ -1,5 +1,5 @@
 // src/lib/moonpay.ts
-// ✅ FIXED: Exposes Magic globally so MoonPay handlers can access it
+// ✅ FINAL VERSION: Checks Magic session before opening widget
 
 import { transferUSDCForOfframp } from './offramp-magic-transfer';
 
@@ -117,8 +117,8 @@ export async function createMoonPayOfframp({
       throw new Error('Withdrawal ID is required');
     }
 
-    // 🔥 CRITICAL FIX: Make Magic globally available BEFORE opening widget
-    console.log('🔧 Exposing Magic globally for MoonPay handlers...');
+    // 🔥 CRITICAL FIX: Verify Magic session BEFORE opening widget
+    console.log('🔧 Verifying Magic session...');
     const { getMagicInstance } = await import('./magic');
     const magicInstance = getMagicInstance();
     
@@ -126,19 +126,43 @@ export async function createMoonPayOfframp({
       throw new Error('Magic wallet not initialized. Please connect your wallet first.');
     }
     
-    // ✅ Make Magic globally accessible for the handler (do this BEFORE checking login)
+    // ✅ ENSURE ACTIVE MAGIC SESSION - Test if we can get a signer
+    console.log('🔐 Checking if Magic session is active...');
+    try {
+      const { ethers } = await import('ethers');
+      const provider = new ethers.providers.Web3Provider(magicInstance.rpcProvider as any);
+      const signer = provider.getSigner();
+      const address = await signer.getAddress();
+      console.log('✅ Active Magic session confirmed for:', address);
+    } catch (sessionError: any) {
+      console.error('❌ No active Magic session:', sessionError);
+      
+      // Session expired - need to re-authenticate
+      if (email) {
+        alert('Your wallet session has expired. Please check your email to re-authenticate with Magic.link');
+        
+        try {
+          console.log('📧 Sending Magic authentication email to:', email);
+          await magicInstance.auth.loginWithMagicLink({ 
+            email,
+            showUI: true 
+          });
+          console.log('✅ Magic re-authentication successful');
+        } catch (authError: any) {
+          throw new Error(`Authentication failed: ${authError.message}. Please refresh the page and try again.`);
+        }
+      } else {
+        throw new Error('Your wallet session has expired. Please refresh the page and log in again.');
+      }
+    }
+    
+    // ✅ Make Magic globally accessible for handlers
     if (typeof window !== 'undefined') {
       (window as any).escrowhavenMagic = magicInstance;
       console.log('✅ Magic instance attached to window.escrowhavenMagic');
     }
     
-    // Verify wallet is connected by checking if we have the expected wallet address
-    console.log('Verifying wallet connection...');
-    console.log('Expected wallet:', walletAddress);
-    
-    // We already have the wallet address from the function params, which means user is connected
-    // Magic is initialized and we passed the wallet address, so we're good to proceed
-    console.log('✅ Wallet verified, proceeding with MoonPay widget...');
+    console.log('✅ Session verified, loading MoonPay SDK...');
     
     console.log('🚀 Dynamically loading MoonPay SDK for off-ramp...');
     const { loadMoonPay } = await import('@moonpay/moonpay-js');
@@ -204,19 +228,17 @@ export async function createMoonPayOfframp({
             console.log('Calling transferUSDCForOfframp...');
             
             // Use Magic.link to send USDC to MoonPay's deposit address
-            // Pass the Magic instance AND email directly to handle re-authentication
             const result = await transferUSDCForOfframp(
               depositWalletAddress,
               parseFloat(cryptoAmount),
-              magic,       // Pass Magic instance directly
-              email || undefined  // Pass email for re-authentication if needed
+              magic,
+              email || undefined
             );
             
             if (result.success) {
               console.log('✅ Transaction successful:', result.txHash);
               alert(`Transaction sent successfully!\n\nHash: ${result.txHash}\n\nYour withdrawal will be processed shortly.`);
               
-              // Return transaction hash to MoonPay
               return {
                 transactionHash: result.txHash
               };
@@ -236,7 +258,6 @@ export async function createMoonPayOfframp({
         }) as any,
         onClose: (async () => {
           console.log('Widget closed');
-          // Clean up global Magic reference
           if (typeof window !== 'undefined') {
             delete (window as any).escrowhavenMagic;
             console.log('🧹 Cleaned up Magic instance from window');
@@ -251,7 +272,6 @@ export async function createMoonPayOfframp({
   } catch (error) {
     console.error('=== createMoonPayOfframp ERROR ===');
     console.error('Error:', error);
-    // Clean up on error
     if (typeof window !== 'undefined') {
       delete (window as any).escrowhavenMagic;
     }
