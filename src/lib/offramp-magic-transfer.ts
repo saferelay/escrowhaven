@@ -31,20 +31,51 @@ export async function transferUSDCForOfframp(
     const isSandbox = process.env.NEXT_PUBLIC_MOONPAY_MODE !== 'production';
     
     if (isSandbox) {
-      console.log('🧪 SANDBOX MODE: Simulating transaction...');
+      console.log('🧪 SANDBOX MODE: Sending test ETH transaction on Sepolia...');
       
-      // In sandbox, MoonPay uses ETH/testnet, not USDC
-      // Just return a mock transaction hash
-      const mockTxHash = '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+      // Get Magic instance
+      let magic = magicInstance;
       
-      console.log('✅ Sandbox transaction simulated:', mockTxHash);
+      if (!magic && typeof window !== 'undefined') {
+        magic = (window as any).escrowhavenMagic;
+      }
       
-      // Simulate a delay like a real transaction
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!magic) {
+        console.log('Magic not found on window, using getMagicInstance()');
+        magic = getMagicInstance();
+      }
+      
+      if (!magic) {
+        throw new Error('Magic wallet not initialized');
+      }
+      
+      console.log('✅ Magic instance obtained');
+      
+      const provider = new ethers.providers.Web3Provider(magic.rpcProvider as any);
+      const signer = provider.getSigner();
+      const userAddress = await signer.getAddress();
+      console.log('✅ User address:', userAddress);
+      
+      // Send a small test ETH transaction (0.0001 ETH)
+      // In sandbox, MoonPay expects ETH, not USDC
+      const testAmount = ethers.utils.parseEther('0.0001'); // Very small amount for testing
+      
+      console.log(`💸 Sending test transaction: 0.0001 ETH to ${recipientAddress}`);
+      
+      const tx = await signer.sendTransaction({
+        to: recipientAddress,
+        value: testAmount
+      });
+      
+      console.log('Transaction sent:', tx.hash);
+      console.log('Waiting for confirmation...');
+      
+      const receipt = await tx.wait(1);
+      console.log('✅ Test transaction confirmed:', receipt.transactionHash);
       
       return { 
         success: true, 
-        txHash: mockTxHash 
+        txHash: receipt.transactionHash 
       };
     }
     
