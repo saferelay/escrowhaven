@@ -117,43 +117,13 @@ export async function createMoonPayOfframp({
       throw new Error('Withdrawal ID is required');
     }
 
-    // 🔥 CRITICAL FIX: Verify Magic session BEFORE opening widget
-    console.log('🔧 Verifying Magic session...');
+    // 🔥 Get Magic instance and make it globally available
+    console.log('🔧 Setting up Magic for MoonPay handlers...');
     const { getMagicInstance } = await import('./magic');
     const magicInstance = getMagicInstance();
     
     if (!magicInstance) {
       throw new Error('Magic wallet not initialized. Please connect your wallet first.');
-    }
-    
-    // ✅ ENSURE ACTIVE MAGIC SESSION - Test if we can get a signer
-    console.log('🔐 Checking if Magic session is active...');
-    try {
-      const { ethers } = await import('ethers');
-      const provider = new ethers.providers.Web3Provider(magicInstance.rpcProvider as any);
-      const signer = provider.getSigner();
-      const address = await signer.getAddress();
-      console.log('✅ Active Magic session confirmed for:', address);
-    } catch (sessionError: any) {
-      console.error('❌ No active Magic session:', sessionError);
-      
-      // Session expired - need to re-authenticate
-      if (email) {
-        alert('Your wallet session has expired. Please check your email to re-authenticate with Magic.link');
-        
-        try {
-          console.log('📧 Sending Magic authentication email to:', email);
-          await magicInstance.auth.loginWithMagicLink({ 
-            email,
-            showUI: true 
-          });
-          console.log('✅ Magic re-authentication successful');
-        } catch (authError: any) {
-          throw new Error(`Authentication failed: ${authError.message}. Please refresh the page and try again.`);
-        }
-      } else {
-        throw new Error('Your wallet session has expired. Please refresh the page and log in again.');
-      }
     }
     
     // ✅ Make Magic globally accessible for handlers
@@ -162,7 +132,7 @@ export async function createMoonPayOfframp({
       console.log('✅ Magic instance attached to window.escrowhavenMagic');
     }
     
-    console.log('✅ Session verified, loading MoonPay SDK...');
+    console.log('✅ Magic ready, loading MoonPay SDK...');
     
     console.log('🚀 Dynamically loading MoonPay SDK for off-ramp...');
     const { loadMoonPay } = await import('@moonpay/moonpay-js');
