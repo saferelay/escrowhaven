@@ -18,7 +18,8 @@ interface TransferResult {
 export async function transferUSDCForOfframp(
   recipientAddress: string,
   usdcAmount: number,
-  magicInstance?: any  // Accept Magic instance as optional parameter
+  magicInstance?: any,  // Accept Magic instance as optional parameter
+  userEmail?: string     // Add email parameter for re-authentication if needed
 ): Promise<TransferResult> {
   try {
     console.log('🔄 transferUSDCForOfframp called');
@@ -43,11 +44,37 @@ export async function transferUSDCForOfframp(
     
     console.log('✅ Magic instance obtained');
     
-    // Skip isLoggedIn check - if we have Magic and can get a signer, we're good
+    // CRITICAL FIX: Check if Magic session is active and re-authenticate if needed
+    try {
+      const provider = new ethers.providers.Web3Provider(magic.rpcProvider as any);
+      const signer = provider.getSigner();
+      
+      // Try to get address - this will fail if not authenticated
+      const userAddress = await signer.getAddress();
+      console.log('✅ Active Magic session found, user address:', userAddress);
+      
+    } catch (error: any) {
+      console.log('⚠️ No active Magic session, need to authenticate...');
+      
+      // If we have user email, trigger re-authentication
+      if (userEmail) {
+        console.log('🔐 Requesting Magic authentication for:', userEmail);
+        alert('Please check your email to confirm this transaction with Magic.link');
+        
+        await magic.auth.loginWithMagicLink({ 
+          email: userEmail,
+          showUI: true 
+        });
+        
+        console.log('✅ Magic authentication completed');
+      } else {
+        throw new Error('Your session has expired. Please refresh the page and try again.');
+      }
+    }
+    
+    // Now proceed with the transfer
     const provider = new ethers.providers.Web3Provider(magic.rpcProvider as any);
     const signer = provider.getSigner();
-    
-    // Verify we can get the user's address (this confirms they're connected)
     const userAddress = await signer.getAddress();
     console.log('✅ User address:', userAddress);
     
