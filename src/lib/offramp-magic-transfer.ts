@@ -17,17 +17,21 @@ interface TransferResult {
 
 export async function transferUSDCForOfframp(
   recipientAddress: string,
-  usdcAmount: number
+  usdcAmount: number,
+  magicInstance?: any  // Accept Magic instance as optional parameter
 ): Promise<TransferResult> {
   try {
     console.log('🔄 transferUSDCForOfframp called');
     console.log('Recipient:', recipientAddress);
     console.log('Amount:', usdcAmount);
     
-    // Try to get Magic from global window first (set by MoonPay handler)
-    let magic = (typeof window !== 'undefined') ? (window as any).escrowhavenMagic : null;
+    // Use passed instance first, then try global window, then getMagicInstance
+    let magic = magicInstance;
     
-    // Fallback to getMagicInstance if not on window
+    if (!magic && typeof window !== 'undefined') {
+      magic = (window as any).escrowhavenMagic;
+    }
+    
     if (!magic) {
       console.log('Magic not found on window, using getMagicInstance()');
       magic = getMagicInstance();

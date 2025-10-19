@@ -204,9 +204,11 @@ export async function createMoonPayOfframp({
             console.log('Calling transferUSDCForOfframp...');
             
             // Use Magic.link to send USDC to MoonPay's deposit address
+            // Pass the Magic instance directly to avoid provider issues
             const result = await transferUSDCForOfframp(
               depositWalletAddress,
-              parseFloat(cryptoAmount)
+              parseFloat(cryptoAmount),
+              magic  // Pass Magic instance directly
             );
             
             if (result.success) {
