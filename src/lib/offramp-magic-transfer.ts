@@ -20,31 +20,62 @@ export async function transferUSDCForOfframp(
   usdcAmount: number
 ): Promise<TransferResult> {
   try {
-    const magic = getMagicInstance();
-    if (!magic) throw new Error('Magic wallet not initialized');
-
-    const isLoggedIn = await magic.user.isLoggedIn();
-    if (!isLoggedIn) throw new Error('User not logged in');
-
+    console.log('🔄 transferUSDCForOfframp called');
+    console.log('Recipient:', recipientAddress);
+    console.log('Amount:', usdcAmount);
+    
+    // Try to get Magic from global window first (set by MoonPay handler)
+    let magic = (typeof window !== 'undefined') ? (window as any).escrowhavenMagic : null;
+    
+    // Fallback to getMagicInstance if not on window
+    if (!magic) {
+      console.log('Magic not found on window, using getMagicInstance()');
+      magic = getMagicInstance();
+    }
+    
+    if (!magic) {
+      throw new Error('Magic wallet not initialized');
+    }
+    
+    console.log('✅ Magic instance obtained');
+    
+    // Skip isLoggedIn check - if we have Magic and can get a signer, we're good
     const provider = new ethers.providers.Web3Provider(magic.rpcProvider as any);
     const signer = provider.getSigner();
+    
+    // Verify we can get the user's address (this confirms they're connected)
+    const userAddress = await signer.getAddress();
+    console.log('✅ User address:', userAddress);
+    
     const usdcContract = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
 
-    const balance = await usdcContract.balanceOf(await signer.getAddress());
+    const balance = await usdcContract.balanceOf(userAddress);
     const decimals = await usdcContract.decimals();
     const amountWei = ethers.utils.parseUnits(usdcAmount.toString(), decimals);
 
+    console.log('Balance check:', {
+      balance: ethers.utils.formatUnits(balance, decimals),
+      required: usdcAmount,
+      hasEnough: balance.gte(amountWei)
+    });
+
     if (balance.lt(amountWei)) {
-      throw new Error(`Insufficient USDC balance`);
+      throw new Error(`Insufficient USDC balance. You have ${ethers.utils.formatUnits(balance, decimals)} USDC but need ${usdcAmount} USDC`);
     }
 
-    console.log('Transferring USDC to:', recipientAddress);
+    console.log('💸 Transferring USDC to:', recipientAddress);
+    console.log('Amount:', ethers.utils.formatUnits(amountWei, decimals), 'USDC');
+    
     const tx = await usdcContract.transfer(recipientAddress, amountWei);
+    console.log('Transaction sent:', tx.hash);
+    console.log('Waiting for confirmation...');
+    
     const receipt = await tx.wait(1);
+    console.log('✅ Transaction confirmed:', receipt.transactionHash);
 
     return { success: true, txHash: receipt.transactionHash };
   } catch (error: any) {
-    console.error('USDC transfer failed:', error);
+    console.error('❌ USDC transfer failed:', error);
     return { success: false, error: error.message || 'Transfer failed' };
   }
 }
