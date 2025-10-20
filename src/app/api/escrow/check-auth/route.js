@@ -7,7 +7,7 @@ const FACTORY_ABI = [
 ];
 
 export async function GET() {
-  const provider = new ethers.JsonRpcProvider("https://polygon-amoy.drpc.org");
+  const provider = new ethers.providers.JsonRpcProvider("https://polygon-amoy.drpc.org");
   
   // Get backend wallet address
   const backendWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);

@@ -1,6 +1,6 @@
 // src/app/api/escrow/arbitration/request/route.js
 import { NextResponse } from 'next/server';
-import { Contract, JsonRpcProvider, Wallet, parseEther } from 'ethers';
+import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -40,13 +40,13 @@ export async function POST(request) {
     }
     
     const isTestMode = escrow.is_test_mode;
-    const provider = new JsonRpcProvider(
+    const provider = new ethers.providers.JsonRpcProvider(
       isTestMode ? "https://polygon-amoy.drpc.org" : "https://polygon.drpc.org"
     );
     
     // For now, use backend wallet - in production, use Magic wallet
-    const signer = new Wallet(process.env.PRIVATE_KEY, provider);
-    const escrowContract = new Contract(escrow.vault_address, ESCROW_ABI, signer);
+    const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+    const escrowContract = new ethers.Contract(escrow.vault_address, ESCROW_ABI, signer);
     
     if (action === 'request') {
       // Get arbitration cost
@@ -54,11 +54,11 @@ export async function POST(request) {
       
       if (isTestMode) {
         // Mock arbitrator uses fixed low cost
-        arbitrationCost = parseEther("0.001");
+        arbitrationCost = ethers.utils.parseEther("0.001");
       } else {
         // Real Kleros arbitrator
         const arbitratorAddress = "0x9C1dA9A04925bDfDedf0f6421bC7EEa8305F9002";
-        const arbitrator = new Contract(arbitratorAddress, ARBITRATOR_ABI, provider);
+        const arbitrator = new ethers.Contract(arbitratorAddress, ARBITRATOR_ABI, provider);
         arbitrationCost = await arbitrator.arbitrationCost("0x");
       }
       
