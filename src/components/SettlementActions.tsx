@@ -1,8 +1,8 @@
-// src/components/SettlementActions.tsx - Complete with Transaction/Vault terminology
+// src/components/SettlementActions.tsx - Complete with Privy wallet signing
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Magic } from 'magic-sdk';
+import { useWallets } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
 import { useAuth } from '@/contexts/AuthContext';
 import { DisputePaymentModal } from '@/components/escrow/DisputePaymentModal'; 
@@ -31,6 +31,8 @@ const PulsingDot = ({ color = 'blue' }: { color?: string }) => {
 
 export function SettlementActions({ escrow, userRole, onAction }: SettlementActionsProps) {
   const { user, supabase } = useAuth();
+  const { wallets } = useWallets();
+  
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [clientAmount, setClientAmount] = useState('');
@@ -66,48 +68,35 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
     checkDeployment();
   }, [escrow?.id, escrow?.status, escrow?.contract_deployed, escrow?.funded_amount, escrow?.amount_cents]);
 
-  const getMagicInstance = () => {
-    if (!process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY) {
-      console.error('Magic publishable key not found');
-      return null;
+  // Get Privy embedded wallet and sign message
+  const signWithPrivyWallet = async (messageToSign: string): Promise<string> => {
+    // Find the Privy embedded wallet
+    const embeddedWallet = wallets.find((w) => w.walletClientType === 'privy');
+    
+    if (!embeddedWallet) {
+      throw new Error('Embedded wallet not found. Please sign in again.');
     }
-  
-    // Always use testnet for now since you're on Polygon Amoy
-    return new Magic(process.env.NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY, {
-      network: {
-        rpcUrl: 'https://rpc-amoy.polygon.technology',
-        chainId: 80002
-      }
-    });
-  };
-
-  const connectMagicWallet = async (userEmail: string) => {
-    const magic = getMagicInstance();
-    if (!magic) throw new Error('Magic not configured');
 
     try {
-      const isLoggedIn = await magic.user.isLoggedIn();
-      if (isLoggedIn) {
-        await magic.user.logout();
-      }
-    } catch (e) {
-      console.log('User not logged in');
+      // Switch to correct chain
+      const chainId = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production' ? 137 : 80002;
+      await embeddedWallet.switchChain(chainId);
+
+      // Get EIP1193 provider from Privy wallet
+      const provider = await embeddedWallet.getEthereumProvider();
+      
+      // Convert to ethers.js provider
+      const ethersProvider = new ethers.providers.Web3Provider(provider);
+      const signer = ethersProvider.getSigner();
+
+      // Sign the message (user sees wallet approval)
+      const signature = await signer.signMessage(messageToSign);
+      
+      return signature;
+    } catch (error: any) {
+      console.error('Privy wallet signing error:', error);
+      throw error;
     }
-
-    setStatus('Check your email for the secure login link...');
-    
-    await magic.auth.loginWithMagicLink({ 
-      email: userEmail,
-      showUI: true
-    });
-
-    const provider = new ethers.providers.Web3Provider(magic.rpcProvider as any);
-    const signer = provider.getSigner();
-    const address = await signer.getAddress();
-    
-    console.log('Magic wallet connected:', address);
-    
-    return { provider, signer, address };
   };
 
   // GASLESS RELEASE - User signs, backend pays gas
@@ -136,19 +125,14 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
       const userEmail = escrow.client_email;
       if (!userEmail) throw new Error('User email not found');
 
-      const { signer, address } = await connectMagicWallet(userEmail);
-      
       // Create message to sign
       const nonce = Date.now();
-      const message = ethers.utils.solidityKeccak256(
-        ['string', 'address', 'uint256'],
-        ['Release escrow', escrow.vault_address, nonce]
-      );
+      const messageToSign = `Release payment from vault ${escrow.vault_address} for transaction ${escrow.id} at ${nonce}`;
       
-      setStatus('Please sign the release authorization in your email...');
+      setStatus('Please sign the release authorization in your wallet...');
       
-      // User signs with Magic wallet - NO GAS NEEDED
-      const signature = await signer.signMessage(ethers.utils.arrayify(message));
+      // User signs with Privy wallet - NO GAS NEEDED
+      const signature = await signWithPrivyWallet(messageToSign);
       
       setStatus('Processing release from vault...');
       
@@ -161,7 +145,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
           action: 'release',
           signature,
           nonce,
-          signerAddress: address
+          messageToSign
         })
       });
       
@@ -212,19 +196,14 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
       const userEmail = escrow.freelancer_email;
       if (!userEmail) throw new Error('User email not found');
 
-      const { signer, address } = await connectMagicWallet(userEmail);
-      
       // Create message to sign
       const nonce = Date.now();
-      const message = ethers.utils.solidityKeccak256(
-        ['string', 'address', 'uint256'],
-        ['Refund escrow', escrow.vault_address, nonce]
-      );
+      const messageToSign = `Refund payment from vault ${escrow.vault_address} for transaction ${escrow.id} at ${nonce}`;
       
-      setStatus('Please sign the refund authorization in your email...');
+      setStatus('Please sign the refund authorization in your wallet...');
       
       // User signs - NO GAS NEEDED
-      const signature = await signer.signMessage(ethers.utils.arrayify(message));
+      const signature = await signWithPrivyWallet(messageToSign);
       
       setStatus('Processing refund from vault...');
       
@@ -237,7 +216,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
           action: 'refund',
           signature,
           nonce,
-          signerAddress: address
+          messageToSign
         })
       });
       
@@ -290,28 +269,15 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
 
     try {
       const userEmail = userRole === 'payer' ? escrow.client_email : escrow.freelancer_email;
-      const { signer, address } = await connectMagicWallet(userEmail);
       
       // Create message to sign for settlement proposal
       const nonce = Date.now();
-      const clientAmountUsdc = ethers.utils.parseUnits(clientAmt.toString(), 6);
-      const freelancerAmountUsdc = ethers.utils.parseUnits(freelancerAmt.toString(), 6);
+      const messageToSign = `Propose settlement: sender ${clientAmt} + recipient ${freelancerAmt} from vault ${escrow.vault_address} for transaction ${escrow.id} at ${nonce}`;
       
-      const message = ethers.utils.solidityKeccak256(
-        ['string', 'address', 'uint256', 'uint256', 'uint256'],
-        [
-          'Propose settlement',
-          escrow.vault_address,
-          clientAmountUsdc,
-          freelancerAmountUsdc,
-          nonce
-        ]
-      );
-      
-      setStatus('Please sign the settlement proposal in your email...');
+      setStatus('Please sign the settlement proposal in your wallet...');
       
       // User signs - NO GAS NEEDED
-      const signature = await signer.signMessage(ethers.utils.arrayify(message));
+      const signature = await signWithPrivyWallet(messageToSign);
       
       setStatus('Submitting settlement proposal...');
       
@@ -324,7 +290,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
           action: 'propose_settlement',
           signature,
           nonce,
-          signerAddress: address,
+          messageToSign,
           clientAmount: clientAmt,
           freelancerAmount: freelancerAmt
         })
@@ -353,7 +319,7 @@ export function SettlementActions({ escrow, userRole, onAction }: SettlementActi
     }
   };
 
-  // Contract not deployed warning - Updated language
+  // Contract not deployed warning
   if (contractExists === false) {
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
