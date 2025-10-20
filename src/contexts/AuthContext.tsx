@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (ready && authenticated && privyUser) {
       const currentPath = window.location.pathname;
       // If on login/signup/home pages, redirect to dashboard
-      if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/') {
+      if (currentPath === '/' || currentPath === '/login' || currentPath === '/signup') {
         router.push('/dashboard');
       }
     }
