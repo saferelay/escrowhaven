@@ -1,13 +1,18 @@
-// src/components/marketing/sections/CTA.tsx - WITH SIGNUP CTA
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { usePrivy } from '@privy-io/react-auth';
 
 export function CTA() {
   const router = useRouter();
+  const { login, authenticated } = usePrivy();
 
   const handleSignup = () => {
-    router.push('/signup');
+    if (authenticated) {
+      router.push('/dashboard');
+    } else {
+      login();
+    }
   };
 
   return (

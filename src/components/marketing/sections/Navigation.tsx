@@ -1,15 +1,14 @@
-// src/components/marketing/sections/Navigation.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePrivy } from '@privy-io/react-auth';
 import Image from 'next/image';
 
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, authenticated, ready, login } = usePrivy();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,22 +19,22 @@ export function Navigation() {
   }, []);
 
   const handleLogin = () => {
-    router.push('/login');
+    login(); // Opens Privy modal directly
   };
 
   const handleSignup = () => {
-    router.push('/signup');
+    login(); // Same modal - Privy handles new users automatically
   };
 
   const handleDashboard = () => {
-    window.location.hash = 'dashboard';
+    router.push('/dashboard');
   };
 
   const handleStartEscrow = () => {
-    if (user) {
-      window.location.hash = 'dashboard';
+    if (authenticated) {
+      router.push('/dashboard');
     } else {
-      router.push('/signup');
+      login();
     }
   };
 
@@ -100,9 +99,9 @@ export function Navigation() {
           
           {/* Right side - auth state dependent */}
           <div className="flex items-center gap-4">
-            {loading ? (
+            {!ready ? (
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#E0E2E7] border-t-[#2962FF]"></div>
-            ) : user ? (
+            ) : authenticated ? (
               <>
                 <button 
                   onClick={handleDashboard}

@@ -3,9 +3,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { usePrivy } from '@privy-io/react-auth';
 
 export function Hero() {
   const router = useRouter();
+  const { login, authenticated } = usePrivy();
   const [email, setEmail] = useState('');
   const [isMobile, setIsMobile] = useState(false);
 
@@ -20,10 +22,10 @@ export function Hero() {
   }, []);
 
   const handleSignup = () => {
-    if (email) {
-      router.push(`/signup?email=${encodeURIComponent(email)}`);
+    if (authenticated) {
+      router.push('/dashboard');
     } else {
-      router.push('/signup');
+      login(); // Opens Privy modal directly
     }
   };
 
@@ -96,7 +98,7 @@ escrowhaven locks funds in a secure vault until both sides approve — no ghosti
       <svg className="w-4 h-4 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
       </svg>
-      <span>Powered by MoonPay</span>
+      <span>Powered by Onramp.money</span>
     </div>
   </div>
 </div>

@@ -1,7 +1,20 @@
-// src/components/marketing/sections/HowItWorks.tsx
 'use client';
 
+import { usePrivy } from '@privy-io/react-auth';
+import { useRouter } from 'next/navigation';
+
 export function HowItWorks() {
+  const { login, authenticated } = usePrivy();
+  const router = useRouter();
+
+  const handleCreateVault = () => {
+    if (authenticated) {
+      router.push('/dashboard');
+    } else {
+      login();
+    }
+  };
+
   const steps = [
     {
       number: "1",
@@ -57,7 +70,7 @@ export function HowItWorks() {
     },
     {
       number: "3",
-      title: "Fund Securely with MoonPay",
+      title: "Fund Securely with Onramp.money",
       description: "Pay with card or bank → funds convert to USDC and lock in your vault.",
       visual: (
         <div className="w-full h-full flex items-center justify-center">
@@ -225,7 +238,7 @@ export function HowItWorks() {
         {/* CTA Section - Proper Spacing */}
         <div className="text-center mt-12 lg:mt-16">
           <button
-            onClick={() => window.location.href = '/signup'}
+            onClick={handleCreateVault}
             className="px-[32px] py-[12px] bg-[#2962FF] text-white rounded-[8px] font-medium text-[16px] hover:bg-[#1E53E5] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_4px_8px_rgba(41,98,255,0.25)]"
           >
             Create Your First Vault
