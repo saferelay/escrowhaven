@@ -66,7 +66,19 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // HELPER FUNCTION
+  // ADD THIS DEBUG CODE HERE - RIGHT AFTER THE HOOKS
+  useEffect(() => {
+    console.log('=== DASHBOARD DEBUG ===');
+    console.log('authenticated:', authenticated);
+    console.log('ready:', ready);
+    console.log('privyUser exists:', !!privyUser);
+    if (privyUser) {
+      console.log('privyUser.email:', privyUser.email);
+      console.log('privyUser.google:', privyUser.google);
+      console.log('Full privyUser:', privyUser);
+    }
+  }, [privyUser, authenticated, ready]);
+
 const getUserEmail = (): string | null => {
   if (!privyUser) return null;
   
