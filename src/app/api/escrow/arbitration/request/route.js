@@ -62,6 +62,7 @@ export async function POST(request) {
         arbitrationCost = await arbitrator.arbitrationCost("0x");
       }
       
+      
       console.log('Arbitration cost:', arbitrationCost.toString());
       
       // Request arbitration
