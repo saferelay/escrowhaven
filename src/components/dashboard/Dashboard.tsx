@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import clsx from 'clsx';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePrivy } from '@privy-io/react-auth';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CreateEscrowWizard } from '@/components/escrow/CreateEscrowWizard';
 import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
@@ -59,7 +60,9 @@ const isStaging = process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
 const PAGE_SIZE = 20;
 
 export function Dashboard({ onNavigate }: DashboardProps) {
-  const { user, supabase, loading: authLoading, signOut } = useAuth();
+  const { supabase } = useAuth();
+  const { user: privyUser, authenticated, ready, logout } = usePrivy();
+  const authLoading = !ready;
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -159,9 +162,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   // Helper function
   const needsAction = (escrow: any) => {
-    const isReceiver = user?.email === escrow.freelancer_email;
-    const isPayer = user?.email === escrow.client_email;
-    const isInitiator = escrow.initiator_email === user?.email;
+    const isReceiver = privyUser?.email?.address === escrow.freelancer_email;
+    const isPayer = privyUser?.email?.address === escrow.client_email;
+    const isInitiator = escrow.initiator_email === privyUser?.email?.address;
   
     // Handle cancelled/declined first
     if (['CANCELLED', 'DECLINED'].includes(escrow.status)) {
@@ -206,13 +209,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   // Fetch folder counts
   const fetchFolderCounts = useCallback(async () => {
-    if (!supabase || !user?.email) return;
+    if (!supabase || !privyUser?.email?.address) return;
     
     return dedupeFetch('folder-counts', async () => {
       try {
         const { data, error } = await supabase
           .rpc('get_folder_counts_cached', {
-            user_email: user.email,
+            user_email: privyUser.email.address,
             env: isProduction ? 'production' : 'development'
           });
         
@@ -252,16 +255,16 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         });
       }
     });
-  }, [supabase, user?.email, isProduction, dedupeFetch]);
+  }, [supabase, privyUser?.email?.address, isProduction, dedupeFetch]);
 
   // Fetch metrics
   const fetchMetrics = useCallback(async () => {
-    if (!supabase || !user?.email) return;
+    if (!supabase || !privyUser?.email?.address) return;
     
     try {
       const { data: metricsResult, error: metricsError } = await supabase
         .rpc('get_user_metrics', { 
-          p_user_email: user.email,
+          p_user_email: privyUser.email.address,
           p_env: isProduction ? 'production' : 'development'
         });
       
@@ -322,11 +325,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         refundedCount: 0,
       });
     }
-  }, [supabase, user?.email, isProduction]);
+  }, [supabase, privyUser?.email?.address, isProduction]);
 
   // Fetch escrows
   const fetchEscrows = useCallback(async (reset = false, folder: Folder = activeFolder) => {
-    if (!supabase || !user?.email) return;
+    if (!supabase || !privyUser?.email?.address) return;
     
     if (loadingRef.current) return;
     if (!reset && !hasMore) return;
@@ -341,7 +344,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       
       const { data: escrowsResult, error } = await supabase
         .rpc('get_folder_items_cached', {
-          p_user_email: user.email,
+          p_user_email: privyUser.email.address,
           p_folder: folder,
           p_limit: PAGE_SIZE,
           p_offset: pageToLoad * PAGE_SIZE,
@@ -387,16 +390,16 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       loadingRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [supabase, user?.email, isProduction, currentPage, hasMore, activeFolder, isInitialLoad, fetchMetrics, fetchFolderCounts]);
+  }, [supabase, privyUser?.email?.address, isProduction, currentPage, hasMore, activeFolder, isInitialLoad, fetchMetrics, fetchFolderCounts]);
 
   const fetchWithdrawals = useCallback(async () => {
-    if (!user?.email || !supabase) return;
+    if (!privyUser?.email?.address || !supabase) return;
     
     try {
       const { data, error } = await supabase
         .from('withdrawals')
         .select('*')
-        .eq('user_email', user.email)
+        .eq('user_email', privyUser.email.address)
         .order('created_at', { ascending: false })
         .limit(20);
       
@@ -409,7 +412,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     } catch (err: any) {
       console.error('Error fetching withdrawals:', err?.message || err);
     }
-  }, [supabase, user?.email]);
+  }, [supabase, privyUser?.email?.address]);
 
   // Handle folder change
   const handleFolderChange = useCallback((folder: Folder) => {
@@ -446,13 +449,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   // Handle withdraw
   const handleWithdraw = async () => {
-    if (metrics.availableToWithdraw === 0 || !supabase || !user?.email) return;
+    if (metrics.availableToWithdraw === 0 || !supabase || !privyUser?.email?.address) return;
     
     try {
       const { data: walletData } = await supabase
         .from('user_wallets')
         .select('wallet_address')
-        .eq('email', user.email)
+        .eq('email', privyUser.email.address)
         .single();
         
       if (!walletData?.wallet_address) {
@@ -463,7 +466,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       const { data: withdrawal, error } = await supabase
         .from('withdrawals')
         .insert({
-          user_email: user.email,
+          user_email: privyUser.email.address,
           amount_cents: Math.floor(metrics.availableToWithdraw * 100),
           wallet_address: walletData.wallet_address,
           status: 'PENDING',
@@ -504,24 +507,24 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   // Initial load
   useEffect(() => {
-    if (!authLoading && user?.email && supabase && isInitialLoad) {
+    if (!authLoading && privyUser?.email?.address && supabase && isInitialLoad) {
       const initFetch = async () => {
         await fetchEscrows(true, activeFolder);
         await fetchWithdrawals();
       };
       initFetch();
     }
-  }, [authLoading, user?.email, supabase, isInitialLoad]);
+  }, [authLoading, privyUser?.email?.address, supabase, isInitialLoad]);
 
   // Check for feedback needed
   useEffect(() => {
     const checkForFeedback = async () => {
-      if (!user?.email || !supabase) return;
+      if (!privyUser?.email?.address || !supabase) return;
       
       const { data: completedEscrows } = await supabase
         .from('escrows')
         .select('id')
-        .or(`client_email.eq.${user.email},freelancer_email.eq.${user.email}`)
+        .or(`client_email.eq.${privyUser.email.address},freelancer_email.eq.${privyUser.email.address}`)
         .eq('status', 'RELEASED')
         .is('feedback_given', null)
         .limit(1);
@@ -536,18 +539,18 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }, 2000);
     
     return () => clearTimeout(timer);
-  }, [user?.email, supabase]);
+  }, [privyUser?.email?.address, supabase]);
   
   // Reset when user changes
   useEffect(() => {
-    if (user?.email) {
+    if (privyUser?.email?.address) {
       setEscrows([]);
       setCurrentPage(0);
       setHasMore(true);
       setIsInitialLoad(true);
       loadingRef.current = false;
     }
-  }, [user?.email]);
+  }, [privyUser?.email?.address]);
 
   // Intersection Observer
   useEffect(() => {
@@ -585,13 +588,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   // Real-time subscription
   useEffect(() => {
-    if (!supabase || !user?.email) return;
+    if (!supabase || !privyUser?.email?.address) return;
     
     let updateTimeout: NodeJS.Timeout;
     let metricsTimeout: NodeJS.Timeout;
     
     const channel = supabase
-      .channel(`dashboard-${user.email}`)
+      .channel(`dashboard-${privyUser.email.address}`)
       .on(
         'postgres_changes',
         {
@@ -601,7 +604,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         },
         (payload) => {
           const escrow = payload.new;
-          if (escrow.client_email === user.email || escrow.freelancer_email === user.email) {
+          if (escrow.client_email === privyUser.email.address || escrow.freelancer_email === privyUser.email.address) {
             setEscrows(prev => {
               const index = prev.findIndex(e => e.id === escrow.id);
               if (index >= 0) {
@@ -634,7 +637,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         },
         (payload) => {
           const escrow = payload.new;
-          if (escrow.client_email === user.email || escrow.freelancer_email === user.email) {
+          if (escrow.client_email === privyUser.email.address || escrow.freelancer_email === privyUser.email.address) {
             if (activeFolder === 'all') {
               setEscrows(prev => [escrow, ...prev]);
               setTotalEscrowCount(prev => prev + 1);
@@ -655,7 +658,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       clearTimeout(metricsTimeout);
       supabase.removeChannel(channel);
     };
-  }, [supabase, user?.email, activeFolder]);
+  }, [supabase, privyUser?.email?.address, activeFolder]);
 
   // Mobile detection
   useEffect(() => {
@@ -678,7 +681,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
   }, [searchParams, escrows, urlEscrowProcessed]);
 
-  useEffect(() => setUrlEscrowProcessed(false), [user?.email]);
+  useEffect(() => setUrlEscrowProcessed(false), [privyUser?.email?.address]);
 
   // Resize handler
   useEffect(() => {
@@ -858,8 +861,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     arr.sort((a, b) => {
       let v = 0;
       if (sortBy === 'party') {
-        const aParty = user?.email === a.client_email ? a.freelancer_email : a.client_email;
-        const bParty = user?.email === b.client_email ? b.freelancer_email : b.client_email;
+        const aParty = privyUser?.email?.address === a.client_email ? a.freelancer_email : a.client_email;
+        const bParty = privyUser?.email?.address === b.client_email ? b.freelancer_email : b.client_email;
         v = String(aParty).localeCompare(String(bParty));
       } else if (sortBy === 'amount') {
         v = a.amount_cents - b.amount_cents;
@@ -875,11 +878,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       return sortOrder === 'asc' ? v : -v;
     });
     return arr;
-  }, [filteredEscrows, sortBy, sortOrder, user, needsAction]);
+  }, [filteredEscrows, sortBy, sortOrder, privyUser, needsAction]);
 
   // Render transaction row
   const renderTransactionRow = (e: any) => {
-    const isReceiver = user?.email === e.freelancer_email;
+    const isReceiver = privyUser?.email?.address === e.freelancer_email;
     const otherParty = isReceiver ? e.client_email : e.freelancer_email;
     const amount = (e.amount_cents / 100).toFixed(2);
     const time = getRelativeTime(e.updated_at || e.created_at);
@@ -1099,7 +1102,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-[#F8F9FD] transition-colors"
                 >
                   <div className="h-8 w-8 flex items-center justify-center rounded-full bg-[#F3F4F6]">
-                    <span className="text-[13px] font-medium">{user?.email?.[0]?.toUpperCase()}</span>
+                    <span className="text-[13px] font-medium">{privyUser?.email?.address?.[0]?.toUpperCase()}</span>
                   </div>
                   <ChevronDown size={16} className={clsx('text-[#64748B] transition-transform', profileDropdownOpen && 'rotate-180')} />
                 </button>
@@ -1107,11 +1110,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 {profileDropdownOpen && (
                   <div className="absolute right-0 mt-1 w-64 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
                     <div className="px-4 py-2 border-b border-[#E2E8F0]">
-                      <div className="text-[13px] font-medium text-black truncate">{user?.email}</div>
+                      <div className="text-[13px] font-medium text-black truncate">{privyUser?.email?.address}</div>
                     </div>
                     <button
                         onClick={async () => {
-                          await signOut();
+                          await logout();
                           router.push('/');
                         }}
                       className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
@@ -1156,7 +1159,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 className="flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-[#F8F9FD] transition-colors"
               >
                 <div className="h-7 w-7 flex items-center justify-center rounded-full bg-[#F3F4F6]">
-                  <span className="text-[11px] font-medium">{user?.email?.[0]?.toUpperCase()}</span>
+                  <span className="text-[11px] font-medium">{privyUser?.email?.address?.[0]?.toUpperCase()}</span>
                 </div>
                 <ChevronDown size={14} className={clsx('text-[#64748B] transition-transform', profileDropdownOpen && 'rotate-180')} />
               </button>
@@ -1164,11 +1167,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               {profileDropdownOpen && (
                 <div className="absolute right-0 mt-1 w-56 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
                   <div className="px-4 py-2 border-b border-[#E2E8F0]">
-                    <div className="text-[12px] font-medium text-black truncate">{user?.email}</div>
+                    <div className="text-[12px] font-medium text-black truncate">{privyUser?.email?.address}</div>
                   </div>
                   <button
                         onClick={async () => {
-                          await signOut();
+                          await logout();
                           router.push('/');
                         }}
                   className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
@@ -1253,7 +1256,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 const message = prompt('Found a bug or have feedback?');
                 if (message) {
                   supabase.from('feedback').insert({
-                    user_email: user?.email,
+                    user_email: privyUser?.email?.address,
                     feedback: message,
                     type: 'manual_feedback',
                     url: window.location.href
@@ -1514,7 +1517,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   const message = prompt('Found a bug or have feedback?');
                   if (message) {
                     supabase.from('feedback').insert({
-                      user_email: user?.email,
+                      user_email: privyUser?.email?.address,
                       feedback: message,
                       type: 'manual_feedback',
                       url: window.location.href
@@ -1608,7 +1611,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   if (selectedScore !== null) {
                     const feedbackText = (document.getElementById('feedback-text') as HTMLTextAreaElement)?.value;
                     await supabase.from('feedback').insert({
-                      user_email: user?.email,
+                      user_email: privyUser?.email?.address,
                       nps_score: selectedScore,
                       feedback: feedbackText || null,
                       type: 'nps',
