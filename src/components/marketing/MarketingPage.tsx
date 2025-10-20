@@ -14,7 +14,6 @@ import { Pricing } from './sections/Pricing';
 import { FinalCTA } from './sections/FinalCTA';
 import { Footer } from './sections/Footer';
 
-
 export default function MarketingPage() {
   return (
     <div className="min-h-screen">
