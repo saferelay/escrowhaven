@@ -166,15 +166,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    if (ready && authenticated && privyUser) {
-      const currentPath = window.location.pathname;
+ // useEffect(() => {
+ //   if (ready && authenticated && privyUser) {
+ //     const currentPath = window.location.pathname;
       // If on login/signup/home pages, redirect to dashboard
-      if (currentPath === '/' || currentPath === '/login' || currentPath === '/signup') {
-        router.push('/dashboard');
-      }
-    }
-  }, [ready, authenticated, privyUser, router]);
+ //     if (currentPath === '/' || currentPath === '/login' || currentPath === '/signup') {
+ //       router.push('/dashboard');
+ //     }
+ //   }
+//  }, [ready, authenticated, privyUser, router]);
 
   return (
     <AuthContext.Provider value={{ 
