@@ -10,8 +10,10 @@ export default function Page() {
   const router = useRouter();
 
   useEffect(() => {
-    if (ready && authenticated) {
-      router.push('/dashboard');
+    if (!ready) return; // Wait until Privy is initialized
+
+    if (authenticated) {
+      router.replace('/dashboard');
     }
   }, [ready, authenticated, router]);
 
@@ -21,6 +23,11 @@ export default function Page() {
         <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-200 border-t-blue-600"></div>
       </div>
     );
+  }
+
+  if (authenticated) {
+    // Just in case the useEffect hasn’t redirected yet
+    return null;
   }
 
   return <MarketingPage />;
