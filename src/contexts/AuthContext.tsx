@@ -157,6 +157,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setError(null);
       await logout();
+      const [supabaseResult, privyResult] = await Promise.allSettled([
+        supabase.auth.signOut({ scope: 'local' }),
+        logout(),
+      ]);
+
+      if (privyResult.status === 'rejected') {
+        throw privyResult.reason;
+      }
+
+      if (supabaseResult.status === 'rejected') {
+        console.error('Supabase sign out failed:', supabaseResult.reason);
+      } else if (supabaseResult.value?.error) {
+        console.error('Supabase sign out error:', supabaseResult.value.error);
+      }
       setSession(null);
       setUser(null);
       router.push('/');
