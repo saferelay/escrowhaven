@@ -1,7 +1,7 @@
-// src/app/layout.tsx
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { PrivyProvider } from '@privy-io/react-auth';
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SessionRefreshProvider } from "../providers/SessionRefreshProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next"
@@ -33,13 +33,25 @@ export default function RootLayout({
         className={inter.className}
         suppressHydrationWarning={true}
       >
-        <AuthProvider>
-          <SessionRefreshProvider>
-            {children}
-            <SpeedInsights />  
-            <Analytics />
-          </SessionRefreshProvider>
-        </AuthProvider>
+        <PrivyProvider
+          appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || ''}
+          config={{
+            appearance: {
+              theme: 'light',
+              accentColor: '#2962FF',
+              logo: '/logo.svg',
+            },
+            loginMethods: ['email', 'google'],
+          }}
+        >
+          <AuthProvider>
+            <SessionRefreshProvider>
+              {children}
+              <SpeedInsights />  
+              <Analytics />
+            </SessionRefreshProvider>
+          </AuthProvider>
+        </PrivyProvider>
       </body>
     </html>
   );

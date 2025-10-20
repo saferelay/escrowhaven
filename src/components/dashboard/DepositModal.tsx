@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePrivy } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
 
 const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359';
@@ -10,47 +10,20 @@ const USDC_ABI = ['function balanceOf(address owner) view returns (uint256)'];
 interface DepositModalProps {
   isOpen: boolean;
   onClose: () => void;
-  suggestedAmount?: number; // Optional pre-fill amount
+  suggestedAmount?: number;
 }
 
 export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalProps) {
-  const { user, supabase, ensureWallet } = useAuth();
-  const [walletAddress, setWalletAddress] = useState<string>('');
+  const { user, authenticated } = usePrivy();
   const [balance, setBalance] = useState<string>('0');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  
-  // Form state
   const [amount, setAmount] = useState<string>(suggestedAmount?.toString() || '');
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank'>('card');
-
-  // Fetch wallet address
-  useEffect(() => {
-    const fetchWallet = async () => {
-      if (!user?.email || !supabase || !isOpen) return;
-      
-      try {
-        const { data } = await supabase
-          .from('user_wallets')
-          .select('wallet_address')
-          .eq('email', user.email)
-          .single();
-        
-        if (data?.wallet_address) {
-          setWalletAddress(data.wallet_address);
-        }
-      } catch (error) {
-        console.error('Failed to fetch wallet:', error);
-      }
-    };
-
-    fetchWallet();
-  }, [user?.email, supabase, isOpen]);
 
   // Fetch balance
   useEffect(() => {
     const fetchBalance = async () => {
-      if (!walletAddress || !isOpen) return;
+      if (!user?.wallet?.address || !isOpen) return;
       
       try {
         const provider = new ethers.providers.JsonRpcProvider(
@@ -58,7 +31,7 @@ export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalP
         );
         
         const usdcContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, provider);
-        const balance = await usdcContract.balanceOf(walletAddress);
+        const balance = await usdcContract.balanceOf(user.wallet.address);
         const formatted = ethers.utils.formatUnits(balance, 6);
         
         setBalance(parseFloat(formatted).toFixed(2));
@@ -70,7 +43,7 @@ export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalP
     };
 
     fetchBalance();
-  }, [walletAddress, isOpen]);
+  }, [user?.wallet?.address, isOpen]);
 
   // Pre-fill suggested amount
   useEffect(() => {
@@ -80,37 +53,39 @@ export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalP
   }, [suggestedAmount]);
 
   const handleDeposit = async () => {
-    try {
-      const depositAmount = parseFloat(amount);
-      
-      if (!depositAmount || depositAmount < 10) {
-        alert('Minimum deposit is $10');
-        return;
-      }
+    if (!authenticated || !user?.wallet?.address || !user?.email) {
+      alert('Please sign in first');
+      return;
+    }
 
-      setProcessing(true);
-      await ensureWallet();
+    const depositAmount = parseFloat(amount);
+    
+    if (!depositAmount || depositAmount < 10) {
+      alert('Minimum deposit is $10');
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      // Use Onramp.money for deposits
+      const { createOnrampDirectWidget } = await import('@/lib/onramp');
       
-      if (!walletAddress) {
-        alert('Please connect first');
-        return;
-      }
-      
-      // Use MoonPay with the specified amount and payment preference
-      const { createMoonPayOnramp } = await import('@/lib/moonpay');
-      
-      const moonPayWidget = await createMoonPayOnramp({
-        email: user?.email || '',
-        walletAddress: walletAddress,
-        amount: depositAmount,
+      const onrampUrl = createOnrampDirectWidget({
+        email: user.email.address,
+        targetUsdcAmount: depositAmount,
         escrowId: `deposit-${Date.now()}`,
+        vaultAddress: user.wallet.address,
+        isTestMode: process.env.NEXT_PUBLIC_MOONPAY_MODE !== 'production'
       });
 
-      moonPayWidget.show();
+      // Open in new window
+      window.open(onrampUrl, '_blank', 'width=500,height=700');
       onClose();
       
     } catch (error) {
       console.error('Deposit failed:', error);
+      alert('Failed to open deposit widget');
     } finally {
       setProcessing(false);
     }
@@ -173,69 +148,6 @@ export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalP
             <p className="text-xs text-[#787B86] mt-2">Minimum $10</p>
           </div>
 
-          {/* Payment Method */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-black mb-3">
-              Payment Method
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              
-              {/* Credit/Debit Card */}
-              <button
-                onClick={() => setPaymentMethod('card')}
-                className={`
-                  border rounded-lg p-4 text-left transition-all
-                  ${paymentMethod === 'card' 
-                    ? 'border-[#2962FF] bg-[#F8F9FD]' 
-                    : 'border-[#E0E2E7] bg-white hover:border-[#787B86]'
-                  }
-                `}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <svg className="w-6 h-6 text-[#787B86]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                  {paymentMethod === 'card' && (
-                    <div className="w-4 h-4 rounded-full bg-[#2962FF] flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                <div className="text-sm font-medium text-black">Card</div>
-                <div className="text-xs text-[#787B86] mt-1">Credit or Debit</div>
-              </button>
-
-              {/* Bank Transfer */}
-              <button
-                onClick={() => setPaymentMethod('bank')}
-                className={`
-                  border rounded-lg p-4 text-left transition-all
-                  ${paymentMethod === 'bank' 
-                    ? 'border-[#2962FF] bg-[#F8F9FD]' 
-                    : 'border-[#E0E2E7] bg-white hover:border-[#787B86]'
-                  }
-                `}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <svg className="w-6 h-6 text-[#787B86]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-                  </svg>
-                  {paymentMethod === 'bank' && (
-                    <div className="w-4 h-4 rounded-full bg-[#2962FF] flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                <div className="text-sm font-medium text-black">Bank</div>
-                <div className="text-xs text-[#787B86] mt-1">ACH Transfer</div>
-              </button>
-            </div>
-          </div>
-
           {/* Info Box */}
           <div className="flex items-start gap-3 p-4 bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg mb-6">
             <svg className="w-5 h-5 text-[#2962FF] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -243,7 +155,7 @@ export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalP
             </svg>
             <div>
               <p className="text-xs text-[#787B86] leading-relaxed">
-                Powered by MoonPay. Funds arrive instantly and can be used immediately for escrow transactions.
+                Powered by Onramp.money. Funds arrive instantly and can be used immediately.
               </p>
             </div>
           </div>
@@ -251,10 +163,10 @@ export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalP
           {/* Action Button */}
           <button
             onClick={handleDeposit}
-            disabled={processing || !isValidAmount}
+            disabled={processing || !isValidAmount || !authenticated}
             className="w-full py-3 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {processing ? 'Opening MoonPay...' : `Deposit $${amount || '0'}`}
+            {processing ? 'Opening...' : `Deposit $${amount || '0'}`}
           </button>
         </div>
       </div>

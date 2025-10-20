@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePrivy } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
-
 
 const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359';
 const USDC_ABI = ['function balanceOf(address owner) view returns (uint256)'];
@@ -14,39 +13,15 @@ interface WithdrawModalProps {
 }
 
 export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
-  const { user, supabase, ensureWallet } = useAuth();
-  const [walletAddress, setWalletAddress] = useState<string>('');
+  const { user, authenticated } = usePrivy();
   const [balance, setBalance] = useState<string>('0');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
-  // Fetch wallet address
-  useEffect(() => {
-    const fetchWallet = async () => {
-      if (!user?.email || !supabase || !isOpen) return;
-      
-      try {
-        const { data } = await supabase
-          .from('user_wallets')
-          .select('wallet_address')
-          .eq('email', user.email)
-          .single();
-        
-        if (data?.wallet_address) {
-          setWalletAddress(data.wallet_address);
-        }
-      } catch (error) {
-        console.error('Failed to fetch wallet:', error);
-      }
-    };
-
-    fetchWallet();
-  }, [user?.email, supabase, isOpen]);
-
   // Fetch balance
   useEffect(() => {
     const fetchBalance = async () => {
-      if (!walletAddress || !isOpen) return;
+      if (!user?.wallet?.address || !isOpen) return;
       
       try {
         const provider = new ethers.providers.JsonRpcProvider(
@@ -54,7 +29,7 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
         );
         
         const usdcContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, provider);
-        const balance = await usdcContract.balanceOf(walletAddress);
+        const balance = await usdcContract.balanceOf(user.wallet.address);
         const formatted = ethers.utils.formatUnits(balance, 6);
         
         setBalance(parseFloat(formatted).toFixed(2));
@@ -66,38 +41,40 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
     };
 
     fetchBalance();
-  }, [walletAddress, isOpen]);
+  }, [user?.wallet?.address, isOpen]);
 
   const handleWithdraw = async () => {
-    try {
-      if (parseFloat(balance) < 1) {
-        alert('Minimum withdrawal is $1 USDC');
-        return;
-      }
+    if (!authenticated || !user?.wallet?.address || !user?.email) {
+      alert('Please sign in first');
+      return;
+    }
 
-      setProcessing(true);
-      await ensureWallet();
+    if (parseFloat(balance) < 1) {
+      alert('Minimum withdrawal is $1 USDC');
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      // Use Onramp.money for withdrawals
+      const { createOfframpWidget } = await import('@/lib/offramp');
       
-      if (!walletAddress) {
-        alert('Please connect your wallet first');
-        return;
-      }
-      
-      // Use MoonPay for withdrawals
-      const { createMoonPayOfframp } = await import('@/lib/moonpay');
-      
-      const moonPayWidget = await createMoonPayOfframp({
-        email: user?.email || '',
-        walletAddress: walletAddress,
-        amount: parseFloat(balance),
+      const offrampUrl = createOfframpWidget({
+        email: user.email.address,
+        usdcAmount: parseFloat(balance),
         withdrawalId: `withdrawal-${Date.now()}`,
+        userWalletAddress: user.wallet.address,
+        isTestMode: process.env.NEXT_PUBLIC_MOONPAY_MODE !== 'production'
       });
 
-      moonPayWidget.show();
+      // Open offramp widget
+      window.open(offrampUrl, '_blank', 'width=500,height=700');
       onClose();
       
     } catch (error) {
       console.error('Withdrawal failed:', error);
+      alert('Failed to open withdrawal widget');
     } finally {
       setProcessing(false);
     }
@@ -110,6 +87,7 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
+        
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#E0E2E7] px-6 py-4">
           <h3 className="text-lg font-medium text-black">Withdraw Cash</h3>
@@ -125,6 +103,7 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
 
         {/* Content */}
         <div className="p-6">
+          
           {/* Available Balance */}
           <div className="bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg p-4 mb-6">
             <div className="text-xs text-[#787B86] mb-1">Available to Withdraw</div>
@@ -139,7 +118,7 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
           {/* Info */}
           <div className="mb-6">
             <p className="text-sm text-[#787B86] mb-4">
-              Withdraw funds from your wallet to your bank account using MoonPay.
+              Withdraw funds from your wallet to your bank account using Onramp.money.
             </p>
             
             {!canWithdraw && (
@@ -159,7 +138,7 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-xs text-[#787B86]">
-                  Withdrawals are processed via MoonPay and typically arrive in 1-3 business days.
+                  Withdrawals are processed via Onramp.money. Your wallet will connect automatically.
                 </p>
               </div>
             )}
@@ -168,10 +147,10 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
           {/* Action Button */}
           <button
             onClick={handleWithdraw}
-            disabled={processing || !canWithdraw}
+            disabled={processing || !canWithdraw || !authenticated}
             className="w-full py-3 bg-[#2962FF] text-white rounded-lg hover:bg-[#1E53E5] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {processing ? 'Opening MoonPay...' : 'Continue to MoonPay'}
+            {processing ? 'Opening...' : 'Withdraw to Bank'}
           </button>
         </div>
       </div>
