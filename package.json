@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.28.2",
+    "@magic-ext/connect": "^9.1.0",
     "@moonpay/moonpay-js": "^0.7.5",
     "@moonpay/moonpay-node": "^0.2.12",
     "@onramp.money/onramp-web-sdk": "^1.7.0",

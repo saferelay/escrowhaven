@@ -1,5 +1,6 @@
 // src/lib/magic.ts
 import { Magic } from 'magic-sdk';
+import { ConnectExtension } from '@magic-ext/connect';
 
 let magic: Magic | null = null;
 
@@ -20,7 +21,8 @@ if (typeof window !== 'undefined') {
     console.log(`🔧 Initializing Magic with network: ${network} (${isSandbox ? 'sandbox' : 'production'} mode)`);
     
     magic = new Magic(key, {
-      network: network as any
+      network: network as any,
+      extensions: [new ConnectExtension()]
     });
   }
 }
@@ -101,4 +103,41 @@ export async function getCurrentMagicUser() {
 
 export function getMagicInstance() {
   return magic;
+}
+
+// NEW: Get Magic's Web3 provider for compatibility
+export async function getMagicProvider() {
+  if (!magic) {
+    throw new Error('Magic not initialized');
+  }
+  
+  const isLoggedIn = await magic.user.isLoggedIn();
+  if (!isLoggedIn) {
+    throw new Error('User not logged in to Magic');
+  }
+  
+  // Magic's rpcProvider is Web3-compatible
+  return magic.rpcProvider;
+}
+
+// NEW: Get WalletConnect URI for external dApps like Onramp offramp
+export async function getMagicWalletConnectURI(): Promise<string> {
+  if (!magic?.connect) {
+    throw new Error('Magic Connect extension not initialized');
+  }
+  
+  const isLoggedIn = await magic.user.isLoggedIn();
+  if (!isLoggedIn) {
+    throw new Error('User not logged in to Magic');
+  }
+  
+  try {
+    // Generate WalletConnect URI
+    const uri = await magic.connect.getWalletConnectUri();
+    console.log('Generated WalletConnect URI:', uri.slice(0, 50) + '...');
+    return uri;
+  } catch (error: any) {
+    console.error('Failed to get WalletConnect URI:', error);
+    throw new Error(`WalletConnect initialization failed: ${error.message}`);
+  }
 }
