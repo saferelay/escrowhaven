@@ -66,6 +66,23 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  // Email getter - handles both email/password and Google OAuth
+  const getUserEmail = useCallback((): string | null => {
+    if (!privyUser) return null;
+    
+    // Email auth
+    if (privyUser.email?.address) {
+      return privyUser.email.address;
+    }
+    
+    // Google OAuth
+    if (privyUser.google?.email) {
+      return privyUser.google.email;
+    }
+    
+    return null;
+  }, [privyUser]);
+
   // Data
   const [escrows, setEscrows] = useState<any[]>([]);
   const [totalEscrowCount, setTotalEscrowCount] = useState(0);
@@ -144,7 +161,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [depositSuggestedAmount, setDepositSuggestedAmount] = useState<number | undefined>();
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
-  // Add after the state declaration
   const fetchPromises = useRef<Map<string, Promise<any>>>(new Map());
 
   // Helper to deduplicate concurrent requests
@@ -161,12 +177,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   }, []);
 
   // Helper function
-  const needsAction = (escrow: any) => {
-    const isReceiver = privyUser?.email?.address === escrow.freelancer_email;
-    const isPayer = privyUser?.email?.address === escrow.client_email;
-    const isInitiator = escrow.initiator_email === privyUser?.email?.address;
+  const needsAction = useCallback((escrow: any) => {
+    const userEmail = getUserEmail();
+    const isReceiver = userEmail === escrow.freelancer_email;
+    const isPayer = userEmail === escrow.client_email;
+    const isInitiator = escrow.initiator_email === userEmail;
   
-    // Handle cancelled/declined first
     if (['CANCELLED', 'DECLINED'].includes(escrow.status)) {
       return { label: 'Closed', primary: false };
     }
@@ -205,17 +221,18 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
     
     return { label: 'Waiting', primary: false };
-  };
+  }, [getUserEmail]);
 
   // Fetch folder counts
   const fetchFolderCounts = useCallback(async () => {
-    if (!supabase || !privyUser?.email?.address) return;
+    const userEmail = getUserEmail();
+    if (!supabase || !userEmail) return;
     
     return dedupeFetch('folder-counts', async () => {
       try {
         const { data, error } = await supabase
           .rpc('get_folder_counts_cached', {
-            user_email: privyUser.email.address,
+            user_email: userEmail,
             env: isProduction ? 'production' : 'development'
           });
         
@@ -255,16 +272,17 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         });
       }
     });
-  }, [supabase, privyUser?.email?.address, isProduction, dedupeFetch]);
+  }, [supabase, getUserEmail, isProduction, dedupeFetch]);
 
   // Fetch metrics
   const fetchMetrics = useCallback(async () => {
-    if (!supabase || !privyUser?.email?.address) return;
+    const userEmail = getUserEmail();
+    if (!supabase || !userEmail) return;
     
     try {
       const { data: metricsResult, error: metricsError } = await supabase
         .rpc('get_user_metrics', { 
-          p_user_email: privyUser.email.address,
+          p_user_email: userEmail,
           p_env: isProduction ? 'production' : 'development'
         });
       
@@ -325,11 +343,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         refundedCount: 0,
       });
     }
-  }, [supabase, privyUser?.email?.address, isProduction]);
+  }, [supabase, getUserEmail, isProduction]);
 
   // Fetch escrows
   const fetchEscrows = useCallback(async (reset = false, folder: Folder = activeFolder) => {
-    if (!supabase || !privyUser?.email?.address) return;
+    const userEmail = getUserEmail();
+    if (!supabase || !userEmail) return;
     
     if (loadingRef.current) return;
     if (!reset && !hasMore) return;
@@ -344,7 +363,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       
       const { data: escrowsResult, error } = await supabase
         .rpc('get_folder_items_cached', {
-          p_user_email: privyUser.email.address,
+          p_user_email: userEmail,
           p_folder: folder,
           p_limit: PAGE_SIZE,
           p_offset: pageToLoad * PAGE_SIZE,
@@ -390,16 +409,17 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       loadingRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [supabase, privyUser?.email?.address, isProduction, currentPage, hasMore, activeFolder, isInitialLoad, fetchMetrics, fetchFolderCounts]);
+  }, [supabase, getUserEmail, isProduction, currentPage, hasMore, activeFolder, isInitialLoad, fetchMetrics, fetchFolderCounts]);
 
   const fetchWithdrawals = useCallback(async () => {
-    if (!privyUser?.email?.address || !supabase) return;
+    const userEmail = getUserEmail();
+    if (!userEmail || !supabase) return;
     
     try {
       const { data, error } = await supabase
         .from('withdrawals')
         .select('*')
-        .eq('user_email', privyUser.email.address)
+        .eq('user_email', userEmail)
         .order('created_at', { ascending: false })
         .limit(20);
       
@@ -412,7 +432,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     } catch (err: any) {
       console.error('Error fetching withdrawals:', err?.message || err);
     }
-  }, [supabase, privyUser?.email?.address]);
+  }, [supabase, getUserEmail]);
 
   // Handle folder change
   const handleFolderChange = useCallback((folder: Folder) => {
@@ -449,13 +469,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   // Handle withdraw
   const handleWithdraw = async () => {
-    if (metrics.availableToWithdraw === 0 || !supabase || !privyUser?.email?.address) return;
+    const userEmail = getUserEmail();
+    if (metrics.availableToWithdraw === 0 || !supabase || !userEmail) return;
     
     try {
       const { data: walletData } = await supabase
         .from('user_wallets')
         .select('wallet_address')
-        .eq('email', privyUser.email.address)
+        .eq('email', userEmail)
         .single();
         
       if (!walletData?.wallet_address) {
@@ -466,7 +487,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       const { data: withdrawal, error } = await supabase
         .from('withdrawals')
         .insert({
-          user_email: privyUser.email.address,
+          user_email: userEmail,
           amount_cents: Math.floor(metrics.availableToWithdraw * 100),
           wallet_address: walletData.wallet_address,
           status: 'PENDING',
@@ -507,24 +528,26 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   // Initial load
   useEffect(() => {
-    if (!authLoading && privyUser?.email?.address && supabase && isInitialLoad) {
+    const userEmail = getUserEmail();
+    if (!authLoading && userEmail && supabase && isInitialLoad) {
       const initFetch = async () => {
         await fetchEscrows(true, activeFolder);
         await fetchWithdrawals();
       };
       initFetch();
     }
-  }, [authLoading, privyUser?.email?.address, supabase, isInitialLoad]);
+  }, [authLoading, getUserEmail, supabase, isInitialLoad, fetchEscrows, fetchWithdrawals, activeFolder]);
 
   // Check for feedback needed
   useEffect(() => {
     const checkForFeedback = async () => {
-      if (!privyUser?.email?.address || !supabase) return;
+      const userEmail = getUserEmail();
+      if (!userEmail || !supabase) return;
       
       const { data: completedEscrows } = await supabase
         .from('escrows')
         .select('id')
-        .or(`client_email.eq.${privyUser.email.address},freelancer_email.eq.${privyUser.email.address}`)
+        .or(`client_email.eq.${userEmail},freelancer_email.eq.${userEmail}`)
         .eq('status', 'RELEASED')
         .is('feedback_given', null)
         .limit(1);
@@ -539,18 +562,19 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }, 2000);
     
     return () => clearTimeout(timer);
-  }, [privyUser?.email?.address, supabase]);
+  }, [getUserEmail, supabase]);
   
   // Reset when user changes
   useEffect(() => {
-    if (privyUser?.email?.address) {
+    const userEmail = getUserEmail();
+    if (userEmail) {
       setEscrows([]);
       setCurrentPage(0);
       setHasMore(true);
       setIsInitialLoad(true);
       loadingRef.current = false;
     }
-  }, [privyUser?.email?.address]);
+  }, [getUserEmail]);
 
   // Intersection Observer
   useEffect(() => {
@@ -584,17 +608,18 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         observer.unobserve(currentTarget);
       }
     };
-  }, [hasMore, isLoadingMore, activeFolder]);
+  }, [hasMore, isLoadingMore, activeFolder, fetchEscrows]);
 
   // Real-time subscription
   useEffect(() => {
-    if (!supabase || !privyUser?.email?.address) return;
+    const userEmail = getUserEmail();
+    if (!supabase || !userEmail) return;
     
     let updateTimeout: NodeJS.Timeout;
     let metricsTimeout: NodeJS.Timeout;
     
     const channel = supabase
-      .channel(`dashboard-${privyUser.email.address}`)
+      .channel(`dashboard-${userEmail}`)
       .on(
         'postgres_changes',
         {
@@ -604,7 +629,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         },
         (payload) => {
           const escrow = payload.new;
-          if (escrow.client_email === privyUser.email.address || escrow.freelancer_email === privyUser.email.address) {
+          if (escrow.client_email === userEmail || escrow.freelancer_email === userEmail) {
             setEscrows(prev => {
               const index = prev.findIndex(e => e.id === escrow.id);
               if (index >= 0) {
@@ -637,7 +662,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         },
         (payload) => {
           const escrow = payload.new;
-          if (escrow.client_email === privyUser.email.address || escrow.freelancer_email === privyUser.email.address) {
+          if (escrow.client_email === userEmail || escrow.freelancer_email === userEmail) {
             if (activeFolder === 'all') {
               setEscrows(prev => [escrow, ...prev]);
               setTotalEscrowCount(prev => prev + 1);
@@ -658,7 +683,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       clearTimeout(metricsTimeout);
       supabase.removeChannel(channel);
     };
-  }, [supabase, privyUser?.email?.address, activeFolder]);
+  }, [supabase, getUserEmail, activeFolder, fetchFolderCounts, fetchMetrics]);
 
   // Mobile detection
   useEffect(() => {
@@ -681,7 +706,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
   }, [searchParams, escrows, urlEscrowProcessed]);
 
-  useEffect(() => setUrlEscrowProcessed(false), [privyUser?.email?.address]);
+  useEffect(() => setUrlEscrowProcessed(false), [getUserEmail]);
 
   // Resize handler
   useEffect(() => {
@@ -858,11 +883,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   const sortedEscrows = useMemo(() => {
     const arr = [...filteredEscrows];
+    const userEmail = getUserEmail();
+    
     arr.sort((a, b) => {
       let v = 0;
       if (sortBy === 'party') {
-        const aParty = privyUser?.email?.address === a.client_email ? a.freelancer_email : a.client_email;
-        const bParty = privyUser?.email?.address === b.client_email ? b.freelancer_email : b.client_email;
+        const aParty = userEmail === a.client_email ? a.freelancer_email : a.client_email;
+        const bParty = userEmail === b.client_email ? b.freelancer_email : b.client_email;
         v = String(aParty).localeCompare(String(bParty));
       } else if (sortBy === 'amount') {
         v = a.amount_cents - b.amount_cents;
@@ -878,11 +905,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       return sortOrder === 'asc' ? v : -v;
     });
     return arr;
-  }, [filteredEscrows, sortBy, sortOrder, privyUser, needsAction]);
+  }, [filteredEscrows, sortBy, sortOrder, getUserEmail, needsAction]);
 
   // Render transaction row
   const renderTransactionRow = (e: any) => {
-    const isReceiver = privyUser?.email?.address === e.freelancer_email;
+    const userEmail = getUserEmail();
+    const isReceiver = userEmail === e.freelancer_email;
     const otherParty = isReceiver ? e.client_email : e.freelancer_email;
     const amount = (e.amount_cents / 100).toFixed(2);
     const time = getRelativeTime(e.updated_at || e.created_at);
@@ -980,7 +1008,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   }
 
   const displayCount = getFolderCount(activeFolder);
-  const totalInEscrowHaven = metrics.protectedInEscrow + metrics.availableToWithdraw;
 
   return (
     <div
@@ -990,22 +1017,22 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       {/* Header */}
       <header className="h-14 w-full border-b border-[#E5E7EB] bg-white flex-shrink-0">
         <div className="hidden md:grid h-full w-full" style={{ gridTemplateColumns: '15rem 1fr' }}>
-        <div className="flex items-center px-6">
-  <button onClick={() => onNavigate('marketing')} className="hover:opacity-80 transition-opacity">
-    <div className="flex items-center gap-2">
-      <Image 
-        src="/logo.svg" 
-        alt="EscrowHaven Logo" 
-        width={32} 
-        height={32}
-        className="w-8 h-8"
-      />
-      <span className="text-xl md:text-2xl font-medium tracking-tight text-black">
-        escrowhaven<span className="text-[#2962FF]">.io</span>
-      </span>
-    </div>
-  </button>
-</div>
+          <div className="flex items-center px-6">
+            <button onClick={() => onNavigate('marketing')} className="hover:opacity-80 transition-opacity">
+              <div className="flex items-center gap-2">
+                <Image 
+                  src="/logo.svg" 
+                  alt="EscrowHaven Logo" 
+                  width={32} 
+                  height={32}
+                  className="w-8 h-8"
+                />
+                <span className="text-xl md:text-2xl font-medium tracking-tight text-black">
+                  escrowhaven<span className="text-[#2962FF]">.io</span>
+                </span>
+              </div>
+            </button>
+          </div>
           <div className="flex items-center justify-between pr-6">
             <div className="flex items-center gap-2 pl-6">
               <div className="relative w-[320px]">
@@ -1038,62 +1065,61 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 </div>
               )}
               
-{/* Transfer Dropdown */}
-<div className="relative" ref={transferRef}>
-  <button
-    onClick={() => setTransferDropdownOpen(!transferDropdownOpen)}
-    className={clsx(
-      "inline-flex items-center justify-center rounded-md px-3 py-1.5 transition shadow-sm gap-1.5",
-      "bg-[#2962FF] text-white hover:bg-[#1E53E5]"
-    )}
-  >
-    {/* Bidirectional arrow icon */}
-    <svg 
-      className="w-4 h-4" 
-      fill="none" 
-      stroke="currentColor" 
-      viewBox="0 0 24 24"
-    >
-      <path 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
-        strokeWidth={2} 
-        d="M7 16V4m0 0L3 8m4-4l4 4m10 0v12m0 0l4-4m-4 4l-4-4" 
-      />
-    </svg>
-    <span>Transfer</span>
-    <ChevronDown size={14} className={clsx('transition-transform', transferDropdownOpen && 'rotate-180')} />
-  </button>
-  
-  {transferDropdownOpen && (
-    <div className="absolute right-0 mt-1 w-48 bg-white border border-[#E0E2E7] rounded-lg shadow-lg py-1 z-50">
-      <button
-        onClick={() => {
-          setTransferDropdownOpen(false);
-          setShowDepositModal(true);
-        }}
-        className="w-full text-left px-4 py-2 text-[13px] text-[#0F172A] hover:bg-[#F8F9FD] transition-colors flex items-center gap-2"
-      >
-        <svg className="w-4 h-4 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        Deposit Cash
-      </button>
-      <button
-        onClick={() => {
-          setTransferDropdownOpen(false);
-          setShowWithdrawModal(true);
-        }}
-        className="w-full text-left px-4 py-2 text-[13px] text-[#0F172A] hover:bg-[#F8F9FD] transition-colors flex items-center gap-2"
-      >
-        <svg className="w-4 h-4 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m0 0l-4-4m4 4l4-4" />
-        </svg>
-        Withdraw Cash
-      </button>
-    </div>
-  )}
-</div>
+              {/* Transfer Dropdown */}
+              <div className="relative" ref={transferRef}>
+                <button
+                  onClick={() => setTransferDropdownOpen(!transferDropdownOpen)}
+                  className={clsx(
+                    "inline-flex items-center justify-center rounded-md px-3 py-1.5 transition shadow-sm gap-1.5",
+                    "bg-[#2962FF] text-white hover:bg-[#1E53E5]"
+                  )}
+                >
+                  <svg 
+                    className="w-4 h-4" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M7 16V4m0 0L3 8m4-4l4 4m10 0v12m0 0l4-4m-4 4l-4-4" 
+                    />
+                  </svg>
+                  <span>Transfer</span>
+                  <ChevronDown size={14} className={clsx('transition-transform', transferDropdownOpen && 'rotate-180')} />
+                </button>
+                
+                {transferDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-48 bg-white border border-[#E0E2E7] rounded-lg shadow-lg py-1 z-50">
+                    <button
+                      onClick={() => {
+                        setTransferDropdownOpen(false);
+                        setShowDepositModal(true);
+                      }}
+                      className="w-full text-left px-4 py-2 text-[13px] text-[#0F172A] hover:bg-[#F8F9FD] transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Deposit Cash
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTransferDropdownOpen(false);
+                        setShowWithdrawModal(true);
+                      }}
+                      className="w-full text-left px-4 py-2 text-[13px] text-[#0F172A] hover:bg-[#F8F9FD] transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m0 0l-4-4m4 4l4-4" />
+                      </svg>
+                      Withdraw Cash
+                    </button>
+                  </div>
+                )}
+              </div>
               
               {/* Profile Dropdown */}
               <div className="relative" ref={profileRef}>
@@ -1102,7 +1128,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-[#F8F9FD] transition-colors"
                 >
                   <div className="h-8 w-8 flex items-center justify-center rounded-full bg-[#F3F4F6]">
-                    <span className="text-[13px] font-medium">{privyUser?.email?.address?.[0]?.toUpperCase()}</span>
+                    <span className="text-[13px] font-medium">{getUserEmail()?.[0]?.toUpperCase()}</span>
                   </div>
                   <ChevronDown size={16} className={clsx('text-[#64748B] transition-transform', profileDropdownOpen && 'rotate-180')} />
                 </button>
@@ -1110,13 +1136,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 {profileDropdownOpen && (
                   <div className="absolute right-0 mt-1 w-64 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
                     <div className="px-4 py-2 border-b border-[#E2E8F0]">
-                      <div className="text-[13px] font-medium text-black truncate">{privyUser?.email?.address}</div>
+                      <div className="text-[13px] font-medium text-black truncate">{getUserEmail()}</div>
                     </div>
                     <button
-                        onClick={async () => {
-                          await logout();
-                          router.push('/');
-                        }}
+                      onClick={async () => {
+                        await logout();
+                        router.push('/');
+                      }}
                       className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
                     >
                       Sign Out
@@ -1151,7 +1177,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             )}
             
-            
             {/* Mobile Profile Dropdown */}
             <div className="relative" ref={profileRef}>
               <button
@@ -1159,7 +1184,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 className="flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-[#F8F9FD] transition-colors"
               >
                 <div className="h-7 w-7 flex items-center justify-center rounded-full bg-[#F3F4F6]">
-                  <span className="text-[11px] font-medium">{privyUser?.email?.address?.[0]?.toUpperCase()}</span>
+                  <span className="text-[11px] font-medium">{getUserEmail()?.[0]?.toUpperCase()}</span>
                 </div>
                 <ChevronDown size={14} className={clsx('text-[#64748B] transition-transform', profileDropdownOpen && 'rotate-180')} />
               </button>
@@ -1167,17 +1192,17 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               {profileDropdownOpen && (
                 <div className="absolute right-0 mt-1 w-56 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 z-50">
                   <div className="px-4 py-2 border-b border-[#E2E8F0]">
-                    <div className="text-[12px] font-medium text-black truncate">{privyUser?.email?.address}</div>
+                    <div className="text-[12px] font-medium text-black truncate">{getUserEmail()}</div>
                   </div>
                   <button
-                        onClick={async () => {
-                          await logout();
-                          router.push('/');
-                        }}
-                  className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
-                >
-                  Sign Out
-                </button>
+                    onClick={async () => {
+                      await logout();
+                      router.push('/');
+                    }}
+                    className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
+                  >
+                    Sign Out
+                  </button>
                 </div>
               )}
             </div>
@@ -1196,16 +1221,16 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             </button>
           </div>
           <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
-          {(
-  [
-    { id: 'all', label: 'All Vaults', icon: FileText },
-    { id: 'needs', label: 'Action Required', icon: AlertCircle },
-    { id: 'sent', label: 'Sent', icon: Send },
-    { id: 'received', label: 'Received', icon: Download },
-    { id: 'active', label: 'In Progress', icon: DollarSign },
-    { id: 'completed', label: 'Completed', icon: CheckCircle },
-  ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
-).map((f) => {
+            {(
+              [
+                { id: 'all', label: 'All Vaults', icon: FileText },
+                { id: 'needs', label: 'Action Required', icon: AlertCircle },
+                { id: 'sent', label: 'Sent', icon: Send },
+                { id: 'received', label: 'Received', icon: Download },
+                { id: 'active', label: 'In Progress', icon: DollarSign },
+                { id: 'completed', label: 'Completed', icon: CheckCircle },
+              ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
+            ).map((f) => {
               const Icon = f.icon;
               const active = activeFolder === f.id;
               const count = getFolderCount(f.id);
@@ -1256,7 +1281,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 const message = prompt('Found a bug or have feedback?');
                 if (message) {
                   supabase.from('feedback').insert({
-                    user_email: privyUser?.email?.address,
+                    user_email: getUserEmail(),
                     feedback: message,
                     type: 'manual_feedback',
                     url: window.location.href
@@ -1274,8 +1299,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
         {/* Content */}
         <div className="flex min-w-0 flex-1 flex-col min-h-0 bg-white">
-{/* Metrics - 2 CARDS (Active First) */}
-<div className="border-b border-[#E5E7EB] bg-white px-4 md:px-6 pt-3 pb-3 flex-shrink-0">
+          {/* Metrics - 2 CARDS */}
+          <div className="border-b border-[#E5E7EB] bg-white px-4 md:px-6 pt-3 pb-3 flex-shrink-0">
             <div className="hidden md:grid grid-cols-2 gap-3">
               <div className="rounded-md border border-[#E2E8F0] p-3">
                 <div className="text-[12px] text-[#64748B]">Active Vaults</div>
@@ -1300,7 +1325,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             </div>
 
-            {/* Mobile metrics - 2 CARDS */}
+            {/* Mobile metrics */}
             <div className="md:hidden grid grid-cols-2 gap-2">
               <div className="rounded-md border border-[#E2E8F0] p-2">
                 <div className="text-[10.5px] text-[#64748B]">Active</div>
@@ -1393,148 +1418,148 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             </div>
 
-              {/* Right panel - Desktop */}
-              {rightPanelOpen && !isMobile && (
-                <div className="relative border-l border-[#E5E7EB] bg-white min-h-0 overflow-hidden">
-                  <div
-                    className="absolute inset-y-0 left-0 w-1 cursor-col-resize hover:bg-[#2962FF] z-10"
-                    onMouseDown={() => setIsResizing(true)}
-                  />
-                  <div className="h-full overflow-hidden">
-                    {rightPanelView === 'create' ? (
-                      <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
-                    ) : rightPanelView === 'detail' && selectedEscrowId ? (
-                      <EscrowDetailPanel
-                        escrowId={selectedEscrowId}
-                        isOpen
-                        onClose={closePanel}
-                        onUpdate={handleRefresh}
-                        onShowMoonPay={handleShowMoonPay}
-                        onShowDeposit={(amount) => {
-                          setRightPanelOpen(false);
-                          setDepositSuggestedAmount(amount);
-                          setShowDepositModal(true);
-                        }}
-                      />
-                    ) : null}
-                  </div>
+            {/* Right panel - Desktop */}
+            {rightPanelOpen && !isMobile && (
+              <div className="relative border-l border-[#E5E7EB] bg-white min-h-0 overflow-hidden">
+                <div
+                  className="absolute inset-y-0 left-0 w-1 cursor-col-resize hover:bg-[#2962FF] z-10"
+                  onMouseDown={() => setIsResizing(true)}
+                />
+                <div className="h-full overflow-hidden">
+                  {rightPanelView === 'create' ? (
+                    <CreateEscrowWizard isOpen onClose={closePanel} onEscrowCreated={onEscrowCreated} />
+                  ) : rightPanelView === 'detail' && selectedEscrowId ? (
+                    <EscrowDetailPanel
+                      escrowId={selectedEscrowId}
+                      isOpen
+                      onClose={closePanel}
+                      onUpdate={handleRefresh}
+                      onShowMoonPay={handleShowMoonPay}
+                      onShowDeposit={(amount) => {
+                        setRightPanelOpen(false);
+                        setDepositSuggestedAmount(amount);
+                        setShowDepositModal(true);
+                      }}
+                    />
+                  ) : null}
                 </div>
-              )}
-          </div>
-        </div>
-      </div>
-
-      {/* Dashboard Footer - USDC Disclaimer */}
-      <div className="border-t border-[#E5E7EB] bg-white px-4 md:px-6 py-2 flex-shrink-0">
-        <p className="text-[11px] text-[#94A3B8] text-center">
-          * Cash balances are held in USDC, a fully collateralized stablecoin
-        </p>
-      </div>
-
-      {/* Mobile nav drawer */}
-      {mobileNavOpen && (
-        <div className="md:hidden fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMobileNavOpen(false)}
-            aria-hidden="true"
-          />
-          <div className="absolute left-0 top-0 h-full w-[82vw] max-w-[300px] bg-white shadow-xl flex flex-col">
-            <div className="h-14 flex items-center justify-between px-4 border-b border-[#E5E7EB]">
-              <div className="flex items-center">
-                <span className="text-xl font-medium tracking-tight text-black">
-                  escrowhaven<span className="text-[#2962FF]">.io</span>
-                </span>
               </div>
-              <button className="p-2 rounded-md hover:bg-[#F3F4F6]" onClick={() => setMobileNavOpen(false)} aria-label="Close menu">
-                <CloseIcon size={18} />
-              </button>
-            </div>
-            <div className="p-3">
-              <button onClick={() => { setMobileNavOpen(false); openCreate(); }} className={btn.primary + ' w-full gap-2'}>
-                <Plus size={16} />
-                Create a Vault
-              </button>
-            </div>
-            <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
-            {(
-                [
-                  { id: 'all', label: 'All Vaults', icon: FileText },
-                  { id: 'needs', label: 'Action Required', icon: AlertCircle },
-                  { id: 'sent', label: 'Sent', icon: Send },
-                  { id: 'received', label: 'Received', icon: Download },
-                  { id: 'active', label: 'In Progress', icon: DollarSign },
-                  { id: 'completed', label: 'Completed', icon: CheckCircle },
-                ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
-              ).map((f) => {
-                const Icon = f.icon;
-                const active = activeFolder === f.id;
-                const count = getFolderCount(f.id);
-                return (
-                  <button
-                    key={f.id}
-                    onClick={() => { handleFolderChange(f.id); setMobileNavOpen(false); }}
-                    className={clsx(
-                      'mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[14px] transition',
-                      active ? 'bg-[#EFF6FF] text-[#2962FF]' : 'text-[#334155] hover:bg-[#F8FAFC]'
-                    )}
-                  >
-                    <span className="flex items-center gap-2">
-                      <Icon size={18} className={active ? 'text-[#2962FF]' : 'text-[#475569]'} />
-                      {f.label}
-                    </span>
-                    {count > 0 && (
-                      <span
-                        className={clsx(
-                          'rounded-full px-2 py-0.5 text-[12px]',
-                          active ? 'bg-[#2962FF] text-white' : 'bg-[#E2E8F0] text-[#475569]'
-                        )}
-                      >
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-            
-            {/* Mobile sidebar footer */}
-            <div className="border-t border-[#E5E7EB] px-3 py-3 space-y-1.5">
-              <button 
-                onClick={() => { setMobileNavOpen(false); onNavigate('transparency'); }} 
-                className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
-              >
-                Transparency
-              </button>
-              <button 
-                onClick={() => { setMobileNavOpen(false); window.open('/help', '_blank'); }}
-                className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
-              >
-                Help
-              </button>
-              <button 
-                onClick={() => {
-                  const message = prompt('Found a bug or have feedback?');
-                  if (message) {
-                    supabase.from('feedback').insert({
-                      user_email: privyUser?.email?.address,
-                      feedback: message,
-                      type: 'manual_feedback',
-                      url: window.location.href
-                    }).then(() => {
-                      alert('Thanks for the feedback!');
-                    });
-                  }
-                  setMobileNavOpen(false);
-                }}
-                className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
-              >
-                Feedback
-              </button>
-            </div>
+            )}
           </div>
+          </div>
+          </div>
+
+{/* Dashboard Footer - USDC Disclaimer */}
+<div className="border-t border-[#E5E7EB] bg-white px-4 md:px-6 py-2 flex-shrink-0">
+  <p className="text-[11px] text-[#94A3B8] text-center">
+    * Cash balances are held in USDC, a fully collateralized stablecoin
+  </p>
+</div>
+
+{/* Mobile nav drawer */}
+{mobileNavOpen && (
+  <div className="md:hidden fixed inset-0 z-50">
+    <div
+      className="absolute inset-0 bg-black/40"
+      onClick={() => setMobileNavOpen(false)}
+      aria-hidden="true"
+    />
+    <div className="absolute left-0 top-0 h-full w-[82vw] max-w-[300px] bg-white shadow-xl flex flex-col">
+      <div className="h-14 flex items-center justify-between px-4 border-b border-[#E5E7EB]">
+        <div className="flex items-center">
+          <span className="text-xl font-medium tracking-tight text-black">
+            escrowhaven<span className="text-[#2962FF]">.io</span>
+          </span>
         </div>
-      )}
+        <button className="p-2 rounded-md hover:bg-[#F3F4F6]" onClick={() => setMobileNavOpen(false)} aria-label="Close menu">
+          <CloseIcon size={18} />
+        </button>
+      </div>
+      <div className="p-3">
+        <button onClick={() => { setMobileNavOpen(false); openCreate(); }} className={btn.primary + ' w-full gap-2'}>
+          <Plus size={16} />
+          Create a Vault
+        </button>
+      </div>
+      <nav className="px-3 flex-1 min-h-0 overflow-y-auto">
+        {(
+          [
+            { id: 'all', label: 'All Vaults', icon: FileText },
+            { id: 'needs', label: 'Action Required', icon: AlertCircle },
+            { id: 'sent', label: 'Sent', icon: Send },
+            { id: 'received', label: 'Received', icon: Download },
+            { id: 'active', label: 'In Progress', icon: DollarSign },
+            { id: 'completed', label: 'Completed', icon: CheckCircle },
+          ] as { id: Folder; label: string; icon: React.ComponentType<any> }[]
+        ).map((f) => {
+          const Icon = f.icon;
+          const active = activeFolder === f.id;
+          const count = getFolderCount(f.id);
+          return (
+            <button
+              key={f.id}
+              onClick={() => { handleFolderChange(f.id); setMobileNavOpen(false); }}
+              className={clsx(
+                'mb-1 flex w-full items-center justify-between rounded-md px-3 py-2 text-[14px] transition',
+                active ? 'bg-[#EFF6FF] text-[#2962FF]' : 'text-[#334155] hover:bg-[#F8FAFC]'
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <Icon size={18} className={active ? 'text-[#2962FF]' : 'text-[#475569]'} />
+                {f.label}
+              </span>
+              {count > 0 && (
+                <span
+                  className={clsx(
+                    'rounded-full px-2 py-0.5 text-[12px]',
+                    active ? 'bg-[#2962FF] text-white' : 'bg-[#E2E8F0] text-[#475569]'
+                  )}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+      
+      {/* Mobile sidebar footer */}
+      <div className="border-t border-[#E5E7EB] px-3 py-3 space-y-1.5">
+        <button 
+          onClick={() => { setMobileNavOpen(false); onNavigate('transparency'); }} 
+          className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
+        >
+          Transparency
+        </button>
+        <button 
+          onClick={() => { setMobileNavOpen(false); window.open('/help', '_blank'); }}
+          className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
+        >
+          Help
+        </button>
+        <button 
+          onClick={() => {
+            const message = prompt('Found a bug or have feedback?');
+            if (message) {
+              supabase.from('feedback').insert({
+                user_email: getUserEmail(),
+                feedback: message,
+                type: 'manual_feedback',
+                url: window.location.href
+              }).then(() => {
+                alert('Thanks for the feedback!');
+              });
+            }
+            setMobileNavOpen(false);
+          }}
+          className="w-full text-left text-[14px] text-[#787B86] hover:text-[#2962FF] transition-colors py-1.5"
+        >
+          Feedback
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
 {/* Mobile panel */}
 {rightPanelOpen && isMobile && (
@@ -1560,123 +1585,123 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   </div>
 )}
 
-      {/* NPS Feedback Modal */}
-      {showFeedbackForEscrow && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold mb-3">Quick question</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              How likely are you to recommend escrowhaven to a friend or colleague?
-            </p>
-            
-            <div className="flex justify-between mb-2 gap-1">
-              {[...Array(11)].map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSelectedScore(i)}
-                  className={clsx(
-                    "w-9 h-9 rounded text-sm font-medium transition-all",
-                    selectedScore === i 
-                      ? "bg-[#2962FF] text-white" 
-                      : "bg-gray-100 hover:bg-gray-200"
-                  )}
-                >
-                  {i}
-                </button>
-              ))}
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 mb-4">
-              <span>Not likely</span>
-              <span>Very likely</span>
-            </div>
-            
-            {selectedScore !== null && (
-              <textarea
-                className="w-full p-3 border border-gray-200 rounded-lg text-sm mb-4"
-                rows={2}
-                placeholder={
-                  selectedScore <= 6 
-                    ? "What would need to change for you to recommend us?"
-                    : selectedScore <= 8
-                    ? "What could we improve?"
-                    : "What do you love about escrowhaven?"
-                }
-                id="feedback-text"
-              />
+{/* NPS Feedback Modal */}
+{showFeedbackForEscrow && (
+  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-xl max-w-md w-full p-6">
+      <h3 className="text-lg font-semibold mb-3">Quick question</h3>
+      <p className="text-sm text-gray-600 mb-4">
+        How likely are you to recommend escrowhaven to a friend or colleague?
+      </p>
+      
+      <div className="flex justify-between mb-2 gap-1">
+        {[...Array(11)].map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setSelectedScore(i)}
+            className={clsx(
+              "w-9 h-9 rounded text-sm font-medium transition-all",
+              selectedScore === i 
+                ? "bg-[#2962FF] text-white" 
+                : "bg-gray-100 hover:bg-gray-200"
             )}
-            
-            <div className="flex gap-3">
-              <button
-                onClick={async () => {
-                  if (selectedScore !== null) {
-                    const feedbackText = (document.getElementById('feedback-text') as HTMLTextAreaElement)?.value;
-                    await supabase.from('feedback').insert({
-                      user_email: privyUser?.email?.address,
-                      nps_score: selectedScore,
-                      feedback: feedbackText || null,
-                      type: 'nps',
-                      escrow_id: showFeedbackForEscrow
-                    });
-                    
-                    await supabase
-                      .from('escrows')
-                      .update({ feedback_given: true })
-                      .eq('id', showFeedbackForEscrow);
-                    
-                    setShowFeedbackForEscrow(null);
-                    setSelectedScore(null);
-                    
-                    if (selectedScore >= 9) {
-                      alert('Thanks! Glad you love escrowhaven!');
-                    } else {
-                      alert('Thanks for the honest feedback!');
-                    }
-                  }
-                }}
-                disabled={selectedScore === null}
-                className={clsx(
-                  "flex-1 py-2 rounded-lg transition-colors",
-                  selectedScore !== null 
-                    ? "bg-[#2962FF] text-white hover:bg-[#1E53E5]" 
-                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                )}
-              >
-                Submit
-              </button>
-              <button
-                onClick={async () => {
-                  await supabase
-                    .from('escrows')
-                    .update({ feedback_given: true })
-                    .eq('id', showFeedbackForEscrow);
-                  setShowFeedbackForEscrow(null);
-                  setSelectedScore(null);
-                }}
-                className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Skip
-              </button>
-            </div>
-          </div>
-        </div>
+          >
+            {i}
+          </button>
+        ))}
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 mb-4">
+        <span>Not likely</span>
+        <span>Very likely</span>
+      </div>
+      
+      {selectedScore !== null && (
+        <textarea
+          className="w-full p-3 border border-gray-200 rounded-lg text-sm mb-4"
+          rows={2}
+          placeholder={
+            selectedScore <= 6 
+              ? "What would need to change for you to recommend us?"
+              : selectedScore <= 8
+              ? "What could we improve?"
+              : "What do you love about escrowhaven?"
+          }
+          id="feedback-text"
+        />
       )}
-
-      {/* Deposit Modal */}
-      <DepositModal
-        isOpen={showDepositModal}
-        onClose={() => {
-          setShowDepositModal(false);
-          setDepositSuggestedAmount(undefined);
-        }}
-        suggestedAmount={depositSuggestedAmount}
-      />
-
-      {/* Withdraw Modal */}
-      <WithdrawModal
-        isOpen={showWithdrawModal}
-        onClose={() => setShowWithdrawModal(false)}
-      />
-
+      
+      <div className="flex gap-3">
+        <button
+          onClick={async () => {
+            if (selectedScore !== null) {
+              const feedbackText = (document.getElementById('feedback-text') as HTMLTextAreaElement)?.value;
+              await supabase.from('feedback').insert({
+                user_email: getUserEmail(),
+                nps_score: selectedScore,
+                feedback: feedbackText || null,
+                type: 'nps',
+                escrow_id: showFeedbackForEscrow
+              });
+              
+              await supabase
+                .from('escrows')
+                .update({ feedback_given: true })
+                .eq('id', showFeedbackForEscrow);
+              
+              setShowFeedbackForEscrow(null);
+              setSelectedScore(null);
+              
+              if (selectedScore >= 9) {
+                alert('Thanks! Glad you love escrowhaven!');
+              } else {
+                alert('Thanks for the honest feedback!');
+              }
+            }
+          }}
+          disabled={selectedScore === null}
+          className={clsx(
+            "flex-1 py-2 rounded-lg transition-colors",
+            selectedScore !== null 
+              ? "bg-[#2962FF] text-white hover:bg-[#1E53E5]" 
+              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+          )}
+        >
+          Submit
+        </button>
+        <button
+          onClick={async () => {
+            await supabase
+              .from('escrows')
+              .update({ feedback_given: true })
+              .eq('id', showFeedbackForEscrow);
+            setShowFeedbackForEscrow(null);
+            setSelectedScore(null);
+          }}
+          className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          Skip
+        </button>
+      </div>
     </div>
-  );
+  </div>
+)}
+
+{/* Deposit Modal */}
+<DepositModal
+  isOpen={showDepositModal}
+  onClose={() => {
+    setShowDepositModal(false);
+    setDepositSuggestedAmount(undefined);
+  }}
+  suggestedAmount={depositSuggestedAmount}
+/>
+
+{/* Withdraw Modal */}
+<WithdrawModal
+  isOpen={showWithdrawModal}
+  onClose={() => setShowWithdrawModal(false)}
+/>
+</div>
+);
 }
+      
