@@ -66,48 +66,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // ADD THIS DEBUG CODE HERE - RIGHT AFTER THE HOOKS
-  useEffect(() => {
-    console.log('=== DASHBOARD DEBUG ===');
-    console.log('authenticated:', authenticated);
-    console.log('ready:', ready);
-    console.log('privyUser exists:', !!privyUser);
-    if (privyUser) {
-      console.log('privyUser.email:', privyUser.email);
-      console.log('privyUser.google:', privyUser.google);
-      console.log('Full privyUser:', privyUser);
-    }
-  }, [privyUser, authenticated, ready]);
-
-const getUserEmail = (): string | null => {
-  if (!privyUser) return null;
-  
-  // Try email-password auth
-  if (privyUser.email?.address) {
-    return privyUser.email.address;
-  }
-  
-  // Try Google OAuth
-  if (privyUser.google?.email) {
-    return privyUser.google.email;
-  }
-  
-  // Try linked accounts (fallback) - with proper type checking
-  const googleAccount = privyUser.linkedAccounts?.find((acc: any) => acc.type === 'google_oauth') as any;
-  if (googleAccount?.email) {
-    return googleAccount.email;
-  }
-  
-  console.error('Could not extract email from Privy user:', privyUser);
-  return null;
-};
-
-// Log user info for debugging
-useEffect(() => {
-  console.log('Privy user:', privyUser);
-  console.log('Extracted email:', getUserEmail());
-}, [privyUser]);
-
   // Data
   const [escrows, setEscrows] = useState<any[]>([]);
   const [totalEscrowCount, setTotalEscrowCount] = useState(0);
