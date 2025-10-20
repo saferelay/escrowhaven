@@ -102,21 +102,14 @@ export function Navigation() {
             {!ready ? (
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#E0E2E7] border-t-[#2962FF]"></div>
             ) : authenticated ? (
-              <>
-                <button 
-                  onClick={handleDashboard}
-                  className="text-sm text-[#787B86] hover:text-black transition-colors"
-                >
-                  Dashboard
-                </button>
-                <button 
-                  onClick={handleStartEscrow}
-                  className="px-5 py-2 bg-[#2962FF] text-white text-sm rounded-lg hover:bg-[#1E53E5] transition-colors font-medium"
-                >
-                  Create Escrow
-                </button>
-              </>
-            ) : (
+              <button 
+              onClick={handleDashboard}
+              className="px-5 py-2 bg-[#2962FF] text-white text-sm rounded-lg hover:bg-[#1E53E5] transition-colors font-medium"
+            >
+              Go to Dashboard
+            </button>
+          ) : (
+          
               <>
                 <button 
                   onClick={handleLogin}

@@ -166,6 +166,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  useEffect(() => {
+    if (ready && authenticated && privyUser) {
+      const currentPath = window.location.pathname;
+      // If on login/signup/home pages, redirect to dashboard
+      if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/') {
+        router.push('/dashboard');
+      }
+    }
+  }, [ready, authenticated, privyUser, router]);
+
   return (
     <AuthContext.Provider value={{ 
       user, 
