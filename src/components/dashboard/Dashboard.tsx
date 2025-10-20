@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import clsx from 'clsx';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { CreateEscrowWizard } from '@/components/escrow/CreateEscrowWizard';
 import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
 import { DepositModal } from '@/components/dashboard/DepositModal';
@@ -61,6 +61,7 @@ const PAGE_SIZE = 20;
 export function Dashboard({ onNavigate }: DashboardProps) {
   const { user, supabase, loading: authLoading, signOut } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Data
   const [escrows, setEscrows] = useState<any[]>([]);
@@ -1109,13 +1110,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       <div className="text-[13px] font-medium text-black truncate">{user?.email}</div>
                     </div>
                     <button
-                      onMouseDown={async (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Sign out mousedown');
-                        await supabase.auth.signOut();
-                        window.location.href = '/';
-                      }}
+                        onClick={async () => {
+                          await signOut();
+                          router.push('/');
+                        }}
                       className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
                     >
                       Sign Out
@@ -1169,13 +1167,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     <div className="text-[12px] font-medium text-black truncate">{user?.email}</div>
                   </div>
                   <button
-                  onMouseDown={async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Sign out mousedown');
-                    await supabase.auth.signOut();
-                    window.location.href = '/';
-                  }}
+                        onClick={async () => {
+                          await signOut();
+                          router.push('/');
+                        }}
                   className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
                 >
                   Sign Out
