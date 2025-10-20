@@ -11,6 +11,7 @@ import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
 import { DepositModal } from '@/components/dashboard/DepositModal';
 import { WithdrawModal } from '@/components/dashboard/WithdrawModal';
 import Image from 'next/image';
+import { useVaultSummary, type VaultFolder } from '@/hooks/useVaultSummary';
 
 // Icons
 import {
@@ -28,10 +29,11 @@ import {
   ChevronDown,
 } from '@/components/icons/UIIcons';
 
+
 type ViewType = 'marketing' | 'dashboard' | 'transparency' | 'escrow' | 'login' | 'help';
 type SortColumn = 'party' | 'amount' | 'action' | 'updated';
 type SortOrder = 'asc' | 'desc';
-type Folder = 'all' | 'needs' | 'sent' | 'received' | 'active' | 'completed';
+type Folder = VaultFolder;
 type RightPanelView = 'detail' | 'create' | 'transfer' | null;
 
 interface DashboardProps {
@@ -83,17 +85,15 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     return null;
   }, [privyUser]);
 
+  const userEmail = useMemo(() => getUserEmail(), [getUserEmail]);
+  const { counts: folderCounts, refresh: refreshFolderCounts } = useVaultSummary({
+    supabase,
+    userEmail,
+    environment: isProduction ? 'production' : 'development',
+  });
+
   // Data
   const [escrows, setEscrows] = useState<any[]>([]);
-  const [totalEscrowCount, setTotalEscrowCount] = useState(0);
-  const [folderCounts, setFolderCounts] = useState<FolderCounts>({
-    all: 0,
-    needs: 0,
-    sent: 0,
-    received: 0,
-    active: 0,
-    completed: 0,
-  });
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -161,20 +161,18 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [depositSuggestedAmount, setDepositSuggestedAmount] = useState<number | undefined>();
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
-  const fetchPromises = useRef<Map<string, Promise<any>>>(new Map());
-
   // Helper to deduplicate concurrent requests
-  const dedupeFetch = useCallback(async (key: string, fetchFn: () => Promise<any>) => {
-    const existing = fetchPromises.current.get(key);
-    if (existing) return existing;
+  // const dedupeFetch = useCallback(async (key: string, fetchFn: () => Promise<any>) => {
+  //   const existing = fetchPromises.current.get(key);
+  //   if (existing) return existing;
     
-    const promise = fetchFn().finally(() => {
-      fetchPromises.current.delete(key);
-    });
+  //   const promise = fetchFn().finally(() => {
+  //     fetchPromises.current.delete(key);
+  //   });
     
-    fetchPromises.current.set(key, promise);
-    return promise;
-  }, []);
+  //   fetchPromises.current.set(key, promise);
+  //   return promise;
+  // }, []);
 
   // Helper function
   const needsAction = useCallback((escrow: any) => {
@@ -224,55 +222,55 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   }, [getUserEmail]);
 
   // Fetch folder counts
-  const fetchFolderCounts = useCallback(async () => {
-    const userEmail = getUserEmail();
-    if (!supabase || !userEmail) return;
+  // const fetchFolderCounts = useCallback(async () => {
+  //   const userEmail = getUserEmail();
+  //   if (!supabase || !userEmail) return;
     
-    return dedupeFetch('folder-counts', async () => {
-      try {
-        const { data, error } = await supabase
-          .rpc('get_folder_counts_cached', {
-            user_email: userEmail,
-            env: isProduction ? 'production' : 'development'
-          });
+  //   return dedupeFetch('folder-counts', async () => {
+  //     try {
+  //       const { data, error } = await supabase
+  //         .rpc('get_folder_counts_cached', {
+  //           user_email: userEmail,
+  //           env: isProduction ? 'production' : 'development'
+  //         });
         
-        if (error) {
-          console.error('Error fetching folder counts:', error?.message || error?.code || 'Unknown error');
-          setFolderCounts({
-            all: 0,
-            needs: 0,
-            sent: 0,
-            received: 0,
-            active: 0,
-            completed: 0,
-          });
-          return;
-        }
+  //       if (error) {
+  //         console.error('Error fetching folder counts:', error?.message || error?.code || 'Unknown error');
+  //         setFolderCounts({
+  //           all: 0,
+  //           needs: 0,
+  //           sent: 0,
+  //           received: 0,
+  //           active: 0,
+  //           completed: 0,
+  //         });
+  //         return;
+  //       }
         
-        if (data && data.length > 0) {
-          const counts = data[0];
-          setFolderCounts({
-            all: Number(counts.all_count || 0),
-            needs: Number(counts.needs_count || 0),
-            sent: Number(counts.sent_count || 0),
-            received: Number(counts.received_count || 0),
-            active: Number(counts.active_count || 0),
-            completed: Number(counts.completed_count || 0),
-          });
-        }
-      } catch (err: any) {
-        console.error('Error in fetchFolderCounts:', err?.message || 'Failed to fetch folder counts');
-        setFolderCounts({
-          all: 0,
-          needs: 0,
-          sent: 0,
-          received: 0,
-          active: 0,
-          completed: 0,
-        });
-      }
-    });
-  }, [supabase, getUserEmail, isProduction, dedupeFetch]);
+  //       if (data && data.length > 0) {
+  //         const counts = data[0];
+  //         setFolderCounts({
+  //           all: Number(counts.all_count || 0),
+  //           needs: Number(counts.needs_count || 0),
+  //           sent: Number(counts.sent_count || 0),
+  //           received: Number(counts.received_count || 0),
+  //           active: Number(counts.active_count || 0),
+  //           completed: Number(counts.completed_count || 0),
+  //         });
+  //       }
+  //     } catch (err: any) {
+  //       console.error('Error in fetchFolderCounts:', err?.message || 'Failed to fetch folder counts');
+  //       setFolderCounts({
+  //         all: 0,
+  //         needs: 0,
+  //         sent: 0,
+  //         received: 0,
+  //         active: 0,
+  //         completed: 0,
+  //       });
+  //     }
+  //   });
+  // }, [supabase, getUserEmail, isProduction, dedupeFetch]);
 
   // Fetch metrics
   const fetchMetrics = useCallback(async () => {
@@ -398,7 +396,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       if (reset || isInitialLoad) {
         await Promise.all([
           fetchMetrics(),
-          fetchFolderCounts()
+          refreshFolderCounts()
         ]);
         setIsInitialLoad(false);
       }
@@ -409,7 +407,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       loadingRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [supabase, getUserEmail, isProduction, currentPage, hasMore, activeFolder, isInitialLoad, fetchMetrics, fetchFolderCounts]);
+  }, [supabase, getUserEmail, isProduction, currentPage, hasMore, activeFolder, isInitialLoad, fetchMetrics, refreshFolderCounts]);
 
   const fetchWithdrawals = useCallback(async () => {
     const userEmail = getUserEmail();
@@ -458,14 +456,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         fetchEscrows(true, activeFolder),
         fetchWithdrawals(),
         fetchMetrics(),
-        fetchFolderCounts()
+        refreshFolderCounts()
       ]);
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
       setTimeout(() => setIsRefreshing(false), 1000);
     }
-  }, [fetchEscrows, fetchWithdrawals, fetchMetrics, fetchFolderCounts, isRefreshing, activeFolder]);
+  }, [fetchEscrows, fetchWithdrawals, fetchMetrics, refreshFolderCounts, isRefreshing, activeFolder]);
 
   // Handle withdraw
   const handleWithdraw = async () => {
@@ -644,7 +642,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             clearTimeout(metricsTimeout);
             
             updateTimeout = setTimeout(() => {
-              fetchFolderCounts();
+              refreshFolderCounts();
             }, 1000);
             
             metricsTimeout = setTimeout(() => {
@@ -665,12 +663,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           if (escrow.client_email === userEmail || escrow.freelancer_email === userEmail) {
             if (activeFolder === 'all') {
               setEscrows(prev => [escrow, ...prev]);
-              setTotalEscrowCount(prev => prev + 1);
+              // setTotalEscrowCount(prev => prev + 1); // This line is removed
             }
             
             clearTimeout(updateTimeout);
             updateTimeout = setTimeout(() => {
-              fetchFolderCounts();
+              refreshFolderCounts();
               fetchMetrics();
             }, 1000);
           }
@@ -683,7 +681,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       clearTimeout(metricsTimeout);
       supabase.removeChannel(channel);
     };
-  }, [supabase, getUserEmail, activeFolder, fetchFolderCounts, fetchMetrics]);
+  }, [supabase, getUserEmail, activeFolder, refreshFolderCounts, fetchMetrics]);
 
   // Mobile detection
   useEffect(() => {
@@ -1247,16 +1245,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     <Icon size={16} className={active ? 'text-[#2962FF]' : 'text-[#475569]'} />
                     {f.label}
                   </span>
-                  {count > 0 && (
-                    <span
-                      className={clsx(
-                        'rounded-full px-2 py-0.5 text-[11px]',
-                        active ? 'bg-[#2962FF] text-white' : 'bg-[#E2E8F0] text-[#475569]'
-                      )}
-                    >
-                      {count}
-                    </span>
-                  )}
+                  <span
+                    className={clsx(
+                      'rounded-full px-2 py-0.5 text-[11px]',
+                      active ? 'bg-[#2962FF] text-white' : 'bg-[#E2E8F0] text-[#475569]'
+                    )}
+                  >
+                    {count}
+                  </span>
                 </button>
               );
             })}
@@ -1508,16 +1504,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 <Icon size={18} className={active ? 'text-[#2962FF]' : 'text-[#475569]'} />
                 {f.label}
               </span>
-              {count > 0 && (
-                <span
-                  className={clsx(
-                    'rounded-full px-2 py-0.5 text-[12px]',
-                    active ? 'bg-[#2962FF] text-white' : 'bg-[#E2E8F0] text-[#475569]'
-                  )}
-                >
-                  {count}
-                </span>
-              )}
+              <span
+                className={clsx(
+                  'rounded-full px-2 py-0.5 text-[12px]',
+                  active ? 'bg-[#2962FF] text-white' : 'bg-[#E2E8F0] text-[#475569]'
+                )}
+              >
+                {count}
+              </span>
             </button>
           );
         })}
@@ -1704,4 +1698,5 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 </div>
 );
 }
+      
       
