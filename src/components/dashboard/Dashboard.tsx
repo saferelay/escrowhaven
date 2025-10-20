@@ -66,6 +66,36 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  // HELPER FUNCTION
+const getUserEmail = (): string | null => {
+  if (!privyUser) return null;
+  
+  // Try email-password auth
+  if (privyUser.email?.address) {
+    return privyUser.email.address;
+  }
+  
+  // Try Google OAuth
+  if (privyUser.google?.email) {
+    return privyUser.google.email;
+  }
+  
+  // Try linked accounts (fallback) - with proper type checking
+  const googleAccount = privyUser.linkedAccounts?.find((acc: any) => acc.type === 'google_oauth') as any;
+  if (googleAccount?.email) {
+    return googleAccount.email;
+  }
+  
+  console.error('Could not extract email from Privy user:', privyUser);
+  return null;
+};
+
+// Log user info for debugging
+useEffect(() => {
+  console.log('Privy user:', privyUser);
+  console.log('Extracted email:', getUserEmail());
+}, [privyUser]);
+
   // Data
   const [escrows, setEscrows] = useState<any[]>([]);
   const [totalEscrowCount, setTotalEscrowCount] = useState(0);
