@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { User, Session, SupabaseClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
@@ -31,7 +31,8 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { ready, authenticated, user: privyUser, login, logout } = usePrivy();
+  const { ready, authenticated, user: privyUser, login, logout, linkWallet } = usePrivy();
+  const { wallets } = useWallets();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,18 +41,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const supabase = createClientComponentClient();
 
-  // Sync Privy auth with Supabase
+  // Sync Privy auth with local state
   useEffect(() => {
     if (!ready) return;
 
     const syncAuth = async () => {
       if (authenticated && privyUser?.email) {
-        // Create a pseudo-session for compatibility
+        // Create a pseudo-user for compatibility
         const pseudoUser: User = {
           id: privyUser.id,
           email: privyUser.email.address,
           app_metadata: {},
-          user_metadata: {},
+          user_metadata: {
+            privy_id: privyUser.id,
+          },
           aud: 'authenticated',
           created_at: new Date().toISOString(),
         } as User;
@@ -68,44 +71,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     syncAuth();
   }, [ready, authenticated, privyUser]);
 
-  // Get wallet address from Privy's embedded wallet
+  // Get wallet address from Privy
   const ensureWallet = async (): Promise<string | null> => {
     if (!authenticated || !privyUser?.email) {
       throw new Error('User not authenticated');
     }
   
     try {
-      // Get Privy wallet address
-      const wallet = privyUser.wallet;
-      
-      if (!wallet?.address) {
-        throw new Error('Wallet not found. Please try logging in again.');
+      // Get first available wallet from Privy
+      let walletAddress: string | null = null;
+
+      // Check if user has linked wallets
+      if (wallets && wallets.length > 0) {
+        walletAddress = wallets[0].address;
       }
-  
-      const walletAddress = wallet.address;
-  
+
+      // If no wallet, prompt to create/link one
+      if (!walletAddress) {
+        try {
+          await linkWallet();
+          // After linking, wallets should be updated via useWallets hook
+          // For now, we'll need to refetch
+          if (wallets && wallets.length > 0) {
+            walletAddress = wallets[0].address;
+          }
+        } catch (linkErr: any) {
+          // User cancelled or linking failed
+          throw new Error('Wallet linking cancelled or failed');
+        }
+      }
+
+      if (!walletAddress) {
+        throw new Error('Unable to create or retrieve wallet');
+      }
+
       // Check database for existing wallet
       const { data: existingWallet } = await supabase
         .from('user_wallets')
         .select('wallet_address')
         .eq('email', privyUser.email.address.toLowerCase())
         .maybeSingle();
-  
+
       if (existingWallet?.wallet_address) {
-        // If wallet changed, update it (Magic → Privy migration)
+        // If wallet changed, update it (migration case)
         if (existingWallet.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
           await supabase
             .from('user_wallets')
             .update({ 
               wallet_address: walletAddress,
-              provider: 'privy'
+              provider: 'privy',
+              updated_at: new Date().toISOString(),
             })
             .eq('email', privyUser.email.address.toLowerCase());
         }
         
         return walletAddress;
       }
-  
+
       // No existing wallet - create new entry
       const saveResponse = await fetch('/api/user/save-wallet', {
         method: 'POST',
@@ -117,12 +139,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           provider: 'privy'
         })
       });
-  
+
       if (!saveResponse.ok) {
         const errorData = await saveResponse.json();
         throw new Error(`Failed to save wallet: ${errorData.error || 'Unknown error'}`);
       }
-  
+
       return walletAddress;
       
     } catch (err: any) {
@@ -134,10 +156,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string) => {
     try {
       setError(null);
+      // Privy's login method handles email auth automatically
       await login();
       return { error: null };
     } catch (err: any) {
-      setError(err.message || 'Sign in failed');
+      const errorMsg = err.message || 'Sign in failed';
+      setError(errorMsg);
       return { error: err };
     }
   };
@@ -145,10 +169,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     try {
       setError(null);
+      // Privy's login method includes Google as an option
       await login();
       return { error: null };
     } catch (err: any) {
-      setError(err.message || 'Google sign in failed');
+      const errorMsg = err.message || 'Google sign in failed';
+      setError(errorMsg);
       return { error: err };
     }
   };
@@ -156,34 +182,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       setError(null);
+      
+      // Sign out from Privy
       await logout();
-      const [supabaseResult, privyResult] = await Promise.allSettled([
-        supabase.auth.signOut({ scope: 'local' }),
-        logout(),
-      ]);
-
-      if (privyResult.status === 'rejected') {
-        throw privyResult.reason;
+      
+      // Also sign out from Supabase for cleanup
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch (supabaseErr) {
+        console.warn('Supabase sign out failed (non-critical):', supabaseErr);
       }
 
-      if (supabaseResult.status === 'rejected') {
-        console.error('Supabase sign out failed:', supabaseResult.reason);
-      } else if (supabaseResult.value?.error) {
-        console.error('Supabase sign out error:', supabaseResult.value.error);
-      }
       setSession(null);
       setUser(null);
       router.push('/');
     } catch (err: any) {
       console.error('Sign out error:', err);
-      setError(err.message || 'Sign out failed');
+      const errorMsg = err.message || 'Sign out failed';
+      setError(errorMsg);
+      throw err;
     }
   };
 
+  // Redirect authenticated users away from auth pages
   useEffect(() => {
     if (ready && authenticated && privyUser) {
       const currentPath = window.location.pathname;
-      // If on login/signup/home pages, redirect to dashboard
       if (currentPath === '/' || currentPath === '/login' || currentPath === '/signup') {
         router.push('/dashboard');
       }

@@ -15,6 +15,11 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
           logo: '/logo.svg',
         },
         loginMethods: ['email', 'google'],
+        embeddedWallets: {
+          ethereum: {
+            createOnLogin: 'users-without-wallets', // Auto-create wallet when users sign up
+          },
+        },
       }}
     >
       <AuthProvider>

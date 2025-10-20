@@ -2,74 +2,41 @@
 'use client';
 
 import { useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 
+/**
+ * SessionRefreshProvider
+ * 
+ * Handles keeping the Privy session alive and valid.
+ * Privy manages its own session internally, but we listen for 
+ * important auth events to trigger route refreshes when needed.
+ */
 export function SessionRefreshProvider({ children }: { children: React.ReactNode }) {
-  const supabase = createClientComponentClient();
+  const { ready } = usePrivy();
   const router = useRouter();
 
   useEffect(() => {
-    let refreshTimer: NodeJS.Timeout;
+    if (!ready) return;
 
-    const setupRefreshTimer = (expiresAt: number) => {
-      const now = Math.floor(Date.now() / 1000);
-      const timeUntilExpiry = expiresAt - now;
-      // Refresh 5 minutes before expiry
-      const refreshIn = Math.max((timeUntilExpiry - 300) * 1000, 10000); // Min 10 seconds
-      
-      clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(async () => {
-        console.log('Auto-refreshing session...');
-        const { error } = await supabase.auth.refreshSession();
-        if (error) {
-          console.error('Failed to refresh session:', error);
-        }
-      }, refreshIn);
+    // Refresh server components on window focus
+    // This ensures server-side auth checks stay current
+    const handleFocus = () => {
+      router.refresh();
     };
 
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.expires_at) {
-        setupRefreshTimer(session.expires_at);
-      }
-    });
-
-    // Listen to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event);
-        
-        if (session?.expires_at) {
-          setupRefreshTimer(session.expires_at);
-        }
-        
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('Token refreshed successfully');
-          router.refresh(); // Refresh server components
-        }
-        
-        if (event === 'SIGNED_OUT') {
-          clearTimeout(refreshTimer);
-        }
-      }
-    );
-
-    // Refresh on focus
-    const handleFocus = async () => {
-      const { error } = await supabase.auth.refreshSession();
-      if (!error) {
-        router.refresh();
-      }
-    };
     window.addEventListener('focus', handleFocus);
 
+    // Optional: Refresh periodically to keep server state fresh (e.g., every 5 minutes)
+    const refreshInterval = setInterval(() => {
+      router.refresh();
+    }, 5 * 60 * 1000);
+
     return () => {
-      clearTimeout(refreshTimer);
-      subscription.unsubscribe();
       window.removeEventListener('focus', handleFocus);
+      clearInterval(refreshInterval);
     };
-  }, [supabase, router]);
+  }, [ready, router]);
 
   return <>{children}</>;
 }
