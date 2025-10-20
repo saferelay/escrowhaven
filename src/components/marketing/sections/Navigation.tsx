@@ -38,6 +38,12 @@ export function Navigation() {
     }
   };
 
+  const handleTransparency = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    router.push('/transparency');
+  };
+
+
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
     e.preventDefault();
     const element = document.getElementById(sectionId);
@@ -88,7 +94,14 @@ export function Navigation() {
             >
               About
             </a>
-            <a 
+            <a
+              href="/transparency"
+              onClick={handleTransparency}
+              className="text-sm text-[#787B86] hover:text-black transition-colors"
+            >
+              Transparency
+            </a>
+            <a
               href="#pricing"
               onClick={(e) => scrollToSection(e, 'pricing')}
               className="text-sm text-[#787B86] hover:text-black transition-colors"

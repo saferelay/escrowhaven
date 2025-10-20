@@ -141,8 +141,8 @@ export function Footer() {
                   </button>
                 </li>
                 <li>
-                  <button 
-                    onClick={() => scrollToSection('transparency')} 
+                <button
+                    onClick={() => handleNavigation('/transparency')}
                     className="hover:text-black transition-colors text-left"
                   >
                     Transparency Reports
