@@ -41,50 +41,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const supabase = createClientComponentClient();
 
+  // Helper to get email from Privy user (supports both email auth and Google OAuth)
+  const getEmailFromPrivyUser = (privyUser: any): string | null => {
+    if (privyUser?.email?.address) {
+      return privyUser.email.address;
+    }
+    if (privyUser?.google?.email) {
+      return privyUser.google.email;
+    }
+    return null;
+  };
+
   // Sync Privy auth with local state
   useEffect(() => {
-    console.log('AuthContext syncAuth - ready:', ready, 'authenticated:', authenticated, 'privyUser:', privyUser);
-    
-    if (!ready) {
-      console.log('Privy not ready yet');
-      return;
-    }
-  
-    if (authenticated && privyUser) {
-      console.log('Full privyUser object:', JSON.stringify(privyUser, null, 2));
-      console.log('privyUser keys:', Object.keys(privyUser));
-      console.log('privyUser.email:', privyUser.email);
-      console.log('privyUser.google:', privyUser.google);
-    }
-  
+    if (!ready) return;
+
     const syncAuth = async () => {
-      if (authenticated && privyUser?.email) {
-        const pseudoUser: User = {
-          id: privyUser.id,
-          email: privyUser.email.address,
-          app_metadata: {},
-          user_metadata: {
-            privy_id: privyUser.id,
-          },
-          aud: 'authenticated',
-          created_at: new Date().toISOString(),
-        } as User;
-  
-        setUser(pseudoUser);
-        setSession({ user: pseudoUser } as Session);
+      if (authenticated && privyUser) {
+        const email = getEmailFromPrivyUser(privyUser);
+        
+        if (email) {
+          const pseudoUser: User = {
+            id: privyUser.id,
+            email: email,
+            app_metadata: {},
+            user_metadata: {
+              privy_id: privyUser.id,
+            },
+            aud: 'authenticated',
+            created_at: new Date().toISOString(),
+          } as User;
+
+          setUser(pseudoUser);
+          setSession({ user: pseudoUser } as Session);
+        } else {
+          setUser(null);
+          setSession(null);
+        }
       } else {
         setUser(null);
         setSession(null);
       }
       setLoading(false);
     };
-  
+
     syncAuth();
   }, [ready, authenticated, privyUser]);
+
   // Get wallet address from Privy
   const ensureWallet = async (): Promise<string | null> => {
-    if (!authenticated || !privyUser?.email) {
+    if (!authenticated || !privyUser) {
       throw new Error('User not authenticated');
+    }
+
+    const email = getEmailFromPrivyUser(privyUser);
+    if (!email) {
+      throw new Error('User email not found');
     }
   
     try {
@@ -119,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: existingWallet } = await supabase
         .from('user_wallets')
         .select('wallet_address')
-        .eq('email', privyUser.email.address.toLowerCase())
+        .eq('email', email.toLowerCase())
         .maybeSingle();
 
       if (existingWallet?.wallet_address) {
@@ -132,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               provider: 'privy',
               updated_at: new Date().toISOString(),
             })
-            .eq('email', privyUser.email.address.toLowerCase());
+            .eq('email', email.toLowerCase());
         }
         
         return walletAddress;
@@ -143,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: privyUser.email.address,
+          email: email,
           wallet: walletAddress,
           issuer: privyUser.id,
           provider: 'privy'
@@ -191,26 +203,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('signOut called');
       setError(null);
       
       // Sign out from Privy
-      console.log('Calling Privy logout...');
       await logout();
-      console.log('Privy logout successful');
       
       // Also sign out from Supabase for cleanup
       try {
-        console.log('Signing out from Supabase...');
         await supabase.auth.signOut({ scope: 'local' });
-        console.log('Supabase signout successful');
       } catch (supabaseErr) {
         console.warn('Supabase sign out failed (non-critical):', supabaseErr);
       }
-  
+
       setSession(null);
       setUser(null);
-      console.log('Redirecting to home...');
       router.push('/');
     } catch (err: any) {
       console.error('Sign out error:', err);
