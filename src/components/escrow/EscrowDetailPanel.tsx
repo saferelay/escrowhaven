@@ -1,7 +1,7 @@
 // src/components/escrow/EscrowDetailPanel.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import TransactionSuccessModal from '@/components/escrow/TransactionSuccessModal';
 import { SettlementActions } from '@/components/SettlementActions';
@@ -458,9 +458,12 @@ export function EscrowDetailPanel({
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
 
-  const role = user?.email === escrow?.client_email ? 'payer' : 
-               user?.email === escrow?.freelancer_email ? 'recipient' : 
-               null;
+  const role = useMemo(() => {
+    if (!escrow || !user?.email) return null;
+    if (user.email === escrow.client_email) return 'payer';
+    if (user.email === escrow.freelancer_email) return 'recipient';
+    return null;
+  }, [escrow, user?.email]);
 
   const isInitiator = escrow?.status === 'INITIATED' && 
     user?.email === escrow?.initiator_email;
@@ -490,7 +493,7 @@ export function EscrowDetailPanel({
   }, []);
 
   useEffect(() => {
-    if (!isOpen || !escrowId || !user || fetchingRef.current) return;
+    if (!isOpen || !escrowId || !user?.email || fetchingRef.current) return;
     
     const fetchEscrow = async () => {
       if (fetchingRef.current) return;
@@ -562,7 +565,7 @@ export function EscrowDetailPanel({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isOpen, escrowId, user, supabase, onUpdate]);
+  }, [isOpen, escrowId, user?.email, supabase, onUpdate]);
 
   useEffect(() => {
     if (!escrow || !user?.email) return;

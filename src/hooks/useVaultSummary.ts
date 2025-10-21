@@ -77,6 +77,7 @@ export function useVaultSummary({ supabase, userEmail, environment }: UseVaultSu
   }, [supabase, userEmail, environment]);
 
   useEffect(() => {
+    if (!userEmail) return; // Don't fetch if no email
     fetchCounts();
   }, [fetchCounts]);
 

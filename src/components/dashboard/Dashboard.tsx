@@ -12,6 +12,7 @@ import { DepositModal } from '@/components/dashboard/DepositModal';
 import { WithdrawModal } from '@/components/dashboard/WithdrawModal';
 import Image from 'next/image';
 import { useVaultSummary, type VaultFolder } from '@/hooks/useVaultSummary';
+const { supabase, signOut } = useAuth();
 
 // Icons
 import {
@@ -88,7 +89,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const userEmail = useMemo(() => getUserEmail(), [getUserEmail]);
   const { counts: folderCounts, refresh: refreshFolderCounts } = useVaultSummary({
     supabase,
-    userEmail,
+    userEmail: userEmail || undefined,  // Pass undefined if null
     environment: isProduction ? 'production' : 'development',
   });
 
@@ -1138,8 +1139,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     </div>
                     <button
                       onClick={async () => {
-                        await logout();
-                        router.push('/');
+                        try {
+                          // Use AuthContext signOut which handles both Privy and Supabase cleanup
+                          await signOut();
+                        } catch (error) {
+                          console.error('Logout error:', error);
+                          // Force redirect anyway
+                          router.push('/');
+                        }
                       }}
                       className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
                     >
