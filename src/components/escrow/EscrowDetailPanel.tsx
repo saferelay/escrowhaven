@@ -539,8 +539,10 @@ export function EscrowDetailPanel({
           setEscrow(data);
         }
       } catch (error: any) {
-        console.error('Error:', error);
-      } finally {
+        console.error('EscrowDetailPanel fetch error:', error);
+        setLoading(false);
+        setError(`Failed to load escrow: ${error.message}`);
+      }finally {
         if (mountedRef.current) {
           setLoading(false);
           fetchingRef.current = false;
@@ -818,6 +820,10 @@ export function EscrowDetailPanel({
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-gray-700" />
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-64 text-red-600">
+              <p>{error}</p>
             </div>
           ) : !escrow || !role ? (
             <div className="flex items-center justify-center h-64 text-gray-500">
