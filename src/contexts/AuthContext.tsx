@@ -43,11 +43,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Sync Privy auth with local state
   useEffect(() => {
-    if (!ready) return;
-
+    console.log('AuthContext syncAuth - ready:', ready, 'authenticated:', authenticated, 'privyUser:', privyUser);
+    
+    if (!ready) {
+      console.log('Privy not ready yet');
+      return;
+    }
+  
     const syncAuth = async () => {
       if (authenticated && privyUser?.email) {
-        // Create a pseudo-user for compatibility
+        console.log('Syncing user:', privyUser.email.address);
+        
         const pseudoUser: User = {
           id: privyUser.id,
           email: privyUser.email.address,
@@ -58,16 +64,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           aud: 'authenticated',
           created_at: new Date().toISOString(),
         } as User;
-
+  
         setUser(pseudoUser);
         setSession({ user: pseudoUser } as Session);
+        console.log('User synced:', pseudoUser.email);
       } else {
+        console.log('Not authenticated or no email. authenticated:', authenticated, 'privyUser.email:', privyUser?.email);
         setUser(null);
         setSession(null);
       }
       setLoading(false);
     };
-
+  
     syncAuth();
   }, [ready, authenticated, privyUser]);
 
