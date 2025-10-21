@@ -517,14 +517,10 @@ export function EscrowDetailPanel({
         let error = null;
         
         while (retries > 0 && !data) {
-          const { data: escrowList, error: rpcError } = await supabase.rpc('get_user_escrows', {
+          const result = await supabase.rpc('get_escrow_detail', {
+            escrow_id: escrowId,
             user_email: user?.email
           });
-          
-          const result = {
-            data: escrowList?.find(e => e.id === escrowId) || null,
-            error: rpcError
-          };
           
           data = result.data;
           error = result.error;
