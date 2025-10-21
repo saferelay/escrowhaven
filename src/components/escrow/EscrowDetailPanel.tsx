@@ -497,6 +497,7 @@ export function EscrowDetailPanel({
     if (!isOpen || !escrowId || !user?.email || fetchingRef.current) return;
     
     const fetchEscrow = async () => {
+      console.log('fetchEscrow called with escrowId:', escrowId, 'user email:', user?.email);
       if (fetchingRef.current) return;
       fetchingRef.current = true;
       
@@ -517,11 +518,13 @@ export function EscrowDetailPanel({
         let error = null;
         
         while (retries > 0 && !data) {
+          console.log('Calling RPC with:', { escrow_id: escrowId, user_email: user?.email });
           const result = await supabase.rpc('get_escrow_detail', {
             escrow_id: escrowId,
             user_email: user?.email
           });
           
+          console.log('RPC result:', result);
           data = result.data?.[0];
           error = result.error;
           
@@ -534,14 +537,17 @@ export function EscrowDetailPanel({
           }
         }
         
+        console.log('Final data:', data);
         if (data && mountedRef.current) {
           setEscrow(data);
+        } else if (mountedRef.current) {
+          setError('No escrow found or not authorized');
         }
       } catch (error: any) {
         console.error('EscrowDetailPanel fetch error:', error);
         setLoading(false);
         setError(`Failed to load escrow: ${error.message}`);
-      }finally {
+      } finally {
         if (mountedRef.current) {
           setLoading(false);
           fetchingRef.current = false;
