@@ -292,6 +292,7 @@ export function CreateEscrowWizard({ isOpen, onClose, onEscrowCreated }: CreateE
     }
   
     
+
     const clientEmail = role === 'payer' ? user?.email : otherPartyEmail;
     const freelancerEmail = role === 'recipient' ? user?.email : otherPartyEmail;
     
