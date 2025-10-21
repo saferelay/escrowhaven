@@ -494,64 +494,50 @@ export function EscrowDetailPanel({
   }, []);
 
   useEffect(() => {
-    if (!isOpen || !escrowId || !user?.email || fetchingRef.current) return;
+    console.log('Escrow fetch effect - isOpen:', isOpen, 'escrowId:', escrowId, 'user email:', user?.email);
+    
+    if (!isOpen || !escrowId) {
+      console.log('Missing isOpen or escrowId');
+      return;
+    }
+    
+    if (!user?.email) {
+      console.log('Waiting for user email...');
+      return;
+    }
+    
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     
     const fetchEscrow = async () => {
-      console.log('fetchEscrow called with escrowId:', escrowId, 'user email:', user?.email);
-      if (fetchingRef.current) return;
-      fetchingRef.current = true;
-      
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log('Calling get_escrow_detail RPC');
+        const { data, error } = await supabase.rpc('get_escrow_detail', {
+          escrow_id: escrowId,
+          user_email: user.email
+        });
         
-        if (!session || sessionError) {
-          const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
-          
-          if (!newSession || refreshError) {
-            setLoading(false);
-            return;
-          }
-        }
+        console.log('RPC response:', { data, error });
         
-        let retries = 3;
-        let data = null;
-        let error = null;
-        
-        while (retries > 0 && !data) {
-          console.log('Calling RPC with:', { escrow_id: escrowId, user_email: user?.email });
-          const result = await supabase.rpc('get_escrow_detail', {
-            escrow_id: escrowId,
-            user_email: user?.email
-          });
-          
-          console.log('RPC result:', result);
-          data = result.data?.[0];
-          error = result.error;
-          
-          if (error?.message?.includes('JWT')) {
-            await supabase.auth.refreshSession();
-            retries--;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else {
-            break;
-          }
-        }
-        
-        console.log('Final data:', data);
-        if (data && mountedRef.current) {
-          setEscrow(data);
-        } else if (mountedRef.current) {
-          setError('No escrow found or not authorized');
-        }
-      } catch (error: any) {
-        console.error('EscrowDetailPanel fetch error:', error);
-        setLoading(false);
-        setError(`Failed to load escrow: ${error.message}`);
-      } finally {
-        if (mountedRef.current) {
+        if (error) {
+          setError(`Error: ${error.message}`);
           setLoading(false);
-          fetchingRef.current = false;
+          return;
         }
+        
+        if (data && data.length > 0 && mountedRef.current) {
+          setEscrow(data[0]);
+          setLoading(false);
+        } else {
+          setError('Escrow not found');
+          setLoading(false);
+        }
+      } catch (err: any) {
+        console.error('Fetch error:', err);
+        setError(err.message);
+        setLoading(false);
+      } finally {
+        fetchingRef.current = false;
       }
     };
     
