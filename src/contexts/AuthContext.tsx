@@ -41,7 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const supabase = createClientComponentClient();
 
-  // Helper to get email from Privy user (supports both email auth and Google OAuth)
   const getEmailFromPrivyUser = (privyUser: any): string | null => {
     if (privyUser?.email?.address) {
       return privyUser.email.address;
@@ -52,7 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
-  // Sync Privy auth with local state
   useEffect(() => {
     if (!ready) return;
 
@@ -88,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     syncAuth();
   }, [ready, authenticated, privyUser]);
 
-  // Get wallet address from Privy
+  // Properly wait for wallet after linking
   const ensureWallet = async (): Promise<string | null> => {
     if (!authenticated || !privyUser) {
       throw new Error('User not authenticated');
@@ -100,26 +98,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   
     try {
-      // Get first available wallet from Privy
       let walletAddress: string | null = null;
 
-      // Check if user has linked wallets
+      // Check if user already has linked wallets
       if (wallets && wallets.length > 0) {
         walletAddress = wallets[0].address;
+        console.log('Existing wallet found:', walletAddress);
       }
 
-      // If no wallet, prompt to create/link one
+      // If no wallet, link one
       if (!walletAddress) {
+        console.log('No wallet found, triggering link...');
         try {
           await linkWallet();
-          // After linking, wallets should be updated via useWallets hook
-          // For now, we'll need to refetch
-          if (wallets && wallets.length > 0) {
-            walletAddress = wallets[0].address;
+          
+          // After linking, wait for the wallet to appear
+          // The hook should update automatically, but we need to wait
+          // Poll for up to 5 seconds for the wallet to appear in the hook
+          let attempts = 0;
+          const maxAttempts = 50; // 50 * 100ms = 5 seconds
+          
+          while (attempts < maxAttempts) {
+            // Re-check wallets from current state
+            if (wallets && wallets.length > 0) {
+              walletAddress = wallets[0].address;
+              console.log('Wallet linked successfully:', walletAddress);
+              break;
+            }
+            
+            // Wait before next check
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+          
+          if (!walletAddress) {
+            throw new Error('Wallet linking failed - wallet did not appear after link');
           }
         } catch (linkErr: any) {
-          // User cancelled or linking failed
-          throw new Error('Wallet linking cancelled or failed');
+          console.error('Wallet linking error:', linkErr);
+          throw new Error(linkErr?.message || 'Wallet linking cancelled or failed');
         }
       }
 
@@ -127,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Unable to create or retrieve wallet');
       }
 
-      // Check database for existing wallet
+      // Save to database
       const { data: existingWallet } = await supabase
         .from('user_wallets')
         .select('wallet_address')
@@ -135,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (existingWallet?.wallet_address) {
-        // If wallet changed, update it (migration case)
+        // Update if changed (migration case)
         if (existingWallet.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
           await supabase
             .from('user_wallets')
@@ -167,6 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(`Failed to save wallet: ${errorData.error || 'Unknown error'}`);
       }
 
+      console.log('Wallet saved to database:', walletAddress);
       return walletAddress;
       
     } catch (err: any) {
@@ -178,7 +196,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string) => {
     try {
       setError(null);
-      // Privy's login method handles email auth automatically
       await login();
       return { error: null };
     } catch (err: any) {
@@ -191,7 +208,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     try {
       setError(null);
-      // Privy's login method includes Google as an option
       await login();
       return { error: null };
     } catch (err: any) {
@@ -203,20 +219,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      console.log('🔴 Sign out starting...');
       setError(null);
       
-      // Sign out from Privy
+      console.log('🔴 Calling Privy logout...');
       await logout();
+      console.log('🔴 Privy logout done');
       
-      // Also sign out from Supabase for cleanup
       try {
+        console.log('🔴 Calling Supabase logout...');
         await supabase.auth.signOut({ scope: 'local' });
+        console.log('🔴 Supabase logout done');
       } catch (supabaseErr) {
         console.warn('Supabase sign out failed (non-critical):', supabaseErr);
       }
-
+  
+      console.log('🔴 Clearing state...');
       setSession(null);
       setUser(null);
+      console.log('🔴 Pushing to /');
       router.push('/');
     } catch (err: any) {
       console.error('Sign out error:', err);
@@ -226,7 +247,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Redirect authenticated users away from auth pages
   useEffect(() => {
     if (ready && authenticated && privyUser) {
       const currentPath = window.location.pathname;
