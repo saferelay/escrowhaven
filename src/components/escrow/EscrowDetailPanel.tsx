@@ -521,8 +521,8 @@ export function EscrowDetailPanel({
       try {
         console.log('Calling get_escrow_detail RPC with:', { escrow_id: escrowId, user_email: user.email });
         const { data, error } = await supabase.rpc('get_escrow_detail', {
-          escrow_id: escrowId,
-          user_email: user.email
+          p_escrow_id: escrowId,
+          p_user_email: user.email
         });
         
         console.log('RPC response:', { data, error });
