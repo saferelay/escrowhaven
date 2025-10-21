@@ -441,7 +441,7 @@ export function EscrowDetailPanel({
   onShowMoonPay,
   onShowDeposit
 }: EscrowDetailPanelProps) {
-  const { user, supabase, ensureWallet } = useAuth();
+  const { user, supabase, ensureWallet, loading: authLoading } = useAuth();
   const [escrow, setEscrow] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -494,15 +494,23 @@ export function EscrowDetailPanel({
   }, []);
 
   useEffect(() => {
-    console.log('Escrow fetch effect - isOpen:', isOpen, 'escrowId:', escrowId, 'user:', user);
+    console.log('Escrow fetch effect - isOpen:', isOpen, 'escrowId:', escrowId, 'user:', user, 'authLoading:', authLoading);
     
     if (!isOpen || !escrowId) {
       console.log('Missing isOpen or escrowId');
       return;
     }
     
+    // Wait for auth to fully load
+    if (authLoading) {
+      console.log('Auth still loading...');
+      return;
+    }
+    
     if (!user || !user.email) {
-      console.log('User not ready yet. user:', user);
+      console.log('User not authenticated');
+      setError('User not authenticated');
+      setLoading(false);
       return;
     }
     
@@ -522,6 +530,7 @@ export function EscrowDetailPanel({
         if (error) {
           setError(`Error: ${error.message}`);
           setLoading(false);
+          fetchingRef.current = false;
           return;
         }
         
@@ -560,7 +569,7 @@ export function EscrowDetailPanel({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isOpen, escrowId, user, supabase, onUpdate]);
+  }, [isOpen, escrowId, user, authLoading, supabase, onUpdate]);
 
   useEffect(() => {
     if (!escrow || !user?.email) return;
