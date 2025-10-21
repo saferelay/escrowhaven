@@ -1,11 +1,13 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { authenticated, ready } = usePrivy();
   const router = useRouter();
 
@@ -36,4 +38,8 @@ export default function DashboardPage() {
       window.open('/help', '_blank');
     }
   }} />;
+}
+
+export default function DashboardPage() {
+  return <DashboardContent />;
 }

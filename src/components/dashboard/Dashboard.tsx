@@ -12,7 +12,7 @@ import { DepositModal } from '@/components/dashboard/DepositModal';
 import { WithdrawModal } from '@/components/dashboard/WithdrawModal';
 import Image from 'next/image';
 import { useVaultSummary, type VaultFolder } from '@/hooks/useVaultSummary';
-const { supabase, signOut } = useAuth();
+
 
 // Icons
 import {
@@ -63,7 +63,7 @@ const isStaging = process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
 const PAGE_SIZE = 20;
 
 export function Dashboard({ onNavigate }: DashboardProps) {
-  const { supabase } = useAuth();
+  const { supabase, signOut } = useAuth();
   const { user: privyUser, authenticated, ready, logout } = usePrivy();
   const authLoading = !ready;
   const searchParams = useSearchParams();
