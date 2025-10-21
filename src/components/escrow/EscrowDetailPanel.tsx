@@ -522,7 +522,7 @@ export function EscrowDetailPanel({
             user_email: user?.email
           });
           
-          data = result.data;
+          data = result.data?.[0];
           error = result.error;
           
           if (error?.message?.includes('JWT')) {
