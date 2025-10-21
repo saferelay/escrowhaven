@@ -30,9 +30,13 @@ export function useVaultSummary({ supabase, userEmail, environment }: UseVaultSu
   });
 
   const fetchCounts = useCallback(async () => {
-    if (!supabase || !userEmail) return;
+    if (!supabase || !userEmail) {
+      console.warn('Skipping fetchCounts: supabase or userEmail missing');
+      return;
+    }
     
     try {
+      console.log('Fetching folder counts for:', userEmail, 'env:', environment);
       const { data, error } = await supabase
         .rpc('get_folder_counts_cached', {
           user_email: userEmail,
@@ -53,18 +57,21 @@ export function useVaultSummary({ supabase, userEmail, environment }: UseVaultSu
       }
       
       if (data && data.length > 0) {
-        const counts = data[0];
+        const result = data[0];
+        console.log('Folder counts response:', result);
         setCounts({
-          all: Number(counts.all_count || 0),
-          needs: Number(counts.needs_count || 0),
-          sent: Number(counts.sent_count || 0),
-          received: Number(counts.received_count || 0),
-          active: Number(counts.active_count || 0),
-          completed: Number(counts.completed_count || 0),
+          all: Number(result.all_count || 0),
+          needs: Number(result.needs_count || 0),
+          sent: Number(result.sent_count || 0),
+          received: Number(result.received_count || 0),
+          active: Number(result.active_count || 0),
+          completed: Number(result.completed_count || 0),
         });
+      } else {
+        console.warn('No data returned from get_folder_counts_cached');
       }
     } catch (err: any) {
-      console.error('Error in fetchCounts:', err?.message || 'Failed to fetch folder counts');
+      console.error('Error in fetchCounts:', err?.message || err);
       setCounts({
         all: 0,
         needs: 0,
@@ -76,10 +83,14 @@ export function useVaultSummary({ supabase, userEmail, environment }: UseVaultSu
     }
   }, [supabase, userEmail, environment]);
 
+  // Fetch whenever userEmail becomes available
   useEffect(() => {
-    if (!userEmail) return; // Don't fetch if no email
+    if (!userEmail) {
+      console.debug('Waiting for userEmail...');
+      return;
+    }
     fetchCounts();
-  }, [fetchCounts]);
+  }, [userEmail, fetchCounts]); // ✅ Added userEmail to deps
 
   return {
     counts,
