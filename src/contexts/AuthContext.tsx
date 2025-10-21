@@ -189,20 +189,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      console.log('signOut called');
       setError(null);
       
       // Sign out from Privy
+      console.log('Calling Privy logout...');
       await logout();
+      console.log('Privy logout successful');
       
       // Also sign out from Supabase for cleanup
       try {
+        console.log('Signing out from Supabase...');
         await supabase.auth.signOut({ scope: 'local' });
+        console.log('Supabase signout successful');
       } catch (supabaseErr) {
         console.warn('Supabase sign out failed (non-critical):', supabaseErr);
       }
-
+  
       setSession(null);
       setUser(null);
+      console.log('Redirecting to home...');
       router.push('/');
     } catch (err: any) {
       console.error('Sign out error:', err);
