@@ -494,15 +494,15 @@ export function EscrowDetailPanel({
   }, []);
 
   useEffect(() => {
-    console.log('Escrow fetch effect - isOpen:', isOpen, 'escrowId:', escrowId, 'user email:', user?.email);
+    console.log('Escrow fetch effect - isOpen:', isOpen, 'escrowId:', escrowId, 'user:', user);
     
     if (!isOpen || !escrowId) {
       console.log('Missing isOpen or escrowId');
       return;
     }
     
-    if (!user?.email) {
-      console.log('Waiting for user email...');
+    if (!user || !user.email) {
+      console.log('User not ready yet. user:', user);
       return;
     }
     
@@ -511,7 +511,7 @@ export function EscrowDetailPanel({
     
     const fetchEscrow = async () => {
       try {
-        console.log('Calling get_escrow_detail RPC');
+        console.log('Calling get_escrow_detail RPC with:', { escrow_id: escrowId, user_email: user.email });
         const { data, error } = await supabase.rpc('get_escrow_detail', {
           escrow_id: escrowId,
           user_email: user.email
@@ -526,6 +526,7 @@ export function EscrowDetailPanel({
         }
         
         if (data && data.length > 0 && mountedRef.current) {
+          console.log('Setting escrow:', data[0]);
           setEscrow(data[0]);
           setLoading(false);
         } else {
@@ -559,7 +560,7 @@ export function EscrowDetailPanel({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isOpen, escrowId, user?.email, supabase, onUpdate]);
+  }, [isOpen, escrowId, user, supabase, onUpdate]);
 
   useEffect(() => {
     if (!escrow || !user?.email) return;
