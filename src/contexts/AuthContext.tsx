@@ -50,10 +50,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
   
+    if (authenticated && privyUser) {
+      console.log('Full privyUser object:', JSON.stringify(privyUser, null, 2));
+      console.log('privyUser keys:', Object.keys(privyUser));
+      console.log('privyUser.email:', privyUser.email);
+      console.log('privyUser.google:', privyUser.google);
+    }
+  
     const syncAuth = async () => {
       if (authenticated && privyUser?.email) {
-        console.log('Syncing user:', privyUser.email.address);
-        
         const pseudoUser: User = {
           id: privyUser.id,
           email: privyUser.email.address,
@@ -67,9 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
         setUser(pseudoUser);
         setSession({ user: pseudoUser } as Session);
-        console.log('User synced:', pseudoUser.email);
       } else {
-        console.log('Not authenticated or no email. authenticated:', authenticated, 'privyUser.email:', privyUser?.email);
         setUser(null);
         setSession(null);
       }
@@ -78,7 +81,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
     syncAuth();
   }, [ready, authenticated, privyUser]);
-
   // Get wallet address from Privy
   const ensureWallet = async (): Promise<string | null> => {
     if (!authenticated || !privyUser?.email) {
