@@ -47,8 +47,8 @@ export function createOnrampDirectWidget(config: OnrampDirectConfig): string {
     params.append('secondaryColor', '1E53E5');    // Hover blue
     params.append('isDarkMode', 'false');
     
-    // Important: Network selection (Polygon - use 'matic' code for Onramp)
-    params.append('network', 'matic');
+    // Important: Network selection (Polygon - use 'matic20' for Onramp)
+    params.append('network', 'matic20');
 
     const url = `${baseUrl}?${params.toString()}`;
     console.log('[Onramp] Generated deposit widget URL:', url);

@@ -31,7 +31,7 @@ export function createOfframpWidget(config: OfframpConfig): string {
     
     // USDC on Polygon
     params.append('coinCode', 'USDC');
-    params.append('network', 'polygon');  // Correct network code
+    params.append('network', 'matic20');  // Correct network code for Polygon
     params.append('coinAmount', config.usdcAmount.toFixed(2));
     
     // UX - lock amount/coin
@@ -152,4 +152,3 @@ export async function checkUsdcBalance(
     return { hasEnough: true, balance: '0' };
   }
 }
-
