@@ -1693,12 +1693,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     setDepositSuggestedAmount(undefined);
   }}
   suggestedAmount={depositSuggestedAmount}
+  userEmail={userEmail} 
 />
 
 {/* Withdraw Modal */}
 <WithdrawModal
   isOpen={showWithdrawModal}
   onClose={() => setShowWithdrawModal(false)}
+  userEmail={userEmail}
 />
 </div>
 );

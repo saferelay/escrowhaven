@@ -11,9 +11,10 @@ interface DepositModalProps {
   isOpen: boolean;
   onClose: () => void;
   suggestedAmount?: number;
+  userEmail?: string | null;
 }
 
-export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalProps) {
+export function DepositModal({ isOpen, onClose, suggestedAmount, userEmail }: DepositModalProps) {
   const { user, authenticated } = usePrivy();
   const [balance, setBalance] = useState<string>('0');
   const [loading, setLoading] = useState(true);
@@ -53,18 +54,14 @@ export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalP
   }, [suggestedAmount]);
 
   const handleDeposit = async () => {
-    console.log('🔴 user:', user);
-    console.log('🔴 user.email:', user?.email);
-    console.log('🔴 user.email.address:', user?.email?.address);
-    console.log('🔴 user.wallet:', user?.wallet);
-    console.log('🔴 authenticated:', authenticated);
+    console.log('[DepositModal] userEmail from prop:', userEmail);
+    console.log('[DepositModal] wallet address:', user?.wallet?.address);
+    console.log('[DepositModal] authenticated:', authenticated);
   
-    const userEmail = user?.email?.address;
-    console.log('🔴 userEmail:', userEmail);
-  
+    // ✅ Use userEmail from prop instead of trying to extract from user object
     if (!authenticated || !user?.wallet?.address || !userEmail) {
       alert('Please sign in first');
-      console.log('🔴 Failed checks - authenticated:', authenticated, 'wallet:', user?.wallet?.address, 'email:', userEmail);
+      console.log('[DepositModal] Failed checks - authenticated:', authenticated, 'wallet:', user?.wallet?.address, 'email:', userEmail);
       return;
     }
 
