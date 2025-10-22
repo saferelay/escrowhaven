@@ -790,11 +790,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     };
     
     if (profileDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('click', handleClickOutside);  // ← Change this
     }
     
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside);  // ← And this
     };
   }, [profileDropdownOpen]);
 
@@ -1138,13 +1138,20 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       <div className="text-[13px] font-medium text-black truncate">{getUserEmail()}</div>
                     </div>
                     <button
-                      onClick={() => {
-                        console.log('🔴 BUTTON CLICKED - BASIC TEST');
-                        alert('Button works!');
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          // Use AuthContext signOut which handles both Privy and Supabase cleanup
+                          await signOut();
+                        } catch (error) {
+                          console.error('Logout error:', error);
+                          // Force redirect anyway
+                          router.push('/');
+                        }
                       }}
                       className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
                     >
-                      TEST CLICK
+                      Sign Out
                     </button>
                   </div>
                 )}
