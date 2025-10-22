@@ -53,7 +53,9 @@ export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalP
   }, [suggestedAmount]);
 
   const handleDeposit = async () => {
-    if (!authenticated || !user?.wallet?.address || !user?.email) {
+    const userEmail = user?.email?.address;
+
+    if (!authenticated || !user?.wallet?.address || !userEmail) {
       alert('Please sign in first');
       return;
     }
@@ -72,7 +74,7 @@ export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalP
       const { createOnrampDirectWidget } = await import('@/lib/onramp');
       
       const onrampUrl = createOnrampDirectWidget({
-        email: user.email.address,
+        email: userEmail,
         targetUsdcAmount: depositAmount,
         escrowId: `deposit-${Date.now()}`,
         vaultAddress: user.wallet.address,

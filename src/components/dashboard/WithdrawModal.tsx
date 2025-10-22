@@ -44,7 +44,9 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
   }, [user?.wallet?.address, isOpen]);
 
   const handleWithdraw = async () => {
-    if (!authenticated || !user?.wallet?.address || !user?.email) {
+    const userEmail = user?.email?.address;
+
+    if (!authenticated || !user?.wallet?.address || !userEmail) {
       alert('Please sign in first');
       return;
     }
@@ -61,7 +63,7 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
       const { createOfframpWidget } = await import('@/lib/offramp');
       
       const offrampUrl = createOfframpWidget({
-        email: user.email.address,
+        email: userEmail,
         usdcAmount: parseFloat(balance),
         withdrawalId: `withdrawal-${Date.now()}`,
         userWalletAddress: user.wallet.address,
