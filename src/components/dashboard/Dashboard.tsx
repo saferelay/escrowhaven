@@ -8,7 +8,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CreateEscrowWizard } from '@/components/escrow/CreateEscrowWizard';
 import { EscrowDetailPanel } from '@/components/escrow/EscrowDetailPanel';
-import { DepositModal } from '@/components/dashboard/DepositModal';
+import { FundWalletButton } from '@/components/dashboard/FundWalletButton';
 import { WithdrawModal } from '@/components/dashboard/WithdrawModal';
 import Image from 'next/image';
 import { useVaultSummary, type VaultFolder } from '@/hooks/useVaultSummary';
@@ -149,8 +149,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [urlEscrowProcessed, setUrlEscrowProcessed] = useState(false);
   const [showOffRampModal, setShowOffRampModal] = useState(false);
   const [currentWithdrawalId, setCurrentWithdrawalId] = useState<string | null>(null);
-  const [showDepositModal, setShowDepositModal] = useState(false);
-  const [depositSuggestedAmount, setDepositSuggestedAmount] = useState<number | undefined>();
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   // Helper to deduplicate concurrent requests
@@ -1085,18 +1083,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 
                 {transferDropdownOpen && (
                   <div className="absolute right-0 mt-1 w-48 bg-white border border-[#E0E2E7] rounded-lg shadow-lg py-1 z-50">
-                    <button
-                      onClick={() => {
-                        setTransferDropdownOpen(false);
-                        setShowDepositModal(true);
-                      }}
-                      className="w-full text-left px-4 py-2 text-[13px] text-[#0F172A] hover:bg-[#F8F9FD] transition-colors flex items-center gap-2"
-                    >
-                      <svg className="w-4 h-4 text-[#2962FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Deposit Cash
-                    </button>
+                    <FundWalletButton className="w-full text-left px-4 py-2 text-[13px] text-[#0F172A] hover:bg-[#F8F9FD] transition-colors flex items-center gap-2 bg-transparent border-0" />
                     <button
                       onClick={() => {
                         setTransferDropdownOpen(false);
@@ -1438,8 +1425,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       onShowMoonPay={handleShowMoonPay}
                       onShowDeposit={(amount) => {
                         setRightPanelOpen(false);
-                        setDepositSuggestedAmount(amount);
-                        setShowDepositModal(true);
                       }}
                     />
                   ) : null}
@@ -1575,8 +1560,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           onShowMoonPay={handleShowMoonPay}
           onShowDeposit={(amount) => {
             setRightPanelOpen(false);
-            setDepositSuggestedAmount(amount);
-            setShowDepositModal(true);
           }}
         />
       </div>
@@ -1685,22 +1668,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   </div>
 )}
 
-{/* Deposit Modal */}
-<DepositModal
-  isOpen={showDepositModal}
-  onClose={() => {
-    setShowDepositModal(false);
-    setDepositSuggestedAmount(undefined);
-  }}
-  suggestedAmount={depositSuggestedAmount}
-  userEmail={userEmail} 
-/>
-
 {/* Withdraw Modal */}
 <WithdrawModal
   isOpen={showWithdrawModal}
   onClose={() => setShowWithdrawModal(false)}
-  userEmail={userEmail}
+    userEmail={userEmail}
 />
 </div>
 );
