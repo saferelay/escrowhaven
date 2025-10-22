@@ -1,8 +1,10 @@
-// src/components/dashboard/FundWalletButton.tsx - Fixed Privy wallet funding
+// src/components/dashboard/FundWalletButton.tsx - Privy wallet funding (FIXED)
 
 'use client';
 
+import { useFundWallet } from '@privy-io/react-auth';
 import { usePrivy } from '@privy-io/react-auth';
+import { polygon } from 'viem/chains';
 
 interface FundWalletButtonProps {
   className?: string;
@@ -10,8 +12,9 @@ interface FundWalletButtonProps {
 
 export function FundWalletButton({ className }: FundWalletButtonProps) {
   const { user } = usePrivy();
+  const { fundWallet } = useFundWallet();
 
-  const handleFundWallet = () => {
+  const handleFundWallet = async () => {
     if (!user?.wallet?.address) {
       alert('Wallet not found. Please sign in first.');
       return;
@@ -20,10 +23,21 @@ export function FundWalletButton({ className }: FundWalletButtonProps) {
     console.log('[FundWallet] Opening Privy fund wallet for:', user.wallet.address);
     
     try {
-      // Privy embedded wallets can be funded through their official fund page
-      // Opens in new tab for user to fund their wallet
-      const fundUrl = `https://privy.com/fund?wallet=${user.wallet.address}`;
-      window.open(fundUrl, '_blank');
+      // Call Privy's fundWallet with USDC on Polygon
+      await fundWallet({
+        address: user.wallet.address,
+        options: {
+          chain: polygon,
+          amount: '50', // Suggest $50 USDC
+          asset: 'USDC',
+          uiConfig: {
+            receiveFundsTitle: 'Add Funds to Your Wallet',
+            receiveFundsSubtitle: 'Choose a funding method to add USDC to your wallet'
+          }
+        }
+      });
+      
+      console.log('[FundWallet] Fund wallet modal opened');
     } catch (error) {
       console.error('[FundWallet] Error opening fund wallet:', error);
       alert('Failed to open funding options. Please try again.');
