@@ -43,12 +43,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClientComponentClient();
 
   const getEmailFromPrivyUser = (privyUser: any): string | null => {
+    // Method 1: Direct email field (email/password auth)
     if (privyUser?.email?.address) {
+      console.log('[Auth] Email found via user.email.address:', privyUser.email.address);
       return privyUser.email.address;
     }
-    if (privyUser?.google?.email) {
-      return privyUser.google.email;
+
+    // Method 2: linkedAccounts (Google OAuth and other social auth)
+    // This is where Google OAuth emails are stored
+    if (privyUser?.linkedAccounts && Array.isArray(privyUser.linkedAccounts)) {
+      for (const account of privyUser.linkedAccounts) {
+        // Google OAuth account
+        if (account.type === 'google_oauth' && account.email) {
+          console.log('[Auth] Email found via linkedAccounts (google_oauth):', account.email);
+          return account.email;
+        }
+        // Email link account (fallback)
+        if (account.type === 'email' && account.address) {
+          console.log('[Auth] Email found via linkedAccounts (email):', account.address);
+          return account.address;
+        }
+      }
     }
+
+    console.warn('[Auth] No email found in privyUser:', {
+      hasEmail: !!privyUser?.email,
+      hasLinkedAccounts: !!privyUser?.linkedAccounts,
+      linkedAccountsCount: privyUser?.linkedAccounts?.length,
+      linkedAccounts: privyUser?.linkedAccounts?.map((a: any) => ({ type: a.type, hasEmail: !!a.email })),
+    });
     return null;
   };
 
@@ -155,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
         } else {
+          console.error('[Auth] Could not extract email from Privy user');
           setUser(null);
           setSession(null);
         }
