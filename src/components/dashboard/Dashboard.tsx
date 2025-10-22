@@ -12,6 +12,7 @@ import { DepositModal } from '@/components/dashboard/DepositModal';
 import { WithdrawModal } from '@/components/dashboard/WithdrawModal';
 import Image from 'next/image';
 import { useVaultSummary, type VaultFolder } from '@/hooks/useVaultSummary';
+import { useWalletBalance } from '@/hooks/useWalletBalance';
 
 
 // Icons
@@ -68,6 +69,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const authLoading = !ready;
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { balance: walletBalance } = useWalletBalance();
 
   // Email getter - handles both email/password and Google OAuth
   const getUserEmail = useCallback((): string | null => {
@@ -136,6 +138,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   // Feedback
   const [showFeedbackForEscrow, setShowFeedbackForEscrow] = useState<string | null>(null);
   const [selectedScore, setSelectedScore] = useState<number | null>(null);
+  
 
   // Metrics
   const [metrics, setMetrics] = useState({
@@ -915,6 +918,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     const time = getRelativeTime(e.updated_at || e.created_at);
     const action = needsAction(e);
     const isInactive = ['CANCELLED', 'DECLINED'].includes(e.status);
+    
   
     const statusText: Record<string, string> = {
       INITIATED: 'New',
@@ -1007,6 +1011,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   }
 
   const displayCount = getFolderCount(activeFolder);
+  
 
   return (
     <div
@@ -1316,14 +1321,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 </div>
                 <div className="mt-0.5 text-[12px] text-[#26A69A]">{metrics.activeEscrows} in progress</div>
               </div>
+
+              
               
               <div className="rounded-md border border-[#E2E8F0] p-3">
                 <div className="text-[12px] text-[#64748B]">Cash*</div>
                 <div className="mt-1 text-[20px] font-semibold">
-                  ${metrics.availableToWithdraw.toFixed(2)}
-                  {!isProduction && metrics.availableToWithdraw > 0 && (
-                    <span className="ml-1 text-[10px] text-yellow-600 font-normal">(TEST)</span>
-                  )}
+                  ${walletBalance}
                 </div>
                 <div className="mt-0.5 text-[12px] text-[#2962FF]">Ready to withdraw</div>
               </div>
@@ -1338,7 +1342,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </div>
               <div className="rounded-md border border-[#E2E8F0] p-2">
                 <div className="text-[10.5px] text-[#64748B]">Cash*</div>
-                <div className="text-[14px] font-semibold leading-snug">${metrics.availableToWithdraw.toFixed(2)}</div>
+                <div className="text-[14px] font-semibold leading-snug">${walletBalance}</div>
                 <div className="text-[10.5px] text-[#2962FF]">Ready to withdraw</div>
               </div>
             </div>
