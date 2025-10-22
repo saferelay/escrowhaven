@@ -1,8 +1,11 @@
+// src/components/dashboard/WithdrawModal.tsx - UPDATED
+
 'use client';
 
 import { useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAuth } from '@/contexts/AuthContext';
+import { openOfframpWidget, checkUsdcBalance } from '@/lib/offramp';  // ✅ USE NEW FUNCTIONS
 
 interface WithdrawModalProps {
   isOpen: boolean;
@@ -15,53 +18,71 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
   const { supabase } = useAuth();
   const [amount, setAmount] = useState<string>('');
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleWithdraw = async () => {
-    console.log('[WithdrawModal] userEmail from prop:', userEmail);
-    console.log('[WithdrawModal] wallet address:', user?.wallet?.address);
+    console.log('[WithdrawModal] Starting withdrawal with:', { userEmail, wallet: user?.wallet?.address });
 
-    // ✅ Use userEmail from prop
     if (!userEmail || !user?.wallet?.address) {
-      alert('Please sign in first');
+      setError('Please sign in first');
       return;
     }
 
     const withdrawAmount = parseFloat(amount);
     
     if (!withdrawAmount || withdrawAmount < 10) {
-      alert('Minimum withdrawal is $10');
+      setError('Minimum withdrawal is $10');
       return;
     }
 
     setProcessing(true);
+    setError(null);
 
     try {
-      // Initialize withdrawal request
-      const { data: withdrawal, error } = await supabase
+      // Pre-check balance to provide better UX
+      const balanceCheck = await checkUsdcBalance(user.wallet.address, withdrawAmount);
+      
+      if (!balanceCheck.hasEnough) {
+        setError(`Insufficient balance. You have $${balanceCheck.balance} USDC available.`);
+        setProcessing(false);
+        return;
+      }
+
+      // Create withdrawal record in database first
+      const { data: withdrawal, error: dbError } = await supabase
         .from('withdrawals')
         .insert({
           user_email: userEmail,
           amount_cents: Math.floor(withdrawAmount * 100),
           wallet_address: user.wallet.address,
           status: 'PENDING',
-          provider: 'offramp',
+          provider: 'onramp',
         })
         .select()
         .single();
 
-      if (error) {
-        alert('Failed to initiate withdrawal: ' + error.message);
+      if (dbError || !withdrawal) {
+        setError('Failed to create withdrawal. Please try again.');
+        setProcessing(false);
         return;
       }
 
-      if (withdrawal) {
-        // Redirect to off-ramp provider
-        window.location.href = `/api/withdraw?id=${withdrawal.id}`;
-      }
+      console.log('[WithdrawModal] Created withdrawal record:', withdrawal.id);
+
+      // ✅ Open Onramp offramp widget - handles WalletConnect automatically
+      openOfframpWidget({
+        email: userEmail,
+        usdcAmount: withdrawAmount,
+        withdrawalId: withdrawal.id,
+        userWalletAddress: user.wallet.address,
+        isTestMode: process.env.NEXT_PUBLIC_ENVIRONMENT !== 'production'
+      });
+
+      onClose();
       
     } catch (error) {
       console.error('Withdrawal failed:', error);
-      alert('Failed to process withdrawal');
+      setError(error instanceof Error ? error.message : 'Failed to process withdrawal');
     } finally {
       setProcessing(false);
     }
@@ -91,6 +112,13 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
         {/* Content */}
         <div className="p-6">
           
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
           {/* Amount Input */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-black mb-2">
@@ -103,7 +131,10 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
               <input
                 type="number"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  setAmount(e.target.value);
+                  setError(null);
+                }}
                 placeholder="10.00"
                 min="10"
                 step="0.01"
@@ -120,7 +151,7 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
             </svg>
             <div>
               <p className="text-xs text-[#787B86] leading-relaxed">
-                Withdrawals are processed to your bank account within 1-2 business days.
+                Withdrawals are processed to your bank account within 1-2 business days. You'll be asked to connect your wallet to sign the transaction.
               </p>
             </div>
           </div>

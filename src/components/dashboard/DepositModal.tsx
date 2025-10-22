@@ -1,8 +1,11 @@
+// src/components/dashboard/DepositModal.tsx - UPDATED
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
+import { openDepositWidget } from '@/lib/onramp';  // ✅ USE NEW FUNCTION
 
 const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359';
 const USDC_ABI = ['function balanceOf(address owner) view returns (uint256)'];
@@ -54,14 +57,10 @@ export function DepositModal({ isOpen, onClose, suggestedAmount, userEmail }: De
   }, [suggestedAmount]);
 
   const handleDeposit = async () => {
-    console.log('[DepositModal] userEmail from prop:', userEmail);
-    console.log('[DepositModal] wallet address:', user?.wallet?.address);
-    console.log('[DepositModal] authenticated:', authenticated);
-  
-    // ✅ Use userEmail from prop instead of trying to extract from user object
+    console.log('[DepositModal] Starting deposit with:', { userEmail, wallet: user?.wallet?.address });
+
     if (!authenticated || !user?.wallet?.address || !userEmail) {
       alert('Please sign in first');
-      console.log('[DepositModal] Failed checks - authenticated:', authenticated, 'wallet:', user?.wallet?.address, 'email:', userEmail);
       return;
     }
 
@@ -75,10 +74,8 @@ export function DepositModal({ isOpen, onClose, suggestedAmount, userEmail }: De
     setProcessing(true);
 
     try {
-      // Use Onramp.money for deposits
-      const { createOnrampDirectWidget } = await import('@/lib/onramp');
-      
-      const onrampUrl = createOnrampDirectWidget({
+      // ✅ Use the new openDepositWidget function
+      openDepositWidget({
         email: userEmail,
         targetUsdcAmount: depositAmount,
         escrowId: `deposit-${Date.now()}`,
@@ -86,13 +83,11 @@ export function DepositModal({ isOpen, onClose, suggestedAmount, userEmail }: De
         isTestMode: process.env.NEXT_PUBLIC_MOONPAY_MODE !== 'production'
       });
 
-      // Open in new window
-      window.open(onrampUrl, '_blank', 'width=500,height=700');
       onClose();
       
     } catch (error) {
       console.error('Deposit failed:', error);
-      alert('Failed to open deposit widget');
+      alert('Failed to open deposit widget: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setProcessing(false);
     }
