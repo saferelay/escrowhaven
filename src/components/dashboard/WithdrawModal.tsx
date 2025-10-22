@@ -49,6 +49,14 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
       }
 
       // Create withdrawal record in database first
+      console.log('[WithdrawModal] Creating withdrawal record:', {
+        user_email: userEmail,
+        amount_cents: Math.floor(withdrawAmount * 100),
+        wallet_address: user.wallet.address,
+        status: 'PENDING',
+        provider: 'onramp',
+      });
+
       const { data: withdrawal, error: dbError } = await supabase
         .from('withdrawals')
         .insert({
@@ -61,11 +69,25 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
         .select()
         .single();
 
-      if (dbError || !withdrawal) {
+      if (dbError) {
+        console.error('[WithdrawModal] Database error:', {
+          message: dbError.message,
+          code: dbError.code,
+          details: dbError.details,
+        });
+        setError(`Failed to create withdrawal: ${dbError.message}`);
+        setProcessing(false);
+        return;
+      }
+
+      if (!withdrawal) {
+        console.error('[WithdrawModal] No withdrawal returned from database');
         setError('Failed to create withdrawal. Please try again.');
         setProcessing(false);
         return;
       }
+
+      console.log('[WithdrawModal] Withdrawal created:', withdrawal.id);
 
       console.log('[WithdrawModal] Created withdrawal record:', withdrawal.id);
 
