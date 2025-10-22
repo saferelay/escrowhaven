@@ -47,8 +47,8 @@ export function createOnrampDirectWidget(config: OnrampDirectConfig): string {
     params.append('secondaryColor', '1E53E5');    // Hover blue
     params.append('isDarkMode', 'false');
     
-    // Important: Network selection (Polygon)
-    params.append('network', 'polygon');
+    // Important: Network selection (Polygon - use 'matic' code for Onramp)
+    params.append('network', 'matic');
 
     const url = `${baseUrl}?${params.toString()}`;
     console.log('[Onramp] Generated deposit widget URL:', url);
@@ -60,21 +60,59 @@ export function createOnrampDirectWidget(config: OnrampDirectConfig): string {
 }
 
 /**
- * Open deposit widget with proper error handling
+ * Open deposit widget in overlay mode (embedded in page)
  */
 export function openDepositWidget(config: OnrampDirectConfig): void {
   try {
     const url = createOnrampDirectWidget(config);
     
-    // Open in popup (better than new tab for modal feel)
-    const popup = window.open(url, 'onramp_deposit', 'width=500,height=700,resizable=yes,scrollbars=yes');
+    // Add 'widgetMode=overlay' to embed widget in the page
+    const overlayUrl = url.includes('?') 
+      ? `${url}&widgetMode=overlay` 
+      : `${url}?widgetMode=overlay`;
     
-    if (!popup) {
-      console.error('[Onramp] Popup blocked - trying direct navigation');
-      window.location.href = url;
-    } else {
-      console.log('[Onramp] Deposit widget opened in popup');
+    // Create container for overlay if it doesn't exist
+    let container = document.getElementById('onramp-widget-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'onramp-widget-container';
+      container.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      `;
+      document.body.appendChild(container);
     }
+    
+    // Create iframe
+    const iframe = document.createElement('iframe');
+    iframe.src = overlayUrl;
+    iframe.style.cssText = `
+      width: 500px;
+      height: 700px;
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    `;
+    
+    container.innerHTML = '';
+    container.appendChild(iframe);
+    
+    // Close on background click
+    container.addEventListener('click', (e) => {
+      if (e.target === container) {
+        container.remove();
+      }
+    });
+    
+    console.log('[Onramp] Deposit widget opened in overlay mode');
   } catch (error) {
     console.error('[Onramp] Failed to open deposit widget:', error);
     throw error;

@@ -64,27 +64,60 @@ export function createOfframpWidget(config: OfframpConfig): string {
 }
 
 /**
- * Open offramp widget and handle wallet connection
- * 
+ * Open offramp widget in overlay mode (embedded in page)
  * Onramp will request wallet connection via WalletConnect
- * For Privy embedded wallets, this should work automatically
  */
 export function openOfframpWidget(config: OfframpConfig): void {
   try {
     const url = createOfframpWidget(config);
     
-    // Open in popup - this way Onramp can handle WalletConnect flow
-    const popup = window.open(url, 'onramp_offramp', 'width=500,height=700,resizable=yes,scrollbars=yes');
+    // Add 'widgetMode=overlay' to embed widget in the page
+    const overlayUrl = url.includes('?') 
+      ? `${url}&widgetMode=overlay` 
+      : `${url}?widgetMode=overlay`;
     
-    if (!popup) {
-      console.error('[Offramp] Popup blocked - user may need to allow popups');
-      // Fallback: try direct navigation
-      if (confirm('Please allow popups for this site to complete your withdrawal')) {
-        window.location.href = url;
-      }
-    } else {
-      console.log('[Offramp] Withdraw widget opened - WalletConnect will handle connection');
+    // Create container for overlay if it doesn't exist
+    let container = document.getElementById('onramp-widget-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'onramp-widget-container';
+      container.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      `;
+      document.body.appendChild(container);
     }
+    
+    // Create iframe
+    const iframe = document.createElement('iframe');
+    iframe.src = overlayUrl;
+    iframe.style.cssText = `
+      width: 500px;
+      height: 700px;
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    `;
+    
+    container.innerHTML = '';
+    container.appendChild(iframe);
+    
+    // Close on background click
+    container.addEventListener('click', (e) => {
+      if (e.target === container) {
+        container.remove();
+      }
+    });
+    
+    console.log('[Offramp] Withdraw widget opened in overlay mode - WalletConnect will handle connection');
   } catch (error) {
     console.error('[Offramp] Failed to open offramp widget:', error);
     throw error;
