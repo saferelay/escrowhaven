@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [walletInitialized, setWalletInitialized] = useState(false);
   const router = useRouter();
   
   const supabase = createClientComponentClient();
@@ -50,41 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     return null;
   };
-
-  useEffect(() => {
-    if (!ready) return;
-
-    const syncAuth = async () => {
-      if (authenticated && privyUser) {
-        const email = getEmailFromPrivyUser(privyUser);
-        
-        if (email) {
-          const pseudoUser: User = {
-            id: privyUser.id,
-            email: email,
-            app_metadata: {},
-            user_metadata: {
-              privy_id: privyUser.id,
-            },
-            aud: 'authenticated',
-            created_at: new Date().toISOString(),
-          } as User;
-
-          setUser(pseudoUser);
-          setSession({ user: pseudoUser } as Session);
-        } else {
-          setUser(null);
-          setSession(null);
-        }
-      } else {
-        setUser(null);
-        setSession(null);
-      }
-      setLoading(false);
-    };
-
-    syncAuth();
-  }, [ready, authenticated, privyUser]);
 
   // Properly wait for wallet after linking
   const ensureWallet = async (): Promise<string | null> => {
@@ -103,30 +69,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Check if user already has linked wallets
       if (wallets && wallets.length > 0) {
         walletAddress = wallets[0].address;
-        console.log('Existing wallet found:', walletAddress);
+        console.log('[ensureWallet] Existing wallet found:', walletAddress);
       }
 
       // If no wallet, link one
       if (!walletAddress) {
-        console.log('No wallet found, triggering link...');
+        console.log('[ensureWallet] No wallet found, triggering link...');
         try {
           await linkWallet();
           
-          // After linking, wait for the wallet to appear
-          // The hook should update automatically, but we need to wait
-          // Poll for up to 5 seconds for the wallet to appear in the hook
+          // Poll for up to 5 seconds for the wallet to appear
           let attempts = 0;
-          const maxAttempts = 50; // 50 * 100ms = 5 seconds
+          const maxAttempts = 50;
           
           while (attempts < maxAttempts) {
-            // Re-check wallets from current state
             if (wallets && wallets.length > 0) {
               walletAddress = wallets[0].address;
-              console.log('Wallet linked successfully:', walletAddress);
+              console.log('[ensureWallet] Wallet linked successfully:', walletAddress);
               break;
             }
             
-            // Wait before next check
             await new Promise(resolve => setTimeout(resolve, 100));
             attempts++;
           }
@@ -135,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw new Error('Wallet linking failed - wallet did not appear after link');
           }
         } catch (linkErr: any) {
-          console.error('Wallet linking error:', linkErr);
+          console.error('[ensureWallet] Wallet linking error:', linkErr);
           throw new Error(linkErr?.message || 'Wallet linking cancelled or failed');
         }
       }
@@ -162,6 +124,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               updated_at: new Date().toISOString(),
             })
             .eq('email', email.toLowerCase());
+          
+          console.log('[ensureWallet] Wallet updated in database:', walletAddress);
         }
         
         return walletAddress;
@@ -184,14 +148,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(`Failed to save wallet: ${errorData.error || 'Unknown error'}`);
       }
 
-      console.log('Wallet saved to database:', walletAddress);
+      console.log('[ensureWallet] Wallet saved to database:', walletAddress);
       return walletAddress;
       
     } catch (err: any) {
-      console.error('Wallet retrieval failed:', err);
+      console.error('[ensureWallet] Wallet retrieval failed:', err);
       throw new Error(err.message || 'Wallet retrieval failed');
     }
   };
+
+  // Sync Privy auth with local state AND initialize wallet
+  useEffect(() => {
+    if (!ready) return;
+
+    const syncAuth = async () => {
+      if (authenticated && privyUser) {
+        const email = getEmailFromPrivyUser(privyUser);
+        
+        if (email) {
+          const pseudoUser: User = {
+            id: privyUser.id,
+            email: email,
+            app_metadata: {},
+            user_metadata: {
+              privy_id: privyUser.id,
+            },
+            aud: 'authenticated',
+            created_at: new Date().toISOString(),
+          } as User;
+
+          setUser(pseudoUser);
+          setSession({ user: pseudoUser } as Session);
+
+          // Initialize wallet on login (silent, non-blocking)
+          if (!walletInitialized) {
+            try {
+              await ensureWallet();
+              setWalletInitialized(true);
+              console.log('[Auth] ✅ Wallet initialized on login');
+            } catch (err) {
+              console.warn('[Auth] Wallet initialization failed (non-critical):', err);
+              // Continue anyway - wallet will be created on first escrow creation
+            }
+          }
+        } else {
+          setUser(null);
+          setSession(null);
+        }
+      } else {
+        setUser(null);
+        setSession(null);
+        setWalletInitialized(false);
+      }
+      setLoading(false);
+    };
+
+    syncAuth();
+  }, [ready, authenticated, privyUser, walletInitialized]);
 
   const signIn = async (email: string) => {
     try {
@@ -219,36 +232,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('🔴 [signOut] Starting logout...');
+      console.log('[Auth] 🔴 Sign out starting...');
       setError(null);
       
-      console.log('🔴 [signOut] Calling Privy logout()...');
+      console.log('[Auth] 🔴 Calling Privy logout()...');
       await logout();
-      console.log('🔴 [signOut] Privy logout() complete');
+      console.log('[Auth] 🔴 Privy logout() complete');
       
       try {
-        console.log('🔴 [signOut] Calling Supabase auth.signOut()...');
+        console.log('[Auth] 🔴 Calling Supabase auth.signOut()...');
         await supabase.auth.signOut({ scope: 'local' });
-        console.log('🔴 [signOut] Supabase signOut() complete');
+        console.log('[Auth] 🔴 Supabase signOut() complete');
       } catch (supabaseErr) {
-        console.warn('🔴 [signOut] Supabase sign out failed (non-critical):', supabaseErr);
+        console.warn('[Auth] 🔴 Supabase sign out failed (non-critical):', supabaseErr);
       }
 
-      console.log('🔴 [signOut] Clearing local state...');
+      console.log('[Auth] 🔴 Clearing local state...');
       setSession(null);
       setUser(null);
+      setWalletInitialized(false);
       
-      console.log('🔴 [signOut] Redirecting to /...');
+      console.log('[Auth] 🔴 Redirecting to /...');
       router.push('/');
-      console.log('🔴 [signOut] Router push called');
+      console.log('[Auth] 🔴 Router push called');
     } catch (err: any) {
-      console.error('🔴 [signOut] ERROR:', err);
+      console.error('[Auth] 🔴 ERROR:', err);
       const errorMsg = err.message || 'Sign out failed';
       setError(errorMsg);
       throw err;
     }
   };
 
+  // Redirect authenticated users away from auth pages
   useEffect(() => {
     if (ready && authenticated && privyUser) {
       const currentPath = window.location.pathname;
