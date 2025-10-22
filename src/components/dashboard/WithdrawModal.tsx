@@ -1,11 +1,9 @@
-// src/components/dashboard/WithdrawModal.tsx - UPDATED
-
 'use client';
 
 import { useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAuth } from '@/contexts/AuthContext';
-import { openOfframpWidget, checkUsdcBalance } from '@/lib/offramp';  // ✅ USE NEW FUNCTIONS
+import { openOfframpWidget, checkUsdcBalance } from '@/lib/offramp';
 
 interface WithdrawModalProps {
   isOpen: boolean;
@@ -40,70 +38,64 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
 
     try {
       // Pre-check balance to provide better UX
+      console.log('[WithdrawModal] Checking balance...');
       const balanceCheck = await checkUsdcBalance(user.wallet.address, withdrawAmount);
       
       if (!balanceCheck.hasEnough) {
+        console.warn('[WithdrawModal] Insufficient balance:', balanceCheck.balance);
         setError(`Insufficient balance. You have $${balanceCheck.balance} USDC available.`);
         setProcessing(false);
         return;
       }
 
-      // Create withdrawal record in database first
-      console.log('[WithdrawModal] Creating withdrawal record:', {
-        user_email: userEmail,
-        amount_cents: Math.floor(withdrawAmount * 100),
-        wallet_address: user.wallet.address,
-        status: 'PENDING',
-        provider: 'onramp',
-      });
+      console.log('[WithdrawModal] Balance check passed, creating withdrawal record...');
 
-      const { data: withdrawal, error: dbError } = await supabase
-        .from('withdrawals')
-        .insert({
-          user_email: userEmail,
-          amount_cents: Math.floor(withdrawAmount * 100),
-          wallet_address: user.wallet.address,
-          status: 'PENDING',
-          provider: 'onramp',
+      // Call server-side function to create withdrawal with elevated permissions
+      const { data: withdrawal, error: rpcError } = await supabase
+        .rpc('create_withdrawal', {
+          p_user_email: userEmail,
+          p_amount_cents: Math.floor(withdrawAmount * 100),
+          p_wallet_address: user.wallet.address,
+          p_status: 'PENDING',
+          p_provider: 'onramp',
         })
-        .select()
         .single();
 
-      if (dbError) {
-        console.error('[WithdrawModal] Database error:', {
-          message: dbError.message,
-          code: dbError.code,
-          details: dbError.details,
+      if (rpcError) {
+        console.error('[WithdrawModal] RPC error:', {
+          message: rpcError.message,
+          code: rpcError.code,
+          details: rpcError.details,
         });
-        setError(`Failed to create withdrawal: ${dbError.message}`);
+        setError(`Failed to create withdrawal: ${rpcError.message}`);
         setProcessing(false);
         return;
       }
 
-      if (!withdrawal) {
-        console.error('[WithdrawModal] No withdrawal returned from database');
+      if (!withdrawal || !withdrawal.id) {
+        console.error('[WithdrawModal] No withdrawal ID returned');
         setError('Failed to create withdrawal. Please try again.');
         setProcessing(false);
         return;
       }
 
-      console.log('[WithdrawModal] Withdrawal created:', withdrawal.id);
+      console.log('[WithdrawModal] Withdrawal created successfully:', withdrawal.id);
 
-      console.log('[WithdrawModal] Created withdrawal record:', withdrawal.id);
-
-      // ✅ Open Onramp offramp widget (live mode) - handles WalletConnect automatically
+      // Open Onramp offramp widget - handles WalletConnect automatically
+      console.log('[WithdrawModal] Opening Onramp offramp widget...');
       openOfframpWidget({
         email: userEmail,
         usdcAmount: withdrawAmount,
         withdrawalId: withdrawal.id,
         userWalletAddress: user.wallet.address,
-        isTestMode: false  // Use live Onramp endpoint
+        isTestMode: process.env.NEXT_PUBLIC_ENVIRONMENT !== 'production'
       });
 
+      console.log('[WithdrawModal] Offramp widget opened, closing modal');
       onClose();
       
     } catch (error) {
-      console.error('Withdrawal failed:', error);
+      console.error('[WithdrawModal] Unexpected error:', error);
       setError(error instanceof Error ? error.message : 'Failed to process withdrawal');
     } finally {
       setProcessing(false);
@@ -160,7 +152,8 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
                 placeholder="10.00"
                 min="10"
                 step="0.01"
-                className="w-full bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg pl-8 pr-4 py-3 text-base text-black focus:bg-white focus:border-[#2962FF] focus:outline-none focus:ring-2 focus:ring-[#2962FF]/10 transition-all"
+                disabled={processing}
+                className="w-full bg-[#F8F9FD] border border-[#E0E2E7] rounded-lg pl-8 pr-4 py-3 text-base text-black focus:bg-white focus:border-[#2962FF] focus:outline-none focus:ring-2 focus:ring-[#2962FF]/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
             <p className="text-xs text-[#787B86] mt-2">Minimum $10</p>
@@ -173,7 +166,7 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
             </svg>
             <div>
               <p className="text-xs text-[#787B86] leading-relaxed">
-                Withdrawals are processed to your bank account within 1-2 business days. You'll be asked to connect your wallet to sign the transaction.
+                Withdrawals are processed to your bank account within 1-2 business days. You'll need to connect your wallet to authorize the transaction.
               </p>
             </div>
           </div>
