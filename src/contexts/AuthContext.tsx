@@ -219,28 +219,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('🔴 Sign out starting...');
+      console.log('🔴 [signOut] Starting logout...');
       setError(null);
       
-      console.log('🔴 Calling Privy logout...');
+      console.log('🔴 [signOut] Calling Privy logout()...');
       await logout();
-      console.log('🔴 Privy logout done');
+      console.log('🔴 [signOut] Privy logout() complete');
       
       try {
-        console.log('🔴 Calling Supabase logout...');
+        console.log('🔴 [signOut] Calling Supabase auth.signOut()...');
         await supabase.auth.signOut({ scope: 'local' });
-        console.log('🔴 Supabase logout done');
+        console.log('🔴 [signOut] Supabase signOut() complete');
       } catch (supabaseErr) {
-        console.warn('Supabase sign out failed (non-critical):', supabaseErr);
+        console.warn('🔴 [signOut] Supabase sign out failed (non-critical):', supabaseErr);
       }
-  
-      console.log('🔴 Clearing state...');
+
+      console.log('🔴 [signOut] Clearing local state...');
       setSession(null);
       setUser(null);
-      console.log('🔴 Pushing to /');
+      
+      console.log('🔴 [signOut] Redirecting to /...');
       router.push('/');
+      console.log('🔴 [signOut] Router push called');
     } catch (err: any) {
-      console.error('Sign out error:', err);
+      console.error('🔴 [signOut] ERROR:', err);
       const errorMsg = err.message || 'Sign out failed';
       setError(errorMsg);
       throw err;
