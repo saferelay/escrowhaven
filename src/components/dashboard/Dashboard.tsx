@@ -1138,19 +1138,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       <div className="text-[13px] font-medium text-black truncate">{getUserEmail()}</div>
                     </div>
                     <button
-                      onClick={async () => {
-                        try {
-                          // Use AuthContext signOut which handles both Privy and Supabase cleanup
-                          await signOut();
-                        } catch (error) {
-                          console.error('Logout error:', error);
-                          // Force redirect anyway
-                          router.push('/');
-                        }
+                      onClick={() => {
+                        console.log('🔴 BUTTON CLICKED - BASIC TEST');
+                        alert('Button works!');
                       }}
                       className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
                     >
-                      Sign Out
+                      TEST CLICK
                     </button>
                   </div>
                 )}
