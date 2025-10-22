@@ -31,7 +31,7 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { ready, authenticated, user: privyUser, login, logout, linkWallet } = usePrivy();
+  const { ready, authenticated, user: privyUser, login, logout } = usePrivy();
   const { wallets } = useWallets();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
-  // Properly wait for wallet after linking
+  // Capture wallet created by Privy and save to database
   const ensureWallet = async (): Promise<string | null> => {
     if (!authenticated || !privyUser) {
       throw new Error('User not authenticated');
@@ -62,81 +62,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!email) {
       throw new Error('User email not found');
     }
-  
+
     try {
-      let walletAddress: string | null = null;
-
-      // Check if user already has linked wallets
-      if (wallets && wallets.length > 0) {
-        walletAddress = wallets[0].address;
-        console.log('[ensureWallet] Existing wallet found:', walletAddress);
+      // Get wallet from Privy (should already exist from auto-creation)
+      if (!wallets || wallets.length === 0) {
+        throw new Error('No wallet found - Privy auto-creation may have failed');
       }
 
-      // If no wallet, link one
-      if (!walletAddress) {
-        console.log('[ensureWallet] No wallet found, triggering link...');
-        try {
-          await linkWallet();
-          
-          // Poll for up to 5 seconds for the wallet to appear
-          let attempts = 0;
-          const maxAttempts = 50;
-          
-          while (attempts < maxAttempts) {
-            if (wallets && wallets.length > 0) {
-              walletAddress = wallets[0].address;
-              console.log('[ensureWallet] Wallet linked successfully:', walletAddress);
-              break;
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
-          
-          if (!walletAddress) {
-            throw new Error('Wallet linking failed - wallet did not appear after link');
-          }
-        } catch (linkErr: any) {
-          console.error('[ensureWallet] Wallet linking error:', linkErr);
-          throw new Error(linkErr?.message || 'Wallet linking cancelled or failed');
-        }
-      }
+      const walletAddress = wallets[0].address;
+      console.log('[ensureWallet] Found wallet from Privy:', walletAddress);
 
-      if (!walletAddress) {
-        throw new Error('Unable to create or retrieve wallet');
-      }
-
-      // Save to database
+      // Check if already in database
       const { data: existingWallet } = await supabase
         .from('user_wallets')
         .select('wallet_address')
         .eq('email', email.toLowerCase())
         .maybeSingle();
 
+      // Update if wallet changed (migration case)
       if (existingWallet?.wallet_address) {
-        // Update if changed (migration case)
         if (existingWallet.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
           await supabase
             .from('user_wallets')
-            .update({ 
+            .update({
               wallet_address: walletAddress,
               provider: 'privy',
               updated_at: new Date().toISOString(),
             })
             .eq('email', email.toLowerCase());
-          
           console.log('[ensureWallet] Wallet updated in database:', walletAddress);
         }
-        
         return walletAddress;
       }
 
-      // No existing wallet - create new entry
+      // Insert new wallet
       const saveResponse = await fetch('/api/user/save-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: email,
+          email,
           wallet: walletAddress,
           issuer: privyUser.id,
           provider: 'privy'
@@ -150,21 +114,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('[ensureWallet] Wallet saved to database:', walletAddress);
       return walletAddress;
-      
     } catch (err: any) {
-      console.error('[ensureWallet] Wallet retrieval failed:', err);
+      console.error('[ensureWallet] Error:', err);
       throw new Error(err.message || 'Wallet retrieval failed');
     }
   };
 
-  // Sync Privy auth with local state AND initialize wallet
+  // Sync Privy auth with local state and initialize wallet
   useEffect(() => {
     if (!ready) return;
 
     const syncAuth = async () => {
       if (authenticated && privyUser) {
         const email = getEmailFromPrivyUser(privyUser);
-        
+
         if (email) {
           const pseudoUser: User = {
             id: privyUser.id,
@@ -181,14 +144,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession({ user: pseudoUser } as Session);
 
           // Initialize wallet on login (silent, non-blocking)
-          if (!walletInitialized) {
+          if (!walletInitialized && wallets && wallets.length > 0) {
             try {
               await ensureWallet();
               setWalletInitialized(true);
-              console.log('[Auth] ✅ Wallet initialized on login');
+              console.log('[Auth] Wallet captured and saved on login');
             } catch (err) {
-              console.warn('[Auth] Wallet initialization failed (non-critical):', err);
-              // Continue anyway - wallet will be created on first escrow creation
+              console.warn('[Auth] Wallet capture failed (non-critical):', err);
+              // Continue anyway - wallet will be available for escrow creation
             }
           }
         } else {
@@ -204,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     syncAuth();
-  }, [ready, authenticated, privyUser, walletInitialized]);
+  }, [ready, authenticated, privyUser, wallets, walletInitialized]);
 
   const signIn = async (email: string) => {
     try {
@@ -232,31 +195,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('[Auth] 🔴 Sign out starting...');
+      console.log('[Auth] Sign out starting...');
       setError(null);
-      
-      console.log('[Auth] 🔴 Calling Privy logout()...');
+
+      console.log('[Auth] Calling Privy logout()...');
       await logout();
-      console.log('[Auth] 🔴 Privy logout() complete');
-      
+      console.log('[Auth] Privy logout() complete');
+
       try {
-        console.log('[Auth] 🔴 Calling Supabase auth.signOut()...');
+        console.log('[Auth] Calling Supabase auth.signOut()...');
         await supabase.auth.signOut({ scope: 'local' });
-        console.log('[Auth] 🔴 Supabase signOut() complete');
+        console.log('[Auth] Supabase signOut() complete');
       } catch (supabaseErr) {
-        console.warn('[Auth] 🔴 Supabase sign out failed (non-critical):', supabaseErr);
+        console.warn('[Auth] Supabase sign out failed (non-critical):', supabaseErr);
       }
 
-      console.log('[Auth] 🔴 Clearing local state...');
+      console.log('[Auth] Clearing state and redirecting...');
       setSession(null);
       setUser(null);
       setWalletInitialized(false);
-      
-      console.log('[Auth] 🔴 Redirecting to /...');
+
       router.push('/');
-      console.log('[Auth] 🔴 Router push called');
     } catch (err: any) {
-      console.error('[Auth] 🔴 ERROR:', err);
+      console.error('[Auth] Sign out error:', err);
       const errorMsg = err.message || 'Sign out failed';
       setError(errorMsg);
       throw err;
@@ -274,17 +235,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [ready, authenticated, privyUser, router]);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      loading: loading || !ready, 
-      error, 
-      signIn, 
-      signInWithGoogle, 
-      signOut, 
-      ensureWallet, 
-      supabase 
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading: loading || !ready,
+        error,
+        signIn,
+        signInWithGoogle,
+        signOut,
+        ensureWallet,
+        supabase
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
