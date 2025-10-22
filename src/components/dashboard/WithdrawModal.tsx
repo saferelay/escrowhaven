@@ -69,13 +69,13 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
 
       console.log('[WithdrawModal] Created withdrawal record:', withdrawal.id);
 
-      // ✅ Open Onramp offramp widget - handles WalletConnect automatically
+      // ✅ Open Onramp offramp widget (live mode) - handles WalletConnect automatically
       openOfframpWidget({
         email: userEmail,
         usdcAmount: withdrawAmount,
         withdrawalId: withdrawal.id,
         userWalletAddress: user.wallet.address,
-        isTestMode: process.env.NEXT_PUBLIC_ENVIRONMENT !== 'production'
+        isTestMode: false  // Use live Onramp endpoint
       });
 
       onClose();

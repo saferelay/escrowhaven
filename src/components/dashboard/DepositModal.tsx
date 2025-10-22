@@ -74,13 +74,13 @@ export function DepositModal({ isOpen, onClose, suggestedAmount, userEmail }: De
     setProcessing(true);
 
     try {
-      // ✅ Use the new openDepositWidget function
+      // ✅ Use the new openDepositWidget function (live mode)
       openDepositWidget({
         email: userEmail,
         targetUsdcAmount: depositAmount,
         escrowId: `deposit-${Date.now()}`,
         vaultAddress: user.wallet.address,
-        isTestMode: process.env.NEXT_PUBLIC_MOONPAY_MODE !== 'production'
+        isTestMode: false  // Use live Onramp endpoint
       });
 
       onClose();
