@@ -64,8 +64,8 @@ const isStaging = process.env.NEXT_PUBLIC_ENVIRONMENT === 'staging';
 const PAGE_SIZE = 20;
 
 export function Dashboard({ onNavigate }: DashboardProps) {
-  const { supabase, signOut } = useAuth();
-  const { user: privyUser, authenticated, ready, logout } = usePrivy();
+  const { supabase, signOut, user: authUser } = useAuth();
+  const { authenticated, ready } = usePrivy();
   const authLoading = !ready;
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -73,20 +73,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   // Email getter - handles both email/password and Google OAuth
   const getUserEmail = useCallback((): string | null => {
-    if (!privyUser) return null;
-    
-    // Email auth
-    if (privyUser.email?.address) {
-      return privyUser.email.address;
-    }
-    
-    // Google OAuth
-    if (privyUser.google?.email) {
-      return privyUser.google.email;
-    }
-    
-    return null;
-  }, [privyUser]);
+    return authUser?.email || null;
+  }, [authUser]);
 
   const userEmail = useMemo(() => getUserEmail(), [getUserEmail]);
   const { counts: folderCounts, refresh: refreshFolderCounts } = useVaultSummary({
@@ -1206,10 +1194,15 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     <div className="text-[12px] font-medium text-black truncate">{getUserEmail()}</div>
                   </div>
                   <button
-                    onClick={async () => {
-                      await logout();
-                      router.push('/');
-                    }}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await signOut();
+                        } catch (error) {
+                          console.error('Logout error:', error);
+                          router.push('/');
+                        }
+                      }}
                     className="w-full text-left px-4 py-2 text-[13px] text-[#787B86] hover:bg-[#F8F9FD] hover:text-black transition-colors"
                   >
                     Sign Out
