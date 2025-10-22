@@ -53,10 +53,18 @@ export function DepositModal({ isOpen, onClose, suggestedAmount }: DepositModalP
   }, [suggestedAmount]);
 
   const handleDeposit = async () => {
+    console.log('🔴 user:', user);
+    console.log('🔴 user.email:', user?.email);
+    console.log('🔴 user.email.address:', user?.email?.address);
+    console.log('🔴 user.wallet:', user?.wallet);
+    console.log('🔴 authenticated:', authenticated);
+  
     const userEmail = user?.email?.address;
-
+    console.log('🔴 userEmail:', userEmail);
+  
     if (!authenticated || !user?.wallet?.address || !userEmail) {
       alert('Please sign in first');
+      console.log('🔴 Failed checks - authenticated:', authenticated, 'wallet:', user?.wallet?.address, 'email:', userEmail);
       return;
     }
 
