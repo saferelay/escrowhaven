@@ -1,4 +1,4 @@
-// src/lib/offramp.ts - Production Onramp Offramp Integration
+// src/lib/offramp.ts - Let user choose withdrawal currency
 import { ethers } from 'ethers';
 
 const ONRAMP_APP_ID = process.env.NEXT_PUBLIC_ONRAMP_APP_ID || '1687307';
@@ -15,53 +15,48 @@ export interface OfframpConfig {
 
 /**
  * Create Onramp offramp (sell) widget URL
- * Based on Onramp documentation for hosted mode
+ * Let user choose their withdrawal currency (USD, EUR, GBP, etc.)
  */
 export function createOfframpWidget(config: OfframpConfig): string {
   try {
-    // Always use production for offramp - per Onramp docs
     const baseUrl = 'https://onramp.money/main/sell';
 
     const params = new URLSearchParams();
     
-    // Required parameters (per Onramp docs)
+    // Required parameters
     params.append('appId', ONRAMP_APP_ID);
     params.append('walletAddress', config.userWalletAddress);
     
-    // Crypto parameters - using Onramp's expected format
-    // Note: For offramp, Onramp may expect different coin codes than onramp
-    params.append('coinCode', 'USDC');  // Standard coin code
-    params.append('network', 'matic20'); // Polygon network
-    
-    // Amount - what user is selling in USDC
+    // Crypto they're selling
+    params.append('coinCode', 'USDC');
+    params.append('network', 'matic20'); // Polygon
     params.append('coinAmount', config.usdcAmount.toFixed(2));
     
-    // Fiat currency - what user receives (commented out to let Onramp detect from location)
-    // If USD is not supported for your account, try removing this or letting user select
-    // params.append('fiatCurrency', 'USD');
+    // DON'T specify fiatCurrency - let user choose!
+    // This allows EUR, GBP, USD, etc. based on what Onramp supports in their region
     
     // User info
     params.append('userEmail', config.email);
-    
-    // Tracking/webhook identifier
     params.append('merchantRecognitionId', config.withdrawalId);
     
-    // UX preferences
+    // UX - lock crypto but allow currency selection
     params.append('isAmountEditable', 'false');
     params.append('isCoinCodeEditable', 'false');
+    params.append('isFiatCurrencyEditable', 'true'); // CRITICAL: Let user choose currency
     
     // Theme
     params.append('primaryColor', '2962FF');
     params.append('secondaryColor', '1E53E5');
+    params.append('isDarkMode', 'false');
     
-    // Redirect URL with placeholders that Onramp will replace
+    // Redirect
     if (typeof window !== 'undefined') {
       const redirectUrl = `${window.location.origin}/dashboard?withdrawal=complete&orderId={orderId}&status={status}`;
       params.append('redirectUrl', redirectUrl);
     }
 
     const url = `${baseUrl}?${params.toString()}`;
-    console.log('[Offramp] Widget URL:', url);
+    console.log('[Offramp] Widget URL (user chooses currency):', url);
     return url;
   } catch (error) {
     console.error('[Offramp] Error generating widget URL:', error);
@@ -70,16 +65,15 @@ export function createOfframpWidget(config: OfframpConfig): string {
 }
 
 /**
- * Open offramp widget
- * Using popup window for better compatibility (per best practices)
+ * Open offramp widget - popup for best UX
  */
 export function openOfframpWidget(config: OfframpConfig): void {
   try {
     const url = createOfframpWidget(config);
     
-    console.log('[Offramp] Opening withdrawal widget...');
+    console.log('[Offramp] Opening withdrawal widget (user will choose currency)...');
     
-    // Try popup first (recommended for payment flows)
+    // Open in popup window
     const width = 450;
     const height = 700;
     const left = window.screen.width / 2 - width / 2;
@@ -99,12 +93,11 @@ export function openOfframpWidget(config: OfframpConfig): void {
     
     popup.focus();
     
-    // Monitor popup
+    // Monitor popup closure
     const checkPopup = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkPopup);
         console.log('[Offramp] Widget closed');
-        // Optionally trigger a refresh or callback here
         window.dispatchEvent(new Event('onramp-closed'));
       }
     }, 1000);
@@ -119,11 +112,11 @@ export function openOfframpWidget(config: OfframpConfig): void {
  * Fallback: Open in iframe with overlay
  */
 function openOfframpIframe(url: string): void {
-  // Remove existing container
+  // Remove existing
   const existing = document.getElementById('onramp-widget-container');
   if (existing) existing.remove();
   
-  // Create overlay container
+  // Create overlay
   const container = document.createElement('div');
   container.id = 'onramp-widget-container';
   container.style.cssText = `
@@ -155,7 +148,7 @@ function openOfframpIframe(url: string): void {
     background: white;
   `;
   
-  // Create close button
+  // Close button
   const closeBtn = document.createElement('button');
   closeBtn.innerHTML = '✕';
   closeBtn.style.cssText = `
@@ -186,7 +179,6 @@ function openOfframpIframe(url: string): void {
     window.dispatchEvent(new Event('onramp-closed'));
   });
   
-  // Append elements
   container.appendChild(iframe);
   container.appendChild(closeBtn);
   document.body.appendChild(container);
@@ -199,7 +191,7 @@ function openOfframpIframe(url: string): void {
     }
   });
   
-  // Close on ESC key
+  // Close on ESC
   const handleEsc = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       container.remove();
@@ -211,7 +203,7 @@ function openOfframpIframe(url: string): void {
 }
 
 /**
- * Check if wallet has enough USDC for withdrawal
+ * Check USDC balance before withdrawal
  */
 export async function checkUsdcBalance(
   walletAddress: string,
@@ -240,7 +232,7 @@ export async function checkUsdcBalance(
     };
   } catch (error) {
     console.error('[Offramp] Balance check failed:', error);
-    // Don't block user - let Onramp handle the balance check
+    // Don't block - let Onramp handle it
     return { hasEnough: true, balance: '0' };
   }
 }
