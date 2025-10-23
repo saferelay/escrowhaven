@@ -716,15 +716,29 @@ export function EscrowDetailPanel({
       }
   
       console.log('[Accept] Updating escrow with data:', updateData);
+      console.log('[Accept] Attempting database update for escrow:', escrow.id);
   
-      const { error: updateError } = await supabase
+      const { data: updateResult, error: updateError } = await supabase
         .from('escrows')
         .update(updateData)
-        .eq('id', escrowId);
+        .eq('id', escrow.id)
+        .select();
+  
+      console.log('[Accept] Database update result:', { data: updateResult, error: updateError });
   
       if (updateError) {
+        console.error('[Accept] ❌ Database update failed:', updateError);
+        alert(`Database update failed: ${updateError.message}`);
         throw new Error(`Failed to accept escrow: ${updateError.message}`);
       }
+  
+      if (!updateResult || updateResult.length === 0) {
+        console.error('[Accept] ❌ No rows updated');
+        alert('Failed to update escrow - no rows affected');
+        throw new Error('Database update affected 0 rows');
+      }
+  
+      console.log('[Accept] ✅ Escrow accepted successfully!', updateResult[0]);
   
       if (onUpdate) onUpdate();
       
@@ -743,6 +757,8 @@ export function EscrowDetailPanel({
     
     setProcessing(true);
     try {
+      console.log('[Decline] Declining escrow:', escrow.id);
+      
       const { error } = await supabase
         .from('escrows')
         .update({
@@ -751,13 +767,20 @@ export function EscrowDetailPanel({
           declined_reason: declineReason,
           declined_by: user?.email
         })
-        .eq('id', escrowId);
+        .eq('id', escrow.id);  // ✅ FIXED
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Decline] Failed:', error);
+        throw error;
+      }
+      
+      console.log('[Decline] ✅ Escrow declined successfully');
       
       setShowDeclineForm(false);
       if (onUpdate) onUpdate();
+      onClose();
     } catch (error) {
+      console.error('[Decline] Error:', error);
       alert('Failed to decline. Please try again.');
     } finally {
       setProcessing(false);
