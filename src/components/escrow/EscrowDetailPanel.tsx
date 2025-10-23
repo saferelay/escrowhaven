@@ -656,9 +656,10 @@ export function EscrowDetailPanel({
           
           const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
           const provider = new ethers.providers.StaticJsonRpcProvider(
-            isProduction 
-              ? `https://polygon-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`
-              : 'https://rpc-amoy.polygon.technology'
+            process.env.NEXT_PUBLIC_POLYGON_RPC || 
+            (isProduction 
+              ? 'https://polygon-rpc.com'
+              : 'https://rpc-amoy.polygon.technology')
           );
 
           const factoryAddress = isProduction
