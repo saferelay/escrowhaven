@@ -1,8 +1,12 @@
-// src/lib/moonpay-offramp.ts - Official MoonPay SDK Integration (Fixed)
+// src/lib/moonpay-offramp.ts - Fixed to use correct env variable names
 import { loadMoonPay } from '@moonpay/moonpay-js';
 import { ethers } from 'ethers';
 
-const MOONPAY_API_KEY = process.env.NEXT_PUBLIC_MOONPAY_PUBLISHABLE_KEY || '';
+// Use correct env variable names from your .env.local
+const MOONPAY_API_KEY = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production'
+  ? process.env.NEXT_PUBLIC_MOONPAY_LIVE_KEY
+  : process.env.NEXT_PUBLIC_MOONPAY_TEST_KEY;
+
 const POLYGON_RPC = process.env.NEXT_PUBLIC_POLYGON_RPC || 'https://polygon-rpc.com';
 const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359';
 
@@ -16,11 +20,15 @@ export interface MoonPayOfframpConfig {
 
 /**
  * Open MoonPay Offramp Widget using Official SDK
- * Following MoonPay's 1-click integration guide
  */
 export async function openMoonPayOfframpWidget(config: MoonPayOfframpConfig): Promise<void> {
   try {
     console.log('[MoonPay SDK] Initializing offramp widget...');
+    console.log('[MoonPay SDK] Using API key:', MOONPAY_API_KEY?.substring(0, 10) + '...');
+    
+    if (!MOONPAY_API_KEY) {
+      throw new Error('MoonPay API key not found. Check your .env.local file.');
+    }
     
     // Load MoonPay SDK
     const moonPay = await loadMoonPay();
@@ -62,15 +70,11 @@ export async function openMoonPayOfframpWidget(config: MoonPayOfframpConfig): Pr
       }
     });
     
-    // Note: Event listeners may not be available in all SDK versions
-    // If you need event tracking, use postMessage listeners instead
-    // or check MoonPay docs for your SDK version
-    
     // Show the widget
     moonPaySdk.show();
     console.log('[MoonPay SDK] Widget displayed');
     
-    // Listen for widget close via postMessage (alternative to .on())
+    // Listen for widget events via postMessage
     const handleMessage = (event: MessageEvent) => {
       if (event.origin === 'https://buy.moonpay.com' || event.origin === 'https://buy-staging.moonpay.com') {
         console.log('[MoonPay SDK] Message received:', event.data);
@@ -131,4 +135,3 @@ export async function checkUsdcBalance(
     return { hasEnough: true, balance: '0' };
   }
 }
-
