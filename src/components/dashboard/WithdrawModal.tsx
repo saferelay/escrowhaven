@@ -11,7 +11,7 @@ interface WithdrawModalProps {
   userEmail?: string | null;
 }
 
-// Type for the withdrawal response from the RPC
+// Type matching EXACT withdrawals table schema
 interface WithdrawalResponse {
   id: string;
   user_email: string;
@@ -19,6 +19,9 @@ interface WithdrawalResponse {
   wallet_address: string;
   status: string;
   provider: string;
+  initiated_at?: string;
+  completed_at?: string;
+  transaction_hash?: string;
   created_at?: string;
 }
 
