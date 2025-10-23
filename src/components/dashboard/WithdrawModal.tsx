@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAuth } from '@/contexts/AuthContext';
-import { openOfframpWidget, checkUsdcBalance } from '@/lib/offramp';
+import { openMoonPayOfframpWidget, checkUsdcBalance } from '@/lib/moonpay-offramp';
 
 interface WithdrawModalProps {
   isOpen: boolean;
@@ -11,7 +11,6 @@ interface WithdrawModalProps {
   userEmail?: string | null;
 }
 
-// Type matching EXACT withdrawals table schema
 interface WithdrawalResponse {
   id: string;
   user_email: string;
@@ -33,7 +32,10 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
   const [error, setError] = useState<string | null>(null);
 
   const handleWithdraw = async () => {
-    console.log('[WithdrawModal] Starting withdrawal with:', { userEmail, wallet: user?.wallet?.address });
+    console.log('[WithdrawModal] Starting MoonPay withdrawal:', { 
+      userEmail, 
+      wallet: user?.wallet?.address 
+    });
 
     if (!userEmail || !user?.wallet?.address) {
       setError('Please sign in first');
@@ -51,8 +53,8 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
     setError(null);
 
     try {
-      // Pre-check balance to provide better UX
-      console.log('[WithdrawModal] Checking balance...');
+      // Check balance
+      console.log('[WithdrawModal] Checking USDC balance...');
       const balanceCheck = await checkUsdcBalance(user.wallet.address, withdrawAmount);
       
       if (!balanceCheck.hasEnough) {
@@ -62,31 +64,26 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
         return;
       }
 
-      console.log('[WithdrawModal] Balance check passed, creating withdrawal record...');
+      console.log('[WithdrawModal] Balance OK, creating withdrawal record...');
 
-      // Call server-side function to create withdrawal with elevated permissions
+      // Create withdrawal record in database
       const { data: withdrawalData, error: rpcError } = await supabase
         .rpc('create_withdrawal', {
           p_user_email: userEmail,
           p_amount_cents: Math.floor(withdrawAmount * 100),
           p_wallet_address: user.wallet.address,
           p_status: 'PENDING',
-          p_provider: 'onramp',
+          p_provider: 'moonpay',
         })
         .single();
 
       if (rpcError) {
-        console.error('[WithdrawModal] RPC error:', {
-          message: rpcError.message,
-          code: rpcError.code,
-          details: rpcError.details,
-        });
+        console.error('[WithdrawModal] Database error:', rpcError);
         setError(`Failed to create withdrawal: ${rpcError.message}`);
         setProcessing(false);
         return;
       }
 
-      // Type assertion for the withdrawal response
       const withdrawal = withdrawalData as WithdrawalResponse | null;
 
       if (!withdrawal || !withdrawal.id) {
@@ -96,11 +93,11 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
         return;
       }
 
-      console.log('[WithdrawModal] Withdrawal created successfully:', withdrawal.id);
+      console.log('[WithdrawModal] Withdrawal record created:', withdrawal.id);
 
-      // Open Onramp offramp widget - handles WalletConnect automatically
-      console.log('[WithdrawModal] Opening Onramp offramp widget...');
-      openOfframpWidget({
+      // Open MoonPay widget using official SDK
+      console.log('[WithdrawModal] Opening MoonPay SDK widget...');
+      await openMoonPayOfframpWidget({
         email: userEmail,
         usdcAmount: withdrawAmount,
         withdrawalId: withdrawal.id,
@@ -108,11 +105,13 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
         isTestMode: process.env.NEXT_PUBLIC_ENVIRONMENT !== 'production'
       });
 
-      console.log('[WithdrawModal] Offramp widget opened, closing modal');
+      console.log('[WithdrawModal] MoonPay widget opened successfully');
+      
+      // Close the withdraw modal (MoonPay modal takes over)
       onClose();
       
     } catch (error) {
-      console.error('[WithdrawModal] Unexpected error:', error);
+      console.error('[WithdrawModal] Error:', error);
       setError(error instanceof Error ? error.message : 'Failed to process withdrawal');
     } finally {
       setProcessing(false);
@@ -133,6 +132,7 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
           <button
             onClick={onClose}
             className="p-1 hover:bg-[#F8F9FD] rounded transition-colors"
+            aria-label="Close"
           >
             <svg className="w-5 h-5 text-[#787B86]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -183,7 +183,7 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
             </svg>
             <div>
               <p className="text-xs text-[#787B86] leading-relaxed">
-                Withdrawals are processed to your bank account within 1-2 business days. You'll need to connect your wallet to authorize the transaction.
+                Withdrawals are processed to your bank account within 1-2 business days. Powered by MoonPay - available in 150+ countries worldwide.
               </p>
             </div>
           </div>
