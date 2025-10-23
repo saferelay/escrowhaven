@@ -11,6 +11,17 @@ interface WithdrawModalProps {
   userEmail?: string | null;
 }
 
+// Type for the withdrawal response from the RPC
+interface WithdrawalResponse {
+  id: string;
+  user_email: string;
+  amount_cents: number;
+  wallet_address: string;
+  status: string;
+  provider: string;
+  created_at?: string;
+}
+
 export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps) {
   const { user } = usePrivy();
   const { supabase } = useAuth();
@@ -51,7 +62,7 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
       console.log('[WithdrawModal] Balance check passed, creating withdrawal record...');
 
       // Call server-side function to create withdrawal with elevated permissions
-      const { data: withdrawal, error: rpcError } = await supabase
+      const { data: withdrawalData, error: rpcError } = await supabase
         .rpc('create_withdrawal', {
           p_user_email: userEmail,
           p_amount_cents: Math.floor(withdrawAmount * 100),
@@ -71,6 +82,9 @@ export function WithdrawModal({ isOpen, onClose, userEmail }: WithdrawModalProps
         setProcessing(false);
         return;
       }
+
+      // Type assertion for the withdrawal response
+      const withdrawal = withdrawalData as WithdrawalResponse | null;
 
       if (!withdrawal || !withdrawal.id) {
         console.error('[WithdrawModal] No withdrawal ID returned');
