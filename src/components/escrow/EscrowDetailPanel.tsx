@@ -644,16 +644,19 @@ export function EscrowDetailPanel({
   
       const otherWalletAddress = otherWallet?.wallet_address;
   
+      // GENERATE SALT FIRST (CRITICAL FIX!)
+      const { ethers } = await import('ethers');
+      const salt = ethers.utils.id(`${escrow.id}-${Date.now()}`);
+      console.log('[Accept] Generated salt:', salt);
+  
       let vaultAddress = null;
       let splitterAddress = null;
-
+  
       if (otherWalletAddress) {
         const clientWallet = role === 'payer' ? walletAddress : otherWalletAddress;
         const freelancerWallet = role === 'recipient' ? walletAddress : otherWalletAddress;
         
         try {
-          const { ethers } = await import('ethers');
-          
           const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
           const provider = new ethers.providers.StaticJsonRpcProvider(
             process.env.NEXT_PUBLIC_POLYGON_RPC || 
@@ -661,30 +664,34 @@ export function EscrowDetailPanel({
               ? 'https://polygon-rpc.com'
               : 'https://rpc-amoy.polygon.technology')
           );
-
+  
           const factoryAddress = isProduction
             ? process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS_MAINNET
             : process.env.NEXT_PUBLIC_ESCROWHAVEN_FACTORY_ADDRESS;
-
+  
           const factory = new ethers.Contract(
             factoryAddress,
             ["function getVaultAddress(bytes32,address,address) view returns (address,address)"],
             provider
           );
-
+  
+          // USE NEW SALT (not escrow.salt which is null!)
           [vaultAddress, splitterAddress] = await factory.getVaultAddress(
-            escrow.salt,
+            salt,
             clientWallet,
             freelancerWallet
           );
+          
+          console.log('[Accept] Pre-computed vault address:', vaultAddress);
         } catch (err) {
-          console.warn('Vault pre-computation failed:', err);
+          console.warn('Vault pre-computation failed (non-critical):', err);
         }
       }
   
       const updateData: any = {
         status: 'ACCEPTED',
-        accepted_at: new Date().toISOString()
+        accepted_at: new Date().toISOString(),
+        salt: salt  // SAVE THE SALT!
       };
       
       if (role === 'recipient') {
@@ -700,13 +707,15 @@ export function EscrowDetailPanel({
           updateData.freelancer_wallet_address = otherWalletAddress;
         }
       }
-  
+      
       if (vaultAddress) {
         updateData.vault_address = vaultAddress;
       }
       if (splitterAddress) {
         updateData.splitter_address = splitterAddress;
       }
+  
+      console.log('[Accept] Updating escrow with data:', updateData);
   
       const { error: updateError } = await supabase
         .from('escrows')
