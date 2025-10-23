@@ -1,4 +1,4 @@
-// src/lib/offramp.ts - FIXED WITH WALLET CONNECTION
+// src/lib/offramp.ts - FIXED WITH WALLET CONNECTION AND FIAT CURRENCY
 import { ethers } from 'ethers';
 
 const ONRAMP_APP_ID = process.env.NEXT_PUBLIC_ONRAMP_APP_ID || '1687307';
@@ -34,10 +34,13 @@ export function createOfframpWidget(config: OfframpConfig): string {
     params.append('network', 'matic20');  // Correct network code for Polygon
     params.append('coinAmount', config.usdcAmount.toFixed(2));
     
-    // UX - lock amount/coin
+    // CRITICAL FIX: Specify destination fiat currency
+    params.append('fiatCurrency', 'USD');  // User will receive USD
+    
+    // UX - lock amount/coin but allow fiat currency selection
     params.append('isAmountEditable', 'false');
     params.append('isCoinCodeEditable', 'false');
-    params.append('isFiatCurrencyEditable', 'true');
+    params.append('isFiatCurrencyEditable', 'true');  // Let user change if they want EUR, GBP, etc.
     
     // Tracking
     params.append('userEmail', config.email);
