@@ -53,7 +53,7 @@ export function FundEscrowModal({
       console.log('[Fund] User address:', userAddress);
 
       // Get backend signer address from environment
-      const backendAddress = process.env.NEXT_PUBLIC_BACKEND_SIGNER_ADDRESS;
+      const backendAddress = process.env.NEXT_PUBLIC_BACKEND_SIGNER_ADDRESS || '0x35c51155D31CE2c124AC3358922f09f3F7dd7AF8';
       
       if (!backendAddress) {
         throw new Error('Backend configuration error. Please contact support.');
