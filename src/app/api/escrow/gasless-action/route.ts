@@ -166,9 +166,10 @@ export async function POST(request: NextRequest) {
     );
     
     // Get the correct private key based on environment
-    const privateKey = (isProduction 
-      ? process.env.DEPLOYMENT_PRIVATE_KEY_MAINNET 
-      : process.env.PRIVATE_KEY)!.replace(/['"]/g, '');
+// ⭐ HARDCODED - Vercel env var not working
+  const privateKey = (isProduction 
+  ? 'YOUR_PRIVATE_KEY_THAT_GENERATES_0x35c51155D31CE2c124AC3358922f09f3F7dd7AF8'
+  : process.env.PRIVATE_KEY)!.replace(/['"]/g, '');
     
     if (!privateKey) {
       throw new Error(`Missing private key for ${isProduction ? 'mainnet' : 'testnet'} operations`);
