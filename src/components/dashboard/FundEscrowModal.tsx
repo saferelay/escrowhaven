@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useSmartWallets } from '@privy-io/react-auth/smart-wallets';
 import { ethers } from 'ethers';
 
 interface FundEscrowModalProps {
@@ -24,8 +24,7 @@ export function FundEscrowModal({
   onSuccess,
   onDeposit
 }: FundEscrowModalProps) {
-  const { createWallet } = usePrivy();
-  const { wallets } = useWallets();
+  const { client } = useSmartWallets();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
 
@@ -36,46 +35,24 @@ export function FundEscrowModal({
     setStatus('Preparing transfer...');
 
     try {
-      console.log('[Fund] Starting transfer of $' + escrowAmount);
+      console.log('[Fund] Starting gasless transfer of $' + escrowAmount);
 
-      // STEP 1: Get or create embedded wallet (smart wallet)
+      // STEP 1: Ensure smart wallet is active
+      if (!client) {
+        throw new Error('Smart wallet not initialized. Please refresh and try again.');
+      }
+
+      console.log('[Fund] Using smart wallet:', client.account?.address);
       setStatus('Setting up your account...');
-      
-      let wallet = wallets.find((w) => 
-        w.walletClientType === 'privy' && 
-        w.connectorType === 'embedded'
-      );
-      
-      if (!wallet) {
-        console.log('[Fund] Creating smart wallet for gas sponsorship...');
-        await createWallet();
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        wallet = wallets.find((w) => 
-          w.walletClientType === 'privy' && 
-          w.connectorType === 'embedded'
-        );
+
+      // Get account address
+      const userAddress = client.account?.address;
+      if (!userAddress) {
+        throw new Error('Unable to get wallet address. Please try again.');
       }
 
-      if (!wallet) {
-        throw new Error('Unable to access your account. Please refresh and try again.');
-      }
-
-      console.log('[Fund] Using wallet:', wallet.address);
-      console.log('[Fund] Wallet type:', wallet.walletClientType, wallet.connectorType);
-
-      // STEP 2: Switch to Polygon network
+      // STEP 2: Check USDC balance
       const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
-      const chainId = isProduction ? 137 : 80002;
-      
-      console.log('[Fund] Switching to Polygon (chain:', chainId, ')');
-      await wallet.switchChain(chainId);
-
-      // STEP 3: Get provider for balance checks
-      const provider = await wallet.getEthereumProvider();
-      const ethersProvider = new ethers.providers.Web3Provider(provider);
-      const userAddress = wallet.address;
-
-      // STEP 4: Check USDC balance
       const USDC_ADDRESS = isProduction
         ? '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
         : '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582';
@@ -85,10 +62,15 @@ export function FundEscrowModal({
         'function balanceOf(address owner) view returns (uint256)'
       ];
 
-      const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, ethersProvider);
-      const balance = await usdc.balanceOf(userAddress);
-      const balanceFormatted = ethers.utils.formatUnits(balance, 6);
-      
+      // Use client's publicClient to read balance
+      const balanceData = await client.publicClient.readContract({
+        address: USDC_ADDRESS as `0x${string}`,
+        abi: USDC_ABI,
+        functionName: 'balanceOf',
+        args: [userAddress]
+      });
+
+      const balanceFormatted = ethers.utils.formatUnits(balanceData.toString(), 6);
       console.log('[Fund] USDC balance:', balanceFormatted);
 
       if (parseFloat(balanceFormatted) < escrowAmount) {
@@ -104,45 +86,38 @@ export function FundEscrowModal({
         }
       }
 
-      // STEP 5: Prepare transaction data
+      // STEP 3: Prepare transaction
       const amount = ethers.utils.parseUnits(escrowAmount.toString(), 6);
       const usdcInterface = new ethers.utils.Interface(USDC_ABI);
       const data = usdcInterface.encodeFunctionData('transfer', [vaultAddress, amount]);
-      
+
       console.log('[Fund] Preparing gasless transaction...');
-      console.log('[Fund] To:', vaultAddress);
+      console.log('[Fund] To vault:', vaultAddress);
       console.log('[Fund] Amount:', escrowAmount, 'USDC');
       setStatus('Please approve the transfer...');
 
-      // STEP 6: Send transaction through Privy's provider
-      // This routes through their paymaster for gas sponsorship
-      const txRequest = {
-        from: userAddress,
-        to: USDC_ADDRESS,
-        data: data,
-        value: '0x0'
-      };
+      // STEP 4: Send transaction via smart wallet (GAS SPONSORED!)
+      console.log('[Fund] Sending transaction via smart wallet (gas sponsored)...');
+      
+      const txHash = await client.sendTransaction({
+        to: USDC_ADDRESS as `0x${string}`,
+        data: data as `0x${string}`,
+        value: BigInt(0),
+      } as any);
 
-      console.log('[Fund] Sending transaction via Privy (gas sponsored)...');
-      
-      // Using eth_sendTransaction through Privy's provider
-      // With "Allow transactions from client" enabled, this is gas-sponsored!
-      const txHash = await provider.request({
-        method: 'eth_sendTransaction',
-        params: [txRequest]
-      });
-      
-      console.log('[Fund] Transaction submitted:', txHash);
+      console.log('[Fund] ✅ Transaction sent:', txHash);
       console.log('[Fund] ✅ Gas sponsored by Privy! User paid $0');
       setStatus('Processing transfer...');
 
-      // STEP 7: Wait for confirmation
-      const receipt = await ethersProvider.waitForTransaction(txHash as string);
-      
+      // STEP 5: Wait for confirmation
+      const receipt = await client.publicClient.waitForTransactionReceipt({ 
+        hash: txHash 
+      });
+
       console.log('[Fund] ✅ Transaction confirmed in block:', receipt.blockNumber);
       console.log('[Fund] Transfer complete!');
 
-      // STEP 8: Notify backend (optional)
+      // STEP 6: Notify backend (optional)
       setStatus('Confirming...');
       
       try {
@@ -163,7 +138,7 @@ export function FundEscrowModal({
         console.warn('[Fund] Backend notification failed (non-critical):', error);
       }
 
-      // STEP 9: Success!
+      // STEP 7: Success!
       setStatus('Transfer complete!');
       
       setTimeout(() => {
@@ -180,8 +155,8 @@ export function FundEscrowModal({
         alert('Transfer cancelled. Please try again when ready.');
       } else if (error.message?.includes('Insufficient funds') || error.message?.includes('insufficient')) {
         alert('You don\'t have enough USDC. Please add funds to your account first.');
-      } else if (error.message?.includes('gas') || error.message?.includes('balance 0')) {
-        alert('Gas sponsorship error. Please contact support.');
+      } else if (error.message?.includes('Smart wallet not initialized')) {
+        alert(error.message);
       } else {
         alert(`Transfer failed: ${error.message || 'Please try again or contact support.'}`);
       }
