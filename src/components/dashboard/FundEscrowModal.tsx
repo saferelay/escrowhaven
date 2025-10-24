@@ -1,9 +1,9 @@
 // src/components/dashboard/FundEscrowModal.tsx
-// COMPLETE FIX: Adds retry logic when user has no gas
+// COMPLETE VERSION - Ready for gasless USDC transfer with backend approval flow
 
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useWallets } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
 
@@ -107,18 +107,18 @@ export function FundEscrowModal({
       console.log('[Fund] Current allowance:', allowanceFormatted);
       console.log('[Fund] Required amount:', escrowAmount);
 
-      // STEP 5: Approve if needed with RETRY LOGIC
+      // STEP 5: Approve if needed (ONE-TIME SETUP)
       if (allowance.lt(amountUsdc)) {
         setNeedsApproval(true);
         setStatus('Authorizing secure transfer...');
         
         console.log('[Fund] First-time setup - requesting approval');
 
+        // Approve a large amount so user doesn't need to approve again
         const approvalAmount = ethers.utils.parseUnits('10000', 6); // $10,000 approval
         
         try {
-          // First attempt to approve
-          console.log('[Fund] Attempting approval...');
+          // Try to approve
           const approveTx = await usdc.approve(backendAddress, approvalAmount);
           setStatus('Confirming authorization...');
           
@@ -130,13 +130,11 @@ export function FundEscrowModal({
           setNeedsApproval(false);
           
         } catch (approvalError: any) {
-          console.log('[Fund] Approval failed:', approvalError.code, approvalError.message);
-          
           // If user doesn't have gas, backend will fund them
           if (approvalError.code === 'INSUFFICIENT_FUNDS' || 
               approvalError.message?.includes('insufficient funds')) {
             
-            console.log('[Fund] 🎁 User needs gas - calling backend to fund...');
+            console.log('[Fund] User needs gas - calling backend to fund...');
             setStatus('Preparing transfer...');
             
             // Call backend - it will fund user automatically

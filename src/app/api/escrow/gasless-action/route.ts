@@ -9,7 +9,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// ============================================================
 // Helper function to check and fund wallet with MATIC if needed
+// (Used for post-action funding - after release/refund/settlement)
+// ============================================================
 async function fundWalletIfNeeded(
   provider: ethers.providers.Provider,
   signer: ethers.Wallet,
@@ -30,8 +33,7 @@ async function fundWalletIfNeeded(
       let gasPrice;
       try {
         gasPrice = await provider.getGasPrice();
-        // Add 20% buffer for reliability
-        gasPrice = gasPrice.mul(120).div(100);
+        gasPrice = gasPrice.mul(120).div(100); // 20% buffer
         console.log(`Gas price: ${ethers.utils.formatUnits(gasPrice, 'gwei')} gwei`);
       } catch (error) {
         gasPrice = ethers.utils.parseUnits('50', 'gwei');
@@ -41,7 +43,7 @@ async function fundWalletIfNeeded(
         to: recipientAddress,
         value: fundAmount,
         gasLimit: 21000,
-        gasPrice: gasPrice  // ← ADD THIS!
+        gasPrice: gasPrice
       });
       
       await maticTx.wait();
@@ -57,64 +59,82 @@ async function fundWalletIfNeeded(
   }
 }
 
-// Helper function to ensure user has gas for USDC approval
-async function ensureUserHasGasForApproval(
+// ============================================================
+// OPTION 1: Just-in-Time Gas Funding
+// This ensures user has enough MATIC BEFORE any action
+// ============================================================
+async function ensureUserHasGas(
   provider: ethers.providers.Provider,
   backendSigner: ethers.Wallet,
   userAddress: string,
-  usdcContract: ethers.Contract,
-  backendAddress: string
+  action: string
 ): Promise<void> {
-  console.log('[Gas Check] Checking if user needs gas for approval...');
+  console.log(`[Gas Check] ========================================`);
+  console.log(`[Gas Check] Checking gas for user: ${userAddress}`);
+  console.log(`[Gas Check] Action: ${action}`);
   
-  // Check if user already approved
-  const allowance = await usdcContract.allowance(userAddress, backendAddress);
+  // Check user's current MATIC balance
+  const userBalance = await provider.getBalance(userAddress);
+  const balanceFormatted = ethers.utils.formatEther(userBalance);
   
-  if (allowance.gt(0)) {
-    console.log('[Gas Check] ✅ User already approved, no gas needed');
-    return;
-  }
+  console.log(`[Gas Check] Current balance: ${balanceFormatted} MATIC`);
   
-  // Check user's MATIC balance
-  const userMatic = await provider.getBalance(userAddress);
-  const maticFormatted = ethers.utils.formatEther(userMatic);
+  // Threshold: Need at least 0.02 MATIC (~20 USDC approvals)
+  const MIN_THRESHOLD = ethers.utils.parseEther('0.02');
   
-  console.log('[Gas Check] User MATIC balance:', maticFormatted);
-  
-  // If user has less than 0.01 MATIC, send them some
-  if (userMatic.lt(ethers.utils.parseEther('0.01'))) {
-    console.log('[Gas Check] 🎁 Sending 0.01 MATIC for approval...');
+  if (userBalance.lt(MIN_THRESHOLD)) {
+    console.log(`[Gas Check] 🎁 Balance too low - funding user...`);
     
-    // Fetch current gas price from network (CRITICAL!)
+    // Get current gas price with buffer
     let gasPrice;
     try {
       gasPrice = await provider.getGasPrice();
-      console.log('[Gas Check] Current gas price:', ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei');
-      
-      // Add 20% buffer for reliability
-      gasPrice = gasPrice.mul(120).div(100);
-      console.log('[Gas Check] Using gas price with buffer:', ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei');
+      gasPrice = gasPrice.mul(120).div(100); // 20% buffer
+      console.log(`[Gas Check] Gas price: ${ethers.utils.formatUnits(gasPrice, 'gwei')} gwei`);
     } catch (error) {
       console.warn('[Gas Check] Could not fetch gas price, using 50 gwei default');
       gasPrice = ethers.utils.parseUnits('50', 'gwei');
     }
     
-    const fundTx = await backendSigner.sendTransaction({
-      to: userAddress,
-      value: ethers.utils.parseEther('0.01'),
-      gasLimit: 21000,
-      gasPrice: gasPrice  // CRITICAL: Must include gas price!
-    });
+    // Fund generously: 0.1 MATIC covers ~100 approvals
+    const fundAmount = ethers.utils.parseEther('0.1');
+    console.log(`[Gas Check] Funding amount: 0.1 MATIC (~$0.05)`);
     
-    console.log('[Gas Check] MATIC sent, TX:', fundTx.hash);
-    await fundTx.wait();
-    console.log('[Gas Check] ✅ MATIC arrived!');
+    try {
+      const fundTx = await backendSigner.sendTransaction({
+        to: userAddress,
+        value: fundAmount,
+        gasLimit: 21000,
+        gasPrice: gasPrice
+      });
+      
+      console.log(`[Gas Check] Funding TX sent: ${fundTx.hash}`);
+      console.log(`[Gas Check] Waiting for confirmation...`);
+      
+      await fundTx.wait();
+      
+      console.log(`[Gas Check] ✅ Funding confirmed!`);
+      
+      // Wait for balance to propagate across nodes
+      console.log(`[Gas Check] Waiting 3s for balance propagation...`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Verify new balance
+      const newBalance = await provider.getBalance(userAddress);
+      const newBalanceFormatted = ethers.utils.formatEther(newBalance);
+      console.log(`[Gas Check] ✅ New balance: ${newBalanceFormatted} MATIC`);
+      console.log(`[Gas Check] User ready for ${action}!`);
+      
+    } catch (error: any) {
+      console.error(`[Gas Check] ❌ Funding failed:`, error.message);
+      throw new Error(`Failed to fund user with gas: ${error.message}`);
+    }
     
-    // Small delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
   } else {
-    console.log('[Gas Check] ✅ User already has MATIC');
+    console.log(`[Gas Check] ✅ User has sufficient gas (${balanceFormatted} MATIC)`);
   }
+  
+  console.log(`[Gas Check] ========================================`);
 }
 
 export async function POST(request: NextRequest) {
@@ -166,17 +186,17 @@ export async function POST(request: NextRequest) {
     );
     
     // Get the correct private key based on environment
-// ⭐ HARDCODED - Vercel env var not working
-  const privateKey = (isProduction 
-  ? 'YOUR_PRIVATE_KEY_THAT_GENERATES_0x35c51155D31CE2c124AC3358922f09f3F7dd7AF8'
-  : process.env.PRIVATE_KEY)!.replace(/['"]/g, '');
+    // ⭐ HARDCODED for now - replace with your actual private key
+    const privateKey = (isProduction 
+      ? process.env.DEPLOYMENT_PRIVATE_KEY_MAINNET || 'YOUR_MAINNET_PRIVATE_KEY_HERE'
+      : process.env.PRIVATE_KEY)!.replace(/['"]/g, '');
     
-    if (!privateKey) {
+    if (!privateKey || privateKey === 'YOUR_MAINNET_PRIVATE_KEY_HERE') {
       throw new Error(`Missing private key for ${isProduction ? 'mainnet' : 'testnet'} operations`);
     }
     
     const backendSigner = new ethers.Wallet(privateKey, provider);
-    console.log('Using backend signer:', await backendSigner.getAddress());
+    console.log('Using backend signer:', backendSigner.address);
     console.log('Network:', isProduction ? 'Polygon Mainnet' : 'Polygon Amoy Testnet');
     
     // Check signer balance
@@ -185,11 +205,21 @@ export async function POST(request: NextRequest) {
     console.log('Backend wallet MATIC balance:', signerBalanceEth);
     
     if (signerBalance.lt(ethers.utils.parseEther('0.05'))) {
-      console.warn(`Low MATIC balance in backend wallet: ${signerBalanceEth} MATIC`);
+      console.warn(`⚠️ Low MATIC balance in backend wallet: ${signerBalanceEth} MATIC`);
     }
     
     // ============================================================
-    // NEW: HANDLE FUNDING ACTION
+    // ⭐ OPTION 1: ENSURE USER HAS GAS FOR ANY ACTION
+    // This runs BEFORE any action (fund, withdraw, approve, release, etc.)
+    // ============================================================
+    if (signerAddress) {
+      console.log('\n[Gas Check] Starting gas check for user...');
+      await ensureUserHasGas(provider, backendSigner, signerAddress, action);
+      console.log('[Gas Check] Gas check complete! ✅\n');
+    }
+    
+    // ============================================================
+    // HANDLE FUNDING ACTION (Gasless USDC Transfer)
     // ============================================================
     if (action === 'fund') {
       console.log('[Gasless Fund] Processing gasless funding');
@@ -234,15 +264,7 @@ export async function POST(request: NextRequest) {
       
       if (allowance.lt(amountUsdc)) {
         console.error('[Gasless Fund] Insufficient allowance');
-        
-        // Fund user if they need gas
-        await ensureUserHasGasForApproval(
-          provider,
-          backendSigner,
-          signerAddress,
-          usdcContract,
-          backendSigner.address
-        );
+        console.log('[Gasless Fund] User has gas: ✅ (funded earlier if needed)');
         
         return NextResponse.json({ 
           error: 'Insufficient allowance. User must approve USDC transfer first.',
@@ -250,20 +272,27 @@ export async function POST(request: NextRequest) {
           requiredAllowance: amount,
           approvalNeeded: true,
           backendAddress: backendSigner.address,
-          userHasGas: true
+          userHasGas: true  // ✅ Always true thanks to ensureUserHasGas!
         }, { status: 400 });
       }
       
       // 3. Execute transferFrom (backend pays gas, transfers user's USDC)
       console.log('[Gasless Fund] Executing transferFrom...');
-      console.log('[Gasless Fund] Backend will pay gas fee');
+      console.log('[Gasless Fund] This is gasless for user - backend pays gas!');
       
-      const gasConfig = isProduction ? {
+      // Get gas configuration
+      let gasPrice;
+      try {
+        gasPrice = await provider.getGasPrice();
+        gasPrice = gasPrice.mul(120).div(100); // 20% buffer
+        console.log('[Gasless Fund] Gas price:', ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei');
+      } catch (error) {
+        gasPrice = ethers.utils.parseUnits(isProduction ? '100' : '50', 'gwei');
+      }
+      
+      const gasConfig = {
         gasLimit: 200000,
-        gasPrice: ethers.utils.parseUnits('100', 'gwei')
-      } : {
-        gasLimit: 200000,
-        gasPrice: ethers.utils.parseUnits('50', 'gwei')
+        gasPrice: gasPrice
       };
       
       const tx = await usdcContract.transferFrom(
@@ -273,7 +302,7 @@ export async function POST(request: NextRequest) {
         gasConfig
       );
       
-      console.log('[Gasless Fund] Transfer transaction sent:', tx.hash);
+      console.log('[Gasless Fund] Transaction sent:', tx.hash);
       
       const explorerUrl = isProduction
         ? `https://polygonscan.com/tx/${tx.hash}`
@@ -283,20 +312,21 @@ export async function POST(request: NextRequest) {
       const receipt = await tx.wait();
       
       if (receipt.status === 0) {
-        throw new Error('Transfer failed on-chain');
+        throw new Error('Funding transaction failed on-chain');
       }
       
-      console.log('[Gasless Fund] ✅ Transfer confirmed!');
+      console.log('[Gasless Fund] ✅ Transaction confirmed!');
       console.log('[Gasless Fund] Gas used:', receipt.gasUsed.toString());
-      console.log('[Gasless Fund] Gas paid by backend! User paid $0');
+      console.log('[Gasless Fund] Gas paid by: Backend (user paid $0 gas!)');
       
-      // 4. Update escrow status in database
-      console.log('[Gasless Fund] Updating database...');
+      // Update database
+      console.log('[Gasless Fund] Updating database to FUNDED...');
+      
       const { error: updateError } = await supabase
         .from('escrows')
         .update({
           status: 'FUNDED',
-          funding_tx_hash: receipt.transactionHash,
+          fund_tx_hash: receipt.transactionHash,
           funded_at: new Date().toISOString()
         })
         .eq('id', escrowId);
@@ -305,99 +335,89 @@ export async function POST(request: NextRequest) {
         console.error('[Gasless Fund] Database update failed:', updateError);
       } else {
         console.log('[Gasless Fund] Database updated successfully');
-      }
-      
-      // 5. Send notification emails
-      try {
-        console.log('[Gasless Fund] Sending notification emails...');
         
-        // To freelancer - escrow has been funded
-        await sendEmail(emailTemplates.escrowFunded({
-          email: escrow.freelancer_email,
-          amount: `$${amount.toFixed(2)}`,
-          escrowId: escrowId,
-          role: 'recipient'
-        }));
-        
-        // To client - confirmation of funding (using escrowFunded template)
-        await sendEmail(emailTemplates.escrowFunded({
-          email: escrow.client_email,
-          amount: `$${amount.toFixed(2)}`,
-          escrowId: escrowId,
-          role: 'payer'
-        }));
-        
-        console.log('[Gasless Fund] Notification emails sent');
-      } catch (emailError) {
-        console.error('[Gasless Fund] Notification emails failed:', emailError);
-      }
-      
-      // 6. Trigger sync
-      try {
-        console.log('[Gasless Fund] Triggering sync...');
-        const syncUrl = process.env.NODE_ENV === 'production' 
-          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/escrow/sync-blockchain`
-          : 'https://escrowhaven.io/api/escrow/sync-blockchain';
-        
-        await fetch(syncUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ escrowId })
-        });
-        
-        console.log('[Gasless Fund] Sync triggered');
-      } catch (syncError) {
-        console.error('[Gasless Fund] Sync failed (non-critical):', syncError);
+        // Send notification emails
+        try {
+          // To client - escrow funded confirmation
+          await sendEmail(emailTemplates.escrowFunded({
+            email: escrow.client_email,
+            amount: `$${(escrow.amount_cents / 100).toFixed(2)}`,
+            escrowId: escrowId,
+            role: 'payer'
+          }));
+          
+          // To freelancer - work can begin notification
+          await sendEmail(emailTemplates.escrowFunded({
+            email: escrow.freelancer_email,
+            amount: `$${(escrow.amount_cents / 100).toFixed(2)}`,
+            escrowId: escrowId,
+            role: 'recipient'
+          }));
+        } catch (emailError) {
+          console.error('[Gasless Fund] Notification emails failed:', emailError);
+        }
       }
       
       return NextResponse.json({
         success: true,
         txHash: receipt.transactionHash,
-        message: 'Escrow funded successfully (gasless!)',
+        message: 'Escrow funded successfully',
         escrowId,
         newStatus: 'FUNDED',
-        explorer: explorerUrl,
-        gasUsed: receipt.gasUsed.toString(),
-        gasPaidBy: 'backend'
+        explorer: explorerUrl
       });
     }
+    
     // ============================================================
-    // END FUNDING ACTION
+    // HANDLE OTHER ACTIONS (release, refund, etc.)
     // ============================================================
     
-    // Contract ABI for other actions
+    // Verify signature
+    if (!signature || !nonce) {
+      return NextResponse.json({ error: 'Missing signature or nonce' }, { status: 400 });
+    }
+    
+    // Get escrow contract
     const ESCROW_ABI = [
-      "function releaseWithSignature(uint8 v, bytes32 r, bytes32 s, uint256 nonce) external",
-      "function refundWithSignature(uint8 v, bytes32 r, bytes32 s, uint256 nonce) external",
-      "function proposeSettlementWithSignature(uint256 clientAmount, uint256 freelancerAmount, uint8 v, bytes32 r, bytes32 s, uint256 nonce) external",
-      "function acceptSettlementWithSignature(uint8 v, bytes32 r, bytes32 s, uint256 nonce) external"
+      'function releaseWithSignature(uint8 v, bytes32 r, bytes32 s, uint256 nonce) external',
+      'function refundWithSignature(uint8 v, bytes32 r, bytes32 s, uint256 nonce) external',
+      'function proposeSettlementWithSignature(uint256 clientAmount, uint256 freelancerAmount, uint8 v, bytes32 r, bytes32 s, uint256 nonce) external',
+      'function acceptSettlementWithSignature(uint8 v, bytes32 r, bytes32 s, uint256 nonce) external'
     ];
     
-    const escrowContract = new ethers.Contract(
-      escrow.vault_address,
-      ESCROW_ABI,
-      backendSigner
-    );
+    const escrowContract = new ethers.Contract(escrow.vault_address, ESCROW_ABI, backendSigner);
     
     // Parse signature
     const sig = ethers.utils.splitSignature(signature);
     
-    let tx;
-    // Adjusted gas config for mainnet vs testnet
-    const gasConfig = isProduction ? {
-      gasLimit: 400000,
-      gasPrice: ethers.utils.parseUnits('100', 'gwei')
-    } : {
-      gasLimit: 400000,
-      gasPrice: ethers.utils.parseUnits('50', 'gwei')
+    console.log('Executing action:', action);
+    console.log('Signature components:', {
+      v: sig.v,
+      r: sig.r,
+      s: sig.s,
+      nonce: nonce
+    });
+    
+    // Get gas configuration
+    let gasPrice;
+    try {
+      gasPrice = await provider.getGasPrice();
+      gasPrice = gasPrice.mul(120).div(100); // 20% buffer
+    } catch (error) {
+      gasPrice = ethers.utils.parseUnits(isProduction ? '100' : '50', 'gwei');
+    }
+    
+    const gasConfig = {
+      gasLimit: 500000,
+      gasPrice: gasPrice
     };
     
-    // Execute appropriate action
-    console.log('Executing action:', action);
     console.log('Gas config:', {
       gasLimit: gasConfig.gasLimit.toString(),
       gasPrice: ethers.utils.formatUnits(gasConfig.gasPrice, 'gwei') + ' gwei'
     });
+    
+    let tx;
     
     switch (action) {
       case 'release':
