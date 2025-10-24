@@ -38,7 +38,7 @@ export function FundEscrowModal({
     try {
       console.log('[Fund] Starting transfer of $' + escrowAmount);
 
-      // Get wallet
+      // STEP 1: Get or create embedded wallet (smart wallet)
       setStatus('Setting up your account...');
       
       let wallet = wallets.find((w) => 
@@ -47,7 +47,7 @@ export function FundEscrowModal({
       );
       
       if (!wallet) {
-        console.log('[Fund] Creating wallet...');
+        console.log('[Fund] Creating smart wallet for gas sponsorship...');
         await createWallet();
         await new Promise(resolve => setTimeout(resolve, 2000));
         wallet = wallets.find((w) => 
@@ -61,20 +61,21 @@ export function FundEscrowModal({
       }
 
       console.log('[Fund] Using wallet:', wallet.address);
+      console.log('[Fund] Wallet type:', wallet.walletClientType, wallet.connectorType);
 
-      // Network setup
+      // STEP 2: Switch to Polygon network
       const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
       const chainId = isProduction ? 137 : 80002;
       
-      console.log('[Fund] Switching to chain:', chainId);
+      console.log('[Fund] Switching to Polygon (chain:', chainId, ')');
       await wallet.switchChain(chainId);
 
-      // Get ethereum provider
+      // STEP 3: Get provider for balance checks
       const provider = await wallet.getEthereumProvider();
       const ethersProvider = new ethers.providers.Web3Provider(provider);
-      const userAddress = await ethersProvider.getSigner().getAddress();
+      const userAddress = wallet.address;
 
-      // USDC contract
+      // STEP 4: Check USDC balance
       const USDC_ADDRESS = isProduction
         ? '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
         : '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582';
@@ -85,12 +86,10 @@ export function FundEscrowModal({
       ];
 
       const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, ethersProvider);
-
-      // Check USDC balance
       const balance = await usdc.balanceOf(userAddress);
       const balanceFormatted = ethers.utils.formatUnits(balance, 6);
       
-      console.log('[Fund] Account balance: $' + balanceFormatted);
+      console.log('[Fund] USDC balance:', balanceFormatted);
 
       if (parseFloat(balanceFormatted) < escrowAmount) {
         if (onDeposit) {
@@ -105,16 +104,18 @@ export function FundEscrowModal({
         }
       }
 
-      // Prepare transaction
+      // STEP 5: Prepare transaction data
       const amount = ethers.utils.parseUnits(escrowAmount.toString(), 6);
       const usdcInterface = new ethers.utils.Interface(USDC_ABI);
       const data = usdcInterface.encodeFunctionData('transfer', [vaultAddress, amount]);
       
-      console.log('[Fund] Transferring $' + escrowAmount + ' to secure vault');
-      console.log('[Fund] Using Privy gas sponsorship...');
+      console.log('[Fund] Preparing gasless transaction...');
+      console.log('[Fund] To:', vaultAddress);
+      console.log('[Fund] Amount:', escrowAmount, 'USDC');
       setStatus('Please approve the transfer...');
 
-      // CRITICAL: Use provider.request() to send transaction through Privy's paymaster
+      // STEP 6: Send transaction through Privy's provider
+      // This routes through their paymaster for gas sponsorship
       const txRequest = {
         from: userAddress,
         to: USDC_ADDRESS,
@@ -122,28 +123,30 @@ export function FundEscrowModal({
         value: '0x0'
       };
 
-      console.log('[Fund] Sending transaction via Privy provider...');
+      console.log('[Fund] Sending transaction via Privy (gas sponsored)...');
       
-      // This routes through Privy's paymaster for gas sponsorship
+      // Using eth_sendTransaction through Privy's provider
+      // With "Allow transactions from client" enabled, this is gas-sponsored!
       const txHash = await provider.request({
         method: 'eth_sendTransaction',
         params: [txRequest]
       });
       
-      console.log('[Fund] Transaction sent:', txHash);
-      console.log('[Fund] Gas sponsored by Privy! User paid $0 for gas');
+      console.log('[Fund] Transaction submitted:', txHash);
+      console.log('[Fund] ✅ Gas sponsored by Privy! User paid $0');
       setStatus('Processing transfer...');
 
-      // Wait for confirmation
+      // STEP 7: Wait for confirmation
       const receipt = await ethersProvider.waitForTransaction(txHash as string);
       
-      console.log('[Fund] Transfer complete in block:', receipt.blockNumber);
+      console.log('[Fund] ✅ Transaction confirmed in block:', receipt.blockNumber);
+      console.log('[Fund] Transfer complete!');
 
-      // Notify backend
+      // STEP 8: Notify backend (optional)
       setStatus('Confirming...');
       
       try {
-        await fetch('/api/escrow/confirm-funding', {
+        const response = await fetch('/api/escrow/confirm-funding', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -152,11 +155,15 @@ export function FundEscrowModal({
             vaultAddress: vaultAddress
           })
         });
+
+        if (response.ok) {
+          console.log('[Fund] Backend notified successfully');
+        }
       } catch (error) {
-        console.warn('[Fund] Backend notification failed, but transfer succeeded');
+        console.warn('[Fund] Backend notification failed (non-critical):', error);
       }
 
-      // Success
+      // STEP 9: Success!
       setStatus('Transfer complete!');
       
       setTimeout(() => {
@@ -168,12 +175,13 @@ export function FundEscrowModal({
       console.error('[Fund] Transfer failed:', error);
       setStatus('');
       
+      // Handle specific errors
       if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
         alert('Transfer cancelled. Please try again when ready.');
       } else if (error.message?.includes('Insufficient funds') || error.message?.includes('insufficient')) {
-        alert('You don\'t have enough funds. Please add money to your account first.');
-      } else if (error.message?.includes('gas')) {
-        alert('Transaction failed. Please contact support if this continues.');
+        alert('You don\'t have enough USDC. Please add funds to your account first.');
+      } else if (error.message?.includes('gas') || error.message?.includes('balance 0')) {
+        alert('Gas sponsorship error. Please contact support.');
       } else {
         alert(`Transfer failed: ${error.message || 'Please try again or contact support.'}`);
       }
