@@ -55,7 +55,10 @@ export async function POST(request: NextRequest) {
       nonce, 
       signerAddress,
       clientAmount,
-      freelancerAmount 
+      freelancerAmount,
+      // For funding action
+      amount,
+      vaultAddress
     } = await request.json();
     
     console.log('Gasless action requested:', { escrowId, action, signerAddress });
@@ -113,7 +116,173 @@ export async function POST(request: NextRequest) {
       console.warn(`Low MATIC balance in backend wallet: ${signerBalanceEth} MATIC`);
     }
     
-    // Contract ABI
+    // ============================================================
+    // NEW: HANDLE FUNDING ACTION
+    // ============================================================
+    if (action === 'fund') {
+      console.log('[Gasless Fund] Processing gasless funding');
+      console.log('[Gasless Fund] Amount:', amount);
+      console.log('[Gasless Fund] From:', signerAddress);
+      console.log('[Gasless Fund] To vault:', vaultAddress);
+      
+      // USDC contract address
+      const USDC_ADDRESS = isProduction
+        ? '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359' // Polygon Mainnet
+        : '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582'; // Polygon Amoy
+      
+      const USDC_ABI = [
+        'function transferFrom(address from, address to, uint256 amount) returns (bool)',
+        'function allowance(address owner, address spender) view returns (uint256)',
+        'function balanceOf(address owner) view returns (uint256)'
+      ];
+      
+      const usdcContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, backendSigner);
+      
+      // 1. Verify user has enough USDC
+      console.log('[Gasless Fund] Checking user balance...');
+      const userBalance = await usdcContract.balanceOf(signerAddress);
+      const amountUsdc = ethers.utils.parseUnits(amount.toString(), 6);
+      
+      console.log('[Gasless Fund] User USDC balance:', ethers.utils.formatUnits(userBalance, 6));
+      console.log('[Gasless Fund] Required amount:', amount);
+      
+      if (userBalance.lt(amountUsdc)) {
+        console.error('[Gasless Fund] Insufficient USDC balance');
+        return NextResponse.json({ 
+          error: 'Insufficient USDC balance',
+          balance: ethers.utils.formatUnits(userBalance, 6),
+          required: amount
+        }, { status: 400 });
+      }
+      
+      // 2. Check if user approved backend to transfer
+      console.log('[Gasless Fund] Checking allowance...');
+      const allowance = await usdcContract.allowance(signerAddress, backendSigner.address);
+      console.log('[Gasless Fund] Current allowance:', ethers.utils.formatUnits(allowance, 6));
+      
+      if (allowance.lt(amountUsdc)) {
+        console.error('[Gasless Fund] Insufficient allowance');
+        return NextResponse.json({ 
+          error: 'Insufficient allowance. User must approve USDC transfer first.',
+          currentAllowance: ethers.utils.formatUnits(allowance, 6),
+          requiredAllowance: amount,
+          approvalNeeded: true,
+          backendAddress: backendSigner.address
+        }, { status: 400 });
+      }
+      
+      // 3. Execute transferFrom (backend pays gas, transfers user's USDC)
+      console.log('[Gasless Fund] Executing transferFrom...');
+      console.log('[Gasless Fund] Backend will pay gas fee');
+      
+      const gasConfig = isProduction ? {
+        gasLimit: 200000,
+        gasPrice: ethers.utils.parseUnits('100', 'gwei')
+      } : {
+        gasLimit: 200000,
+        gasPrice: ethers.utils.parseUnits('50', 'gwei')
+      };
+      
+      const tx = await usdcContract.transferFrom(
+        signerAddress,
+        vaultAddress,
+        amountUsdc,
+        gasConfig
+      );
+      
+      console.log('[Gasless Fund] Transfer transaction sent:', tx.hash);
+      
+      const explorerUrl = isProduction
+        ? `https://polygonscan.com/tx/${tx.hash}`
+        : `https://amoy.polygonscan.com/tx/${tx.hash}`;
+      console.log('[Gasless Fund] Explorer:', explorerUrl);
+      
+      const receipt = await tx.wait();
+      
+      if (receipt.status === 0) {
+        throw new Error('Transfer failed on-chain');
+      }
+      
+      console.log('[Gasless Fund] ✅ Transfer confirmed!');
+      console.log('[Gasless Fund] Gas used:', receipt.gasUsed.toString());
+      console.log('[Gasless Fund] Gas paid by backend! User paid $0');
+      
+      // 4. Update escrow status in database
+      console.log('[Gasless Fund] Updating database...');
+      const { error: updateError } = await supabase
+        .from('escrows')
+        .update({
+          status: 'FUNDED',
+          funding_tx_hash: receipt.transactionHash,
+          funded_at: new Date().toISOString()
+        })
+        .eq('id', escrowId);
+      
+      if (updateError) {
+        console.error('[Gasless Fund] Database update failed:', updateError);
+      } else {
+        console.log('[Gasless Fund] Database updated successfully');
+      }
+      
+      // 5. Send notification emails
+      try {
+        console.log('[Gasless Fund] Sending notification emails...');
+        
+        // To freelancer - escrow has been funded
+        await sendEmail(emailTemplates.escrowFunded({
+          email: escrow.freelancer_email,
+          amount: `$${amount.toFixed(2)}`,
+          escrowId: escrowId,
+          role: 'recipient'
+        }));
+        
+        // To client - confirmation of funding (using escrowFunded template)
+        await sendEmail(emailTemplates.escrowFunded({
+          email: escrow.client_email,
+          amount: `$${amount.toFixed(2)}`,
+          escrowId: escrowId,
+          role: 'payer'
+        }));
+        
+        console.log('[Gasless Fund] Notification emails sent');
+      } catch (emailError) {
+        console.error('[Gasless Fund] Notification emails failed:', emailError);
+      }
+      
+      // 6. Trigger sync
+      try {
+        console.log('[Gasless Fund] Triggering sync...');
+        const syncUrl = process.env.NODE_ENV === 'production' 
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/escrow/sync-blockchain`
+          : 'https://escrowhaven.io/api/escrow/sync-blockchain';
+        
+        await fetch(syncUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ escrowId })
+        });
+        
+        console.log('[Gasless Fund] Sync triggered');
+      } catch (syncError) {
+        console.error('[Gasless Fund] Sync failed (non-critical):', syncError);
+      }
+      
+      return NextResponse.json({
+        success: true,
+        txHash: receipt.transactionHash,
+        message: 'Escrow funded successfully (gasless!)',
+        escrowId,
+        newStatus: 'FUNDED',
+        explorer: explorerUrl,
+        gasUsed: receipt.gasUsed.toString(),
+        gasPaidBy: 'backend'
+      });
+    }
+    // ============================================================
+    // END FUNDING ACTION
+    // ============================================================
+    
+    // Contract ABI for other actions
     const ESCROW_ABI = [
       "function releaseWithSignature(uint8 v, bytes32 r, bytes32 s, uint256 nonce) external",
       "function refundWithSignature(uint8 v, bytes32 r, bytes32 s, uint256 nonce) external",
