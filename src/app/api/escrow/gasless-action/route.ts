@@ -27,23 +27,22 @@ async function fundWalletIfNeeded(
       const fundAmount = ethers.utils.parseEther('0.001');
       console.log(`Funding ${recipientAddress} with 0.001 MATIC for ${reason.toLowerCase()}...`);
       
-    // Fetch current gas price
-    let gasPrice;
-    try {
-      gasPrice = await provider.getGasPrice();
-      // Add 20% buffer for reliability
-      gasPrice = gasPrice.mul(120).div(100);
-      console.log(`Gas price: ${ethers.utils.formatUnits(gasPrice, 'gwei')} gwei`);
-    } catch (error) {
-      gasPrice = ethers.utils.parseUnits('50', 'gwei');
-    }
-
-    const maticTx = await signer.sendTransaction({
-      to: recipientAddress,
-      value: fundAmount,
-      gasLimit: 21000,
-      gasPrice: gasPrice  // ← ADD THIS!
-    });
+      let gasPrice;
+      try {
+        gasPrice = await provider.getGasPrice();
+        // Add 20% buffer for reliability
+        gasPrice = gasPrice.mul(120).div(100);
+        console.log(`Gas price: ${ethers.utils.formatUnits(gasPrice, 'gwei')} gwei`);
+      } catch (error) {
+        gasPrice = ethers.utils.parseUnits('50', 'gwei');
+      }
+      
+      const maticTx = await signer.sendTransaction({
+        to: recipientAddress,
+        value: fundAmount,
+        gasLimit: 21000,
+        gasPrice: gasPrice  // ← ADD THIS!
+      });
       
       await maticTx.wait();
       console.log(`MATIC funded successfully: ${maticTx.hash}`);

@@ -1,5 +1,5 @@
 // src/components/dashboard/FundEscrowModal.tsx
-// SEAMLESS UX VERSION - Users never know we're funding them in the background
+// COMPLETE FIX: Adds retry logic when user has no gas
 
 'use client';
 
@@ -39,6 +39,7 @@ export function FundEscrowModal({
 
     try {
       console.log('[Fund] Starting transfer of $' + escrowAmount);
+      console.log('[Fund] Vault address:', vaultAddress);
 
       // STEP 1: Get wallet
       const wallet = wallets.find(w => w.walletClientType === 'privy');
@@ -51,14 +52,19 @@ export function FundEscrowModal({
       const signer = ethersProvider.getSigner();
       const userAddress = await signer.getAddress();
 
+      console.log('[Fund] User address:', userAddress);
+
+      // Get backend signer address
       const backendAddress = process.env.NEXT_PUBLIC_BACKEND_SIGNER_ADDRESS 
         || '0x35c51155D31CE2c124AC3358922f09f3F7dd7AF8';
+      
+      console.log('[Fund] Backend address:', backendAddress);
 
       // STEP 2: USDC setup
       const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
       const USDC_ADDRESS = isProduction
-        ? '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
-        : '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582';
+        ? '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359' // Polygon Mainnet
+        : '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582'; // Polygon Amoy
 
       const USDC_ABI = [
         'function approve(address spender, uint256 amount) returns (bool)',
@@ -68,13 +74,16 @@ export function FundEscrowModal({
 
       const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, signer);
 
-      // STEP 3: Check USDC balance
+      // STEP 3: Check balance
       setStatus('Checking balance...');
+      console.log('[Fund] Checking USDC balance...');
       
       const balance = await usdc.balanceOf(userAddress);
       const balanceFormatted = ethers.utils.formatUnits(balance, 6);
+      console.log('[Fund] USDC balance:', balanceFormatted);
 
       if (parseFloat(balanceFormatted) < escrowAmount) {
+        console.log('[Fund] Insufficient USDC balance');
         if (onDeposit) {
           const needed = escrowAmount - parseFloat(balanceFormatted);
           setLoading(false);
@@ -89,40 +98,48 @@ export function FundEscrowModal({
 
       // STEP 4: Check allowance
       setStatus('Preparing transfer...');
+      console.log('[Fund] Checking approval allowance...');
       
       const allowance = await usdc.allowance(userAddress, backendAddress);
+      const allowanceFormatted = ethers.utils.formatUnits(allowance, 6);
       const amountUsdc = ethers.utils.parseUnits(escrowAmount.toString(), 6);
 
-      // STEP 5: Approve if needed
+      console.log('[Fund] Current allowance:', allowanceFormatted);
+      console.log('[Fund] Required amount:', escrowAmount);
+
+      // STEP 5: Approve if needed with RETRY LOGIC
       if (allowance.lt(amountUsdc)) {
         setNeedsApproval(true);
         setStatus('Authorizing secure transfer...');
         
         console.log('[Fund] First-time setup - requesting approval');
 
-        const approvalAmount = ethers.utils.parseUnits('10000', 6);
+        const approvalAmount = ethers.utils.parseUnits('10000', 6); // $10,000 approval
         
         try {
-          // Try to approve
+          // First attempt to approve
+          console.log('[Fund] Attempting approval...');
           const approveTx = await usdc.approve(backendAddress, approvalAmount);
           setStatus('Confirming authorization...');
           
-          await approveTx.wait();
-          console.log('[Fund] ✅ Approval successful');
+          console.log('[Fund] Approval transaction sent:', approveTx.hash);
+          
+          const approveReceipt = await approveTx.wait();
+          console.log('[Fund] ✅ Approval successful!');
           
           setNeedsApproval(false);
           
         } catch (approvalError: any) {
-          // If user doesn't have gas, handle it seamlessly
+          console.log('[Fund] Approval failed:', approvalError.code, approvalError.message);
+          
+          // If user doesn't have gas, backend will fund them
           if (approvalError.code === 'INSUFFICIENT_FUNDS' || 
               approvalError.message?.includes('insufficient funds')) {
             
-            console.log('[Fund] User needs gas - handling in background...');
-            
-            // USER SEES: "Preparing transfer..." (generic, no mention of gas/MATIC)
+            console.log('[Fund] 🎁 User needs gas - calling backend to fund...');
             setStatus('Preparing transfer...');
             
-            // Backend will fund user automatically when we call it
+            // Call backend - it will fund user automatically
             const response = await fetch('/api/escrow/gasless-action', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -135,41 +152,49 @@ export function FundEscrowModal({
               })
             });
             
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.error || 'Failed to prepare wallet');
+            }
+            
             const result = await response.json();
+            console.log('[Fund] Backend response:', result);
             
             if (result.approvalNeeded && result.userHasGas) {
               // Backend funded user! Now retry approval
-              console.log('[Fund] Backend handled gas funding, retrying approval');
-              
-              // USER STILL SEES: "Preparing transfer..." (seamless!)
+              console.log('[Fund] ✅ Backend funded wallet successfully!');
+              console.log('[Fund] Retrying approval...');
               setStatus('Authorizing secure transfer...');
               
-              // Small delay for user to see wallet popup
-              await new Promise(resolve => setTimeout(resolve, 500));
+              // Wait a bit for balance to propagate
+              await new Promise(resolve => setTimeout(resolve, 3000));
               
               // Retry approval (now user has gas)
+              console.log('[Fund] Sending retry approval transaction...');
               const retryApproveTx = await usdc.approve(backendAddress, approvalAmount);
               setStatus('Confirming authorization...');
               
-              await retryApproveTx.wait();
-              console.log('[Fund] ✅ Approval successful (after funding)');
+              console.log('[Fund] Retry approval sent:', retryApproveTx.hash);
+              
+              const retryReceipt = await retryApproveTx.wait();
+              console.log('[Fund] ✅ Approval successful (after funding)!');
               
               setNeedsApproval(false);
             } else {
               throw new Error(result.error || 'Authorization failed');
             }
           } else {
-            // Other approval errors
+            // Other approval errors - re-throw
             throw approvalError;
           }
         }
       } else {
-        console.log('[Fund] Already approved');
+        console.log('[Fund] Already approved! No approval needed.');
       }
 
-      // STEP 6: Execute gasless transfer
+      // STEP 6: Call backend for gasless transfer
       setStatus('Processing secure transfer...');
-      console.log('[Fund] Executing gasless transfer');
+      console.log('[Fund] Calling backend for gasless transfer...');
 
       const response = await fetch('/api/escrow/gasless-action', {
         method: 'POST',
@@ -190,7 +215,8 @@ export function FundEscrowModal({
       }
 
       const result = await response.json();
-      console.log('[Fund] ✅ Transfer complete!');
+      console.log('[Fund] ✅ Gasless transfer complete!');
+      console.log('[Fund] Transaction:', result.txHash);
 
       setStatus('Transfer complete!');
       
@@ -204,11 +230,13 @@ export function FundEscrowModal({
       setStatus('');
       setNeedsApproval(false);
       
-      // User-friendly error messages
+      // Handle specific error cases
       if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
         alert('Transfer cancelled. Please try again when ready.');
       } else if (error.message?.includes('Insufficient funds') || error.message?.includes('insufficient')) {
         alert('You don\'t have enough USDC. Please add funds to your account first.');
+      } else if (error.message?.includes('Backend configuration')) {
+        alert('Configuration error. Please contact support.');
       } else {
         alert(`Transfer failed: ${error.message || 'Please try again or contact support.'}`);
       }
@@ -261,7 +289,7 @@ export function FundEscrowModal({
             <p className="text-xs mt-2" style={{ color: '#B2B5BE' }}>Secure escrow payment</p>
           </div>
 
-          {/* Status Message - SEAMLESS DESIGN */}
+          {/* Status Message */}
           {status && (
             <div className="flex items-center gap-3 py-3 px-4 rounded-lg" style={{ 
               backgroundColor: needsApproval ? '#FFF9E6' : '#F8F9FD' 
@@ -279,7 +307,7 @@ export function FundEscrowModal({
             </div>
           )}
 
-          {/* Info Box - Only show when NOT loading */}
+          {/* Info Box */}
           {!loading && (
             <div className="rounded-lg p-6 space-y-4" style={{ 
               backgroundColor: '#FFFFFF',
@@ -323,7 +351,7 @@ export function FundEscrowModal({
             </div>
           )}
 
-          {/* First-time Note - SUBTLE */}
+          {/* First-time Setup Note */}
           {!loading && (
             <div className="text-xs text-center p-3 rounded-lg" style={{ 
               backgroundColor: '#F8F9FD',
