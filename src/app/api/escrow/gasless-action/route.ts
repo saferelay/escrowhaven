@@ -27,11 +27,23 @@ async function fundWalletIfNeeded(
       const fundAmount = ethers.utils.parseEther('0.001');
       console.log(`Funding ${recipientAddress} with 0.001 MATIC for ${reason.toLowerCase()}...`);
       
-      const maticTx = await signer.sendTransaction({
-        to: recipientAddress,
-        value: fundAmount,
-        gasLimit: 21000
-      });
+    // Fetch current gas price
+    let gasPrice;
+    try {
+      gasPrice = await provider.getGasPrice();
+      // Add 20% buffer for reliability
+      gasPrice = gasPrice.mul(120).div(100);
+      console.log(`Gas price: ${ethers.utils.formatUnits(gasPrice, 'gwei')} gwei`);
+    } catch (error) {
+      gasPrice = ethers.utils.parseUnits('50', 'gwei');
+    }
+
+    const maticTx = await signer.sendTransaction({
+      to: recipientAddress,
+      value: fundAmount,
+      gasLimit: 21000,
+      gasPrice: gasPrice  // ← ADD THIS!
+    });
       
       await maticTx.wait();
       console.log(`MATIC funded successfully: ${maticTx.hash}`);
@@ -56,15 +68,15 @@ async function ensureUserHasGasForApproval(
 ): Promise<void> {
   console.log('[Gas Check] Checking if user needs gas for approval...');
   
-  // First, check if user has already approved
+  // Check if user already approved
   const allowance = await usdcContract.allowance(userAddress, backendAddress);
   
   if (allowance.gt(0)) {
     console.log('[Gas Check] ✅ User already approved, no gas needed');
-    return; // Already approved, skip funding
+    return;
   }
   
-  // User hasn't approved yet - check if they have MATIC for approval
+  // Check user's MATIC balance
   const userMatic = await provider.getBalance(userAddress);
   const maticFormatted = ethers.utils.formatEther(userMatic);
   
@@ -72,25 +84,37 @@ async function ensureUserHasGasForApproval(
   
   // If user has less than 0.01 MATIC, send them some
   if (userMatic.lt(ethers.utils.parseEther('0.01'))) {
-    console.log('[Gas Check] 🎁 User needs MATIC for approval - sending 0.01 MATIC...');
+    console.log('[Gas Check] 🎁 Sending 0.01 MATIC for approval...');
+    
+    // Fetch current gas price from network (CRITICAL!)
+    let gasPrice;
+    try {
+      gasPrice = await provider.getGasPrice();
+      console.log('[Gas Check] Current gas price:', ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei');
+      
+      // Add 20% buffer for reliability
+      gasPrice = gasPrice.mul(120).div(100);
+      console.log('[Gas Check] Using gas price with buffer:', ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei');
+    } catch (error) {
+      console.warn('[Gas Check] Could not fetch gas price, using 50 gwei default');
+      gasPrice = ethers.utils.parseUnits('50', 'gwei');
+    }
     
     const fundTx = await backendSigner.sendTransaction({
       to: userAddress,
       value: ethers.utils.parseEther('0.01'),
-      gasLimit: 21000
+      gasLimit: 21000,
+      gasPrice: gasPrice  // CRITICAL: Must include gas price!
     });
     
     console.log('[Gas Check] MATIC sent, TX:', fundTx.hash);
-    
-    // Wait for MATIC to arrive
     await fundTx.wait();
+    console.log('[Gas Check] ✅ MATIC arrived!');
     
-    console.log('[Gas Check] ✅ MATIC arrived! User can now approve.');
-    
-    // Small delay to ensure balance updates everywhere
+    // Small delay
     await new Promise(resolve => setTimeout(resolve, 2000));
   } else {
-    console.log('[Gas Check] ✅ User already has sufficient MATIC');
+    console.log('[Gas Check] ✅ User already has MATIC');
   }
 }
 
@@ -211,7 +235,7 @@ export async function POST(request: NextRequest) {
       if (allowance.lt(amountUsdc)) {
         console.error('[Gasless Fund] Insufficient allowance');
         
-        // ⭐ NEW: Fund user if they need gas
+        // Fund user if they need gas
         await ensureUserHasGasForApproval(
           provider,
           backendSigner,
@@ -226,7 +250,7 @@ export async function POST(request: NextRequest) {
           requiredAllowance: amount,
           approvalNeeded: true,
           backendAddress: backendSigner.address,
-          userHasGas: true  // ⭐ NEW: Tell frontend user has gas now
+          userHasGas: true
         }, { status: 400 });
       }
       
