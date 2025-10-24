@@ -6,6 +6,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { SessionRefreshProvider } from './SessionRefreshProvider';
 import { polygon, polygonAmoy } from 'viem/chains';
 
+
 export function ClientProviders({ children }: { children: React.ReactNode }) {
   const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
 
