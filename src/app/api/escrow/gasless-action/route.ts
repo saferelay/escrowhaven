@@ -46,6 +46,54 @@ async function fundWalletIfNeeded(
   }
 }
 
+// Helper function to ensure user has gas for USDC approval
+async function ensureUserHasGasForApproval(
+  provider: ethers.providers.Provider,
+  backendSigner: ethers.Wallet,
+  userAddress: string,
+  usdcContract: ethers.Contract,
+  backendAddress: string
+): Promise<void> {
+  console.log('[Gas Check] Checking if user needs gas for approval...');
+  
+  // First, check if user has already approved
+  const allowance = await usdcContract.allowance(userAddress, backendAddress);
+  
+  if (allowance.gt(0)) {
+    console.log('[Gas Check] ✅ User already approved, no gas needed');
+    return; // Already approved, skip funding
+  }
+  
+  // User hasn't approved yet - check if they have MATIC for approval
+  const userMatic = await provider.getBalance(userAddress);
+  const maticFormatted = ethers.utils.formatEther(userMatic);
+  
+  console.log('[Gas Check] User MATIC balance:', maticFormatted);
+  
+  // If user has less than 0.01 MATIC, send them some
+  if (userMatic.lt(ethers.utils.parseEther('0.01'))) {
+    console.log('[Gas Check] 🎁 User needs MATIC for approval - sending 0.01 MATIC...');
+    
+    const fundTx = await backendSigner.sendTransaction({
+      to: userAddress,
+      value: ethers.utils.parseEther('0.01'),
+      gasLimit: 21000
+    });
+    
+    console.log('[Gas Check] MATIC sent, TX:', fundTx.hash);
+    
+    // Wait for MATIC to arrive
+    await fundTx.wait();
+    
+    console.log('[Gas Check] ✅ MATIC arrived! User can now approve.');
+    
+    // Small delay to ensure balance updates everywhere
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  } else {
+    console.log('[Gas Check] ✅ User already has sufficient MATIC');
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { 
@@ -162,12 +210,23 @@ export async function POST(request: NextRequest) {
       
       if (allowance.lt(amountUsdc)) {
         console.error('[Gasless Fund] Insufficient allowance');
+        
+        // ⭐ NEW: Fund user if they need gas
+        await ensureUserHasGasForApproval(
+          provider,
+          backendSigner,
+          signerAddress,
+          usdcContract,
+          backendSigner.address
+        );
+        
         return NextResponse.json({ 
           error: 'Insufficient allowance. User must approve USDC transfer first.',
           currentAllowance: ethers.utils.formatUnits(allowance, 6),
           requiredAllowance: amount,
           approvalNeeded: true,
-          backendAddress: backendSigner.address
+          backendAddress: backendSigner.address,
+          userHasGas: true  // ⭐ NEW: Tell frontend user has gas now
         }, { status: 400 });
       }
       
