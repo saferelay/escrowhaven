@@ -66,12 +66,13 @@ export function FundEscrowModal({
       const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
       const chainId = isProduction ? 137 : 80002;
       
+      console.log('[Fund] Switching to chain:', chainId);
       await wallet.switchChain(chainId);
 
-      // Get provider
+      // Get ethereum provider
       const provider = await wallet.getEthereumProvider();
       const ethersProvider = new ethers.providers.Web3Provider(provider);
-      const signer = ethersProvider.getSigner();
+      const userAddress = await ethersProvider.getSigner().getAddress();
 
       // USDC contract
       const USDC_ADDRESS = isProduction
@@ -83,10 +84,9 @@ export function FundEscrowModal({
         'function balanceOf(address owner) view returns (uint256)'
       ];
 
-      const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, signer);
+      const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, ethersProvider);
 
-      // Check balance
-      const userAddress = await signer.getAddress();
+      // Check USDC balance
       const balance = await usdc.balanceOf(userAddress);
       const balanceFormatted = ethers.utils.formatUnits(balance, 6);
       
@@ -105,20 +105,39 @@ export function FundEscrowModal({
         }
       }
 
-      // Transfer
+      // Prepare transaction
       const amount = ethers.utils.parseUnits(escrowAmount.toString(), 6);
+      const usdcInterface = new ethers.utils.Interface(USDC_ABI);
+      const data = usdcInterface.encodeFunctionData('transfer', [vaultAddress, amount]);
       
       console.log('[Fund] Transferring $' + escrowAmount + ' to secure vault');
+      console.log('[Fund] Using Privy gas sponsorship...');
       setStatus('Please approve the transfer...');
 
-      const tx = await usdc.transfer(vaultAddress, amount);
+      // CRITICAL: Use provider.request() to send transaction through Privy's paymaster
+      const txRequest = {
+        from: userAddress,
+        to: USDC_ADDRESS,
+        data: data,
+        value: '0x0'
+      };
+
+      console.log('[Fund] Sending transaction via Privy provider...');
       
-      console.log('[Fund] Transfer initiated:', tx.hash);
+      // This routes through Privy's paymaster for gas sponsorship
+      const txHash = await provider.request({
+        method: 'eth_sendTransaction',
+        params: [txRequest]
+      });
+      
+      console.log('[Fund] Transaction sent:', txHash);
+      console.log('[Fund] Gas sponsored by Privy! User paid $0 for gas');
       setStatus('Processing transfer...');
 
-      await tx.wait();
+      // Wait for confirmation
+      const receipt = await ethersProvider.waitForTransaction(txHash as string);
       
-      console.log('[Fund] Transfer complete!');
+      console.log('[Fund] Transfer complete in block:', receipt.blockNumber);
 
       // Notify backend
       setStatus('Confirming...');
@@ -129,7 +148,7 @@ export function FundEscrowModal({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             escrowId,
-            txHash: tx.hash,
+            txHash: txHash,
             vaultAddress: vaultAddress
           })
         });
@@ -153,6 +172,8 @@ export function FundEscrowModal({
         alert('Transfer cancelled. Please try again when ready.');
       } else if (error.message?.includes('Insufficient funds') || error.message?.includes('insufficient')) {
         alert('You don\'t have enough funds. Please add money to your account first.');
+      } else if (error.message?.includes('gas')) {
+        alert('Transaction failed. Please contact support if this continues.');
       } else {
         alert(`Transfer failed: ${error.message || 'Please try again or contact support.'}`);
       }
@@ -163,18 +184,28 @@ export function FundEscrowModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl max-w-md w-full shadow-xl">
+      <div className="bg-white rounded-xl max-w-md w-full" style={{ boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)' }}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-8 py-6 border-b" style={{ borderColor: '#E0E2E7' }}>
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Fund Escrow</h3>
+            <h3 className="text-xl font-normal" style={{ color: '#000000' }}>Fund Escrow</h3>
             <button
               onClick={onClose}
               disabled={loading}
-              className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+              className="p-1 rounded transition-all disabled:opacity-50"
+              style={{ 
+                color: '#787B86',
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) e.currentTarget.style.backgroundColor = '#F8F9FD';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
               aria-label="Close"
             >
-              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -182,79 +213,115 @@ export function FundEscrowModal({
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-4">
+        <div className="p-8 space-y-6">
           {/* Amount Display */}
-          <div className="text-center py-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
-            <p className="text-sm text-gray-600 mb-2">Amount to transfer</p>
-            <p className="text-4xl font-bold text-gray-900">${escrowAmount.toFixed(2)}</p>
-            <p className="text-xs text-gray-500 mt-2">Secure escrow payment</p>
+          <div className="text-center py-8 rounded-xl border" style={{ 
+            backgroundColor: '#FFFFFF',
+            borderColor: '#E0E2E7'
+          }}>
+            <p className="text-sm mb-2" style={{ color: '#787B86' }}>Amount to transfer</p>
+            <p className="text-5xl font-normal" style={{ color: '#000000' }}>
+              ${escrowAmount.toFixed(2)}
+            </p>
+            <p className="text-xs mt-2" style={{ color: '#B2B5BE' }}>Secure escrow payment</p>
           </div>
 
           {/* Status Message */}
           {status && (
-            <div className="flex items-center gap-3 py-3 px-4 bg-blue-50 rounded-lg">
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-              <span className="text-sm text-blue-900 font-medium">{status}</span>
+            <div className="flex items-center gap-3 py-3 px-4 rounded-lg" style={{ backgroundColor: '#F8F9FD' }}>
+              <div 
+                className="animate-spin rounded-full h-5 w-5 border-2 border-t-transparent" 
+                style={{ borderColor: '#2962FF', borderTopColor: 'transparent' }}
+              />
+              <span className="text-sm font-medium" style={{ color: '#2962FF' }}>{status}</span>
             </div>
           )}
 
           {/* Info Box */}
           {!loading && (
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div className="rounded-lg p-6 space-y-4" style={{ 
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E0E2E7'
+            }}>
               <div className="flex items-start gap-3">
                 <div className="mt-0.5">
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg className="w-5 h-5" fill="none" stroke="#26A69A" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Secure Protection</p>
-                  <p className="text-xs text-gray-600 mt-0.5">Funds held safely until work is approved</p>
+                  <p className="text-sm font-medium" style={{ color: '#000000' }}>Secure Protection</p>
+                  <p className="text-sm mt-1" style={{ color: '#787B86' }}>Funds held safely until work is approved</p>
                 </div>
               </div>
               
               <div className="flex items-start gap-3">
                 <div className="mt-0.5">
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <svg className="w-5 h-5" fill="none" stroke="#26A69A" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">You're In Control</p>
-                  <p className="text-xs text-gray-600 mt-0.5">Release payment only when satisfied</p>
+                  <p className="text-sm font-medium" style={{ color: '#000000' }}>You're In Control</p>
+                  <p className="text-sm mt-1" style={{ color: '#787B86' }}>Release payment only when satisfied</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
                 <div className="mt-0.5">
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <svg className="w-5 h-5" fill="none" stroke="#26A69A" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">No Hidden Fees</p>
-                  <p className="text-xs text-gray-600 mt-0.5">What you see is what you pay</p>
+                  <p className="text-sm font-medium" style={{ color: '#000000' }}>No Transaction Fees</p>
+                  <p className="text-sm mt-1" style={{ color: '#787B86' }}>Transfer exactly what you see</p>
                 </div>
               </div>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-4 pt-2">
             <button
               onClick={handleFund}
               disabled={loading}
-              className="flex-1 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center justify-center gap-2 shadow-sm"
+              className="flex-1 rounded-lg font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: loading ? '#B2B5BE' : '#2962FF',
+                color: '#FFFFFF',
+                padding: '12px 32px',
+                border: 'none',
+                fontSize: '16px',
+                fontWeight: 500
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = '#1E53E5';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(41, 98, 255, 0.25)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = '#2962FF';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                  <div 
+                    className="animate-spin rounded-full h-5 w-5 border-2 border-t-transparent" 
+                    style={{ borderColor: '#FFFFFF', borderTopColor: 'transparent' }}
+                  />
                   <span>Processing...</span>
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>Transfer ${escrowAmount.toFixed(2)}</span>
                 </>
@@ -264,7 +331,23 @@ export function FundEscrowModal({
             {!loading && (
               <button
                 onClick={onClose}
-                className="px-6 py-3.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+                className="rounded-lg font-medium transition-all"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  color: '#787B86',
+                  padding: '12px 32px',
+                  border: '1px solid #E0E2E7',
+                  fontSize: '16px',
+                  fontWeight: 500
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#787B86';
+                  e.currentTarget.style.color = '#000000';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#E0E2E7';
+                  e.currentTarget.style.color = '#787B86';
+                }}
               >
                 Cancel
               </button>
@@ -272,8 +355,8 @@ export function FundEscrowModal({
           </div>
 
           {/* Footer Note */}
-          <div className="pt-2 border-t border-gray-100">
-            <p className="text-xs text-center text-gray-500">
+          <div className="pt-4 border-t" style={{ borderColor: '#E0E2E7' }}>
+            <p className="text-xs text-center" style={{ color: '#787B86' }}>
               Funds will be held securely in escrow until you approve release to the freelancer
             </p>
           </div>
