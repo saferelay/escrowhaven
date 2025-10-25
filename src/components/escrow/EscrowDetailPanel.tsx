@@ -896,19 +896,38 @@ export function EscrowDetailPanel({
                         onClick={async () => {
                           setProcessing(true);
                           try {
-                            await supabase
+                            console.log('[Cancel] Attempting to cancel escrow:', escrowId, 'current status:', escrow.status);
+                            
+                            const { data, error } = await supabase
                               .from('escrows')
                               .update({
                                 status: 'CANCELLED',
-                                cancelled_at: new Date().toISOString()
+                                cancelled_at: new Date().toISOString(),
+                                cancelled_by: user?.email
                               })
                               .eq('id', escrowId)
-                              .in('status', ['INITIATED', 'ACCEPTED']);
+                              .in('status', ['INITIATED', 'ACCEPTED'])
+                              .select();
                             
+                            if (error) {
+                              console.error('[Cancel] Error:', error);
+                              alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
+                              return;
+                            }
+                            
+                            if (!data || data.length === 0) {
+                              console.error('[Cancel] No rows updated. Current status might not be INITIATED or ACCEPTED.');
+                              alert('Could not cancel. The vault may already be funded or in a different state. Please refresh and try again.');
+                              return;
+                            }
+                            
+                            console.log('[Cancel] ✅ Successfully cancelled escrow');
+                            setShowCancelDialog(false);
                             if (onUpdate) onUpdate();
                             onClose();
-                          } catch (error) {
-                            console.error('Cancel failed:', error);
+                          } catch (error: any) {
+                            console.error('[Cancel] Exception:', error);
+                            alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
                           } finally {
                             setProcessing(false);
                           }
