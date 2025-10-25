@@ -166,6 +166,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    
     console.log('Updating escrow with data:', updateData);
     
     // Update the escrow using service role (bypasses RLS)
