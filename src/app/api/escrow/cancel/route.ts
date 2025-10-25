@@ -211,18 +211,22 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Log cancellation request (if table exists)
-      await supabase
-        .from('cancellation_requests')
-        .insert({
-          escrow_id: escrowId,
-          requester_email: userEmail,
-          requester_role: isPayer ? 'payer' : 'recipient',
-          action: action === 'request' ? 'REQUEST' : 'WITHDRAW',
-          reason: action === 'request' ? 'User requested cancellation' : 'User withdrew cancellation request'
-        })
-        .then(() => console.log('[Cancel API] Logged cancellation request'))
-        .catch((err) => console.log('[Cancel API] No cancellation_requests table, skipping log'));
+      // Log cancellation request (if table exists) - using async/await properly
+      try {
+        await supabase
+          .from('cancellation_requests')
+          .insert({
+            escrow_id: escrowId,
+            requester_email: userEmail,
+            requester_role: isPayer ? 'payer' : 'recipient',
+            action: action === 'request' ? 'REQUEST' : 'WITHDRAW',
+            reason: action === 'request' ? 'User requested cancellation' : 'User withdrew cancellation request'
+          });
+        console.log('[Cancel API] Logged cancellation request');
+      } catch (logError) {
+        // If the table doesn't exist, just log and continue
+        console.log('[Cancel API] Could not log to cancellation_requests table:', logError);
+      }
 
       // Check if both parties want to cancel
       const { data: updatedEscrow } = await supabase
