@@ -21,6 +21,7 @@ const ProgressIndicator = ({ currentStep }: { currentStep: number }) => {
     { id: 5, label: 'Complete' }
   ];
   
+  
   return (
     <div className="border-b border-gray-200">
       <div className="flex items-center justify-between px-6 py-3">
