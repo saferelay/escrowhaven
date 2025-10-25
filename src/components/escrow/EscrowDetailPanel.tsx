@@ -886,18 +886,45 @@ export function EscrowDetailPanel({
                 {showCancelDialog && (escrow.status === 'INITIATED' || escrow.status === 'ACCEPTED') && (
                   <div className="border border-red-200 bg-red-50 rounded-lg p-4">
                     <p className="text-sm font-medium text-gray-900 mb-3">Cancel this vault?</p>
-                    <p className="text-xs text-gray-600 mb-4">
+                    <p className="text-xs text-gray-600 mb-2">
                       {escrow.status === 'INITIATED' 
                         ? "This will cancel the invitation. No funds have been added yet."
                         : "Both parties have agreed to terms, but no funds have been added. Are you sure you want to cancel?"}
+                    </p>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Current status: <span className="font-mono font-medium">{escrow.status}</span>
                     </p>
                     <div className="flex gap-3">
                       <button
                         onClick={async () => {
                           setProcessing(true);
                           try {
-                            console.log('[Cancel] Attempting to cancel escrow:', escrowId, 'current status:', escrow.status);
+                            console.log('[Cancel] Attempting to cancel escrow:', escrowId);
+                            console.log('[Cancel] UI shows status as:', escrow.status);
                             
+                            // First, fetch the current status from database to be sure
+                            const { data: currentData, error: fetchError } = await supabase
+                              .from('escrows')
+                              .select('status')
+                              .eq('id', escrowId)
+                              .single();
+                            
+                            if (fetchError) {
+                              console.error('[Cancel] Error fetching current status:', fetchError);
+                              alert(`Failed to check vault status: ${fetchError.message}`);
+                              return;
+                            }
+                            
+                            console.log('[Cancel] Database shows status as:', currentData?.status);
+                            
+                            // Check if status is cancellable
+                            if (currentData?.status !== 'INITIATED' && currentData?.status !== 'ACCEPTED') {
+                              alert(`Cannot cancel. The vault is currently ${currentData?.status}. Only INITIATED or ACCEPTED vaults can be cancelled.`);
+                              setShowCancelDialog(false);
+                              return;
+                            }
+                            
+                            // Now update
                             const { data, error } = await supabase
                               .from('escrows')
                               .update({
@@ -905,7 +932,7 @@ export function EscrowDetailPanel({
                                 cancelled_at: new Date().toISOString()
                               })
                               .eq('id', escrowId)
-                              .in('status', ['INITIATED', 'ACCEPTED'])
+                              .eq('status', currentData.status) // Only update if status hasn't changed
                               .select();
                             
                             if (error) {
@@ -915,8 +942,8 @@ export function EscrowDetailPanel({
                             }
                             
                             if (!data || data.length === 0) {
-                              console.error('[Cancel] No rows updated. Current status might not be INITIATED or ACCEPTED.');
-                              alert('Could not cancel. The vault may already be funded or in a different state. Please refresh and try again.');
+                              console.error('[Cancel] No rows updated. Status may have changed.');
+                              alert('Could not cancel. The vault status changed while you were cancelling. Please refresh and try again.');
                               return;
                             }
                             
