@@ -902,49 +902,21 @@ export function EscrowDetailPanel({
                             console.log('[Cancel] Attempting to cancel escrow:', escrowId);
                             console.log('[Cancel] UI shows status as:', escrow.status);
                             
-                            // First, fetch the current status from database to be sure
-                            const { data: currentData, error: fetchError } = await supabase
-                              .from('escrows')
-                              .select('status')
-                              .eq('id', escrowId)
-                              .single();
-                            
-                            if (fetchError) {
-                              console.error('[Cancel] Error fetching current status:', fetchError);
-                              alert(`Failed to check vault status: ${fetchError.message}`);
-                              return;
-                            }
-                            
-                            console.log('[Cancel] Database shows status as:', currentData?.status);
-                            
-                            // Check if status is cancellable
-                            if (currentData?.status !== 'INITIATED' && currentData?.status !== 'ACCEPTED') {
-                              alert(`Cannot cancel. The vault is currently ${currentData?.status}. Only INITIATED or ACCEPTED vaults can be cancelled.`);
-                              setShowCancelDialog(false);
-                              return;
-                            }
-                            
-                            // Now update
-                            const { data, error } = await supabase
-                              .from('escrows')
-                              .update({
-                                status: 'CANCELLED',
-                                cancelled_at: new Date().toISOString()
+                            // Call API route (which uses service role to bypass RLS)
+                            const response = await fetch('/api/escrow/cancel', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                escrowId: escrowId,
+                                userEmail: user?.email
                               })
-                              .eq('id', escrowId)
-                              .eq('status', currentData.status) // Only update if status hasn't changed
-                              .select();
+                            });
                             
-                            if (error) {
-                              console.error('[Cancel] Error:', error);
-                              alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
-                              return;
-                            }
+                            const result = await response.json();
                             
-                            if (!data || data.length === 0) {
-                              console.error('[Cancel] No rows updated. Status may have changed.');
-                              alert('Could not cancel. The vault status changed while you were cancelling. Please refresh and try again.');
-                              return;
+                            if (!response.ok) {
+                              console.error('[Cancel] API error:', result);
+                              throw new Error(result.error || result.details || 'Failed to cancel escrow');
                             }
                             
                             console.log('[Cancel] ✅ Successfully cancelled escrow');
