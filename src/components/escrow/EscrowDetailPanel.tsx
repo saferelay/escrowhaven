@@ -902,8 +902,7 @@ export function EscrowDetailPanel({
                               .from('escrows')
                               .update({
                                 status: 'CANCELLED',
-                                cancelled_at: new Date().toISOString(),
-                                cancelled_by: user?.email
+                                cancelled_at: new Date().toISOString()
                               })
                               .eq('id', escrowId)
                               .in('status', ['INITIATED', 'ACCEPTED'])
