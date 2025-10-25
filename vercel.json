@@ -1,8 +1,13 @@
 {
-    "crons": [
-      {
-        "path": "/api/cron/sync-escrows",
-        "schedule": "*/5 * * * *"
-      }
-    ]
+  "crons": [
+    {
+      "path": "/api/cron/sync-escrows",
+      "schedule": "*/5 * * * *"
+    }
+  ],
+  "functions": {
+    "src/app/api/cron/sync-escrows/route.ts": {
+      "maxDuration": 60
+    }
   }
+}
